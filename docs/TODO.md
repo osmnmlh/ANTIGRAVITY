@@ -10,7 +10,7 @@
 - [x] Align `crew-1` latest measurements with 7-day history in `shared/mock/samples.json`
 - [x] Integrate Apple Watch telemetry models (`WatchTelemetryData`, `ActivitySummary`, `VitalsData`, `EnvironmentalData`, `GForceData`) with `toHealthSamples()` mapper in `mobile/ios/Shared/HealthModels.swift`
 - [x] Implement single-source green/amber/red thresholds & 4-part guidance (What / Why / Do now / Escalate) in `mobile/ios/Shared/Thresholds.swift` and `web/src/domain/thresholds.ts`
-- [ ] Add multi-day trend escalation rule (3 consecutive readings drifting toward limit -> amber; 2 consecutive days at mood 3 -> red)
+- [x] Add multi-day trend escalation rule (3 consecutive readings drifting toward limit -> amber; 2 consecutive days at mood <= 3 -> red; radiation rate spike -> amber)
 
 ## Phase 2: Web Dashboard (`web/`) — Main Demo Surface
 

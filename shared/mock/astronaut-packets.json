@@ -30,7 +30,7 @@
           "source": "watch"
         },
         "bloodPressureSys": {
-          "value": 122,
+          "value": 128,
           "unit": "mmHg",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "manual"

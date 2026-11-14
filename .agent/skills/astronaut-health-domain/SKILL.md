@@ -36,8 +36,10 @@ These are **demo values from general adult reference ranges**, not clinical crit
 
 ## Status rules
 
-- Overall status = worst single indicator.
-- A trend can raise status: 3 consecutive readings drifting toward a limit → amber.
+- Overall status = worst single indicator (using `max(pointStatus, trendStatus)`).
+- **Multi-day trend rules (catch drift early before a reading hits red):**
+  - **What:** 3 consecutive readings drifting steadily toward a safety limit by a meaningful margin (and entering the outer green zone near the limit) raise that indicator's status to **amber** even if the latest reading is still green. For cumulative `radiationDose`, a daily dose rate spike (`>= 3.0 mSv/day` or `>= 2x` the prior day's rate and `>= 2.0 mSv/day`) raises status to **amber**. For `mood`, 2 consecutive UTC calendar days at `<= 3` raise status to **red**.
+  - **Why in space:** In microgravity and closed habitats, fluid shifts, cabin CO2 creep, solar particle events, and isolation stress build gradually over days. On missions with up to 20-minute comms delays, spotting a 3-day upward blood pressure drift or 2-day mood drop early lets the crew start countermeasures before an emergency.
 - No reading for an expected daily measurement → grey "missing" + reminder, not green.
 
 ## Guidance text pattern (every indicator needs all four)
