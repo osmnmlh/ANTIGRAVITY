@@ -69,7 +69,7 @@ function valueText(i) {
  * @param {{ apiKey?: string, model?: string }} [o.gemini]
  */
 export function createChat({ context, activeAlerts, gemini = {}, disclaimer, log = console, fetchImpl = fetch }) {
-  const model = gemini.model || 'gemini-2.5-flash';
+  const model = gemini.model || 'gemini-flash-latest';
 
   /** Everything the answer may rely on, already evaluated by the rules engine. */
   function facts({ scope, crewId }) {
