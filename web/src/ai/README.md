@@ -52,6 +52,12 @@ Browsers block audio until a click, so voice starts **off**: click "🔇 Sesli u
 in this browser; after a reload the first click anywhere re-enables audio. Speech uses a `tr-TR` voice when the OS has one
 (Windows/macOS/Chrome do).
 
+**Which voice:** the page picks the best **female Turkish** voice of the device (Windows "Microsoft Emel", macOS / iOS "Yelda", Chrome "Google Türkçe";
+male voices such as "Microsoft Tolga" come last) and speaks it a little slower and lower than normal. The ⚙ button in the alert bar ("Ses ayarları") lists every
+Turkish voice of the device, has three character presets (**Robotik kadın**, Doğal kadın, Yavaş ve net), sliders for speed and tone and a "Dene" button; the choice is
+kept per device. A browser cannot add real effects to its own speech, so the "robotic" character is only as strong as the device voice allows.
+Gemini's speech models were tried and are not used for alerts: about 2.5-3.5 s per phrase and a very tight rate limit (HTTP 429 after a few requests).
+
 Deliberately quiet: only a **red** alert is spoken, and only the short `spokenText` ("Uyarı. Kan basıncı düşük."); amber is a soft tone.
 Details and Gemini's interpretation are written in the "AI önerisi" panel and read aloud only when the crew presses "Sesli oku".
 After a dropped connection the page announces the alerts it missed once.

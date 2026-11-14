@@ -79,19 +79,134 @@ export function beep(severity: 'red' | 'amber') {
   }
 }
 
-function turkishVoice(): SpeechSynthesisVoice | undefined {
-  return window.speechSynthesis?.getVoices().find((v) => v.lang?.toLowerCase().startsWith('tr'))
+// ---- Which voice, how fast: a Turkish FEMALE voice by default, adjustable ("Ses ayarları") ----
+
+export interface VoicePrefs {
+  /** `voiceURI` of the chosen voice, or null = the best female Turkish voice of this device. */
+  voiceURI: string | null
+  rate: number
+  pitch: number
+}
+
+/** Starting points for the "robotic female" character. Browsers differ: the lab sliders exist because the final taste is by ear. */
+export const VOICE_PRESETS: Record<string, { label: string; rate: number; pitch: number }> = {
+  robot: { label: 'Robotik kadın', rate: 0.88, pitch: 0.85 },
+  natural: { label: 'Doğal kadın', rate: 1, pitch: 1.05 },
+  clear: { label: 'Yavaş ve net', rate: 0.8, pitch: 1 },
+}
+
+const PREFS_KEY = 'antigravity.ai.voice.prefs'
+const DEFAULT_PREFS: VoicePrefs = { voiceURI: null, rate: VOICE_PRESETS.robot.rate, pitch: VOICE_PRESETS.robot.pitch }
+let prefs = readPrefs()
+const prefListeners = new Set<() => void>()
+
+function readPrefs(): VoicePrefs {
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY)
+    if (!raw) return DEFAULT_PREFS
+    const parsed = JSON.parse(raw) as Partial<VoicePrefs>
+    return {
+      voiceURI: typeof parsed.voiceURI === 'string' ? parsed.voiceURI : null,
+      rate: clamp(Number(parsed.rate), 0.5, 1.5, DEFAULT_PREFS.rate),
+      pitch: clamp(Number(parsed.pitch), 0.5, 1.6, DEFAULT_PREFS.pitch),
+    }
+  } catch {
+    return DEFAULT_PREFS
+  }
+}
+
+function clamp(n: number, min: number, max: number, fallback: number) {
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback
+}
+
+export function setVoicePrefs(patch: Partial<VoicePrefs>) {
+  prefs = { ...prefs, ...patch, rate: clamp(patch.rate ?? prefs.rate, 0.5, 1.5, prefs.rate), pitch: clamp(patch.pitch ?? prefs.pitch, 0.5, 1.6, prefs.pitch) }
+  try {
+    window.localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
+  } catch {
+    /* private mode: the choice lasts for this page only */
+  }
+  for (const l of prefListeners) l()
+}
+
+export function useVoicePrefs(): VoicePrefs {
+  return useSyncExternalStore(
+    (l) => {
+      prefListeners.add(l)
+      return () => prefListeners.delete(l)
+    },
+    () => prefs,
+    () => DEFAULT_PREFS,
+  )
+}
+
+// Names of the Turkish system voices: Windows "Microsoft Emel", macOS/iOS "Yelda", Chrome "Google Türkçe" are female; "Microsoft Tolga" is male.
+const FEMALE_VOICE = /emel|yelda|filiz|seda|zeynep|ay[sş]e|google t[uü]rk[cç]e|\bfemale\b|kad[ıi]n/i
+const MALE_VOICE = /tolga|\bcem\b|ahmet|mehmet|\bmale\b|erkek/i
+
+export const isFemaleVoice = (v: SpeechSynthesisVoice) => FEMALE_VOICE.test(v.name) && !MALE_VOICE.test(v.name)
+
+/** Higher is better: a female Turkish voice first, neural / online voices a little ahead of the plain local ones. */
+export function scoreVoice(v: SpeechSynthesisVoice): number {
+  if (!v.lang?.toLowerCase().startsWith('tr')) return -100
+  return (isFemaleVoice(v) ? 10 : 0) - (MALE_VOICE.test(v.name) ? 20 : 0) + (/online|natural|neural/i.test(v.name) ? 2 : 0) + (v.localService ? 1 : 0)
+}
+
+export function turkishVoices(): SpeechSynthesisVoice[] {
+  return (window.speechSynthesis?.getVoices() ?? []).filter((v) => v.lang?.toLowerCase().startsWith('tr')).sort((a, b) => scoreVoice(b) - scoreVoice(a))
+}
+
+function chosenVoice(): SpeechSynthesisVoice | undefined {
+  const all = turkishVoices()
+  return (prefs.voiceURI ? all.find((v) => v.voiceURI === prefs.voiceURI) : undefined) ?? all[0]
+}
+
+/** The voices of this device, refreshed when the browser finishes loading them (Chrome loads them late). */
+export function useTurkishVoices(): SpeechSynthesisVoice[] {
+  const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis
+  return useSyncExternalStore(
+    (l) => {
+      synth?.addEventListener?.('voiceschanged', l)
+      return () => synth?.removeEventListener?.('voiceschanged', l)
+    },
+    () => cachedVoices(),
+    () => EMPTY_VOICES,
+  )
+}
+const EMPTY_VOICES: SpeechSynthesisVoice[] = []
+let voicesKey = ''
+let voicesCache: SpeechSynthesisVoice[] = EMPTY_VOICES
+function cachedVoices() {
+  const list = turkishVoices()
+  const key = list.map((v) => v.voiceURI).join('|')
+  if (key !== voicesKey) {
+    voicesKey = key
+    voicesCache = list
+  }
+  return voicesCache
+}
+
+function makeUtterance(text: string): SpeechSynthesisUtterance {
+  const utter = new SpeechSynthesisUtterance(text)
+  utter.lang = 'tr-TR'
+  const voice = chosenVoice()
+  if (voice) utter.voice = voice
+  utter.rate = prefs.rate
+  utter.pitch = prefs.pitch
+  return utter
 }
 
 export function speak(text: string, delayMs = 0) {
   const synth = window.speechSynthesis
   if (!synth || !text) return
-  const utter = new SpeechSynthesisUtterance(text)
-  utter.lang = 'tr-TR'
-  const voice = turkishVoice()
-  if (voice) utter.voice = voice
-  utter.rate = 1
+  const utter = makeUtterance(text)
   window.setTimeout(() => synth.speak(utter), delayMs)
+}
+
+/** Plays a short alert phrase with the current settings (the "Dene" button). */
+export function sampleVoice(text: string) {
+  window.speechSynthesis?.cancel()
+  speak(text)
 }
 
 /**
@@ -110,10 +225,7 @@ export function readAloud(text: string, onEnd: () => void): boolean {
   const synth = window.speechSynthesis
   if (!synth) return false
   synth.cancel() // drop the short alert phrase that may still be playing
-  const utter = new SpeechSynthesisUtterance(text)
-  utter.lang = 'tr-TR'
-  const voice = turkishVoice()
-  if (voice) utter.voice = voice
+  const utter = makeUtterance(text)
   utter.onend = onEnd
   utter.onerror = onEnd
   synth.speak(utter)
