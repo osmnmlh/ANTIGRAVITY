@@ -1,14 +1,23 @@
 {
   "id": "alert-0007",
   "scope": "cabin",
-  "crewIds": ["crew-1", "crew-2"],
+  "crewIds": [
+    "crew-1",
+    "crew-2"
+  ],
   "severity": "red",
   "scenarioId": "cabin-gas-leak",
   "hazardId": "hostileClosedEnvironments",
   "title": "Gas release in the cabin: ammonia 14 ppm",
   "spokenText": "Warning. Gas release in the crew cabin. Ammonia is at 14 parts per million. Put on your mask.",
   "metrics": [
-    { "kind": "cabin", "type": "contaminant", "value": 14, "unit": "ppm", "status": "red" }
+    {
+      "kind": "cabin",
+      "type": "contaminant",
+      "value": 14,
+      "unit": "ppm",
+      "status": "red"
+    }
   ],
   "advice": {
     "why": "Ammonia from the cooling loop irritates eyes and lungs, and in a closed cabin there is nowhere for it to go.",
@@ -23,9 +32,20 @@
     "generatedAt": "2026-11-14T08:02:11Z"
   },
   "deliveries": [
-    { "deviceId": "9b1d2c4e-0000-4000-8000-000000000001", "crewId": "crew-1", "deliveredAt": "2026-11-14T08:02:10Z", "ackedAt": "2026-11-14T08:02:18Z" },
-    { "deviceId": "9b1d2c4e-0000-4000-8000-000000000002", "crewId": "crew-2", "deliveredAt": "2026-11-14T08:02:10Z", "ackedAt": null }
+    {
+      "deviceId": "9b1d2c4e-0000-4000-8000-000000000001",
+      "crewId": "crew-1",
+      "deliveredAt": "2026-11-14T08:02:10Z",
+      "ackedAt": "2026-11-14T08:02:18Z"
+    },
+    {
+      "deviceId": "9b1d2c4e-0000-4000-8000-000000000002",
+      "crewId": "crew-2",
+      "deliveredAt": "2026-11-14T08:02:10Z",
+      "ackedAt": null
+    }
   ],
+  "cockpitAckedAt": null,
   "state": "active",
   "createdAt": "2026-11-14T08:02:10Z",
   "updatedAt": "2026-11-14T08:02:18Z",

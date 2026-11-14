@@ -76,6 +76,7 @@ interface Alert {
   metrics: AlertMetric[];   // the readings that fired the rule
   advice: AlertAdvice | null; // null until Gemini/fallback answers, then sent as `alert-update`
   deliveries: AlertDelivery[];
+  cockpitAckedAt: string | null; // set when mission control (web) acknowledges
   state: 'active' | 'resolved';
   createdAt: string;
   updatedAt: string;
@@ -108,7 +109,7 @@ With `crewId` it receives that astronaut's alerts plus all cabin alerts. A conne
 
 | event | data |
 | --- | --- |
-| `hello` | `{ cabin: CabinSnapshot, alerts: Alert[] }` (active ones) |
+| `hello` | `{ cabin: CabinSnapshot, alerts: Alert[] }` (active ones). Sent on connect **and again after a demo reset**: replace all state |
 | `cabin` | `CabinSnapshot` |
 | `alert` | `Alert` (new: notify, beep, speak, popup) |
 | `alert-update` | `Alert` (advice arrived, delivery/ack changed, resolved: replace by `id`, do **not** re-notify) |
@@ -138,4 +139,11 @@ last ≤ 6 turns, each `text` ≤ 500 chars. Empty `messages` = **briefing** (sh
 | Method | Path | Effect |
 | --- | --- | --- |
 | POST | `/api/ai/demo/:scenarioId` | Pushes the readings that fire that scenario (e.g. `cabin-gas-leak`) |
-| POST | `/api/ai/demo/reset` | Cabin back to nominal, alerts cleared, devices kept |
+| GET | `/api/ai/demo` | `string[]` of scenario ids (for demo buttons) |
+| POST | `/api/ai/demo/reset` | Cabin back to nominal, demo vitals restored, alerts cleared, devices kept |
+
+Problems already present at start or after a reset are sent as `alert-update` (listed, not announced).
+
+## 7. Health
+
+`GET /api/ai/health` → `{ ok, cabin: Status, activeAlerts, devices, streams }`. The web uses it to show "AI live / AI offline".
