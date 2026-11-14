@@ -4,15 +4,16 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { INDICATOR_META, getGuidance, getStatus } from '../../web/src/domain/thresholds.ts';
+import { INDICATOR_META, getGuidance, getStatus, getTrendStatus } from '../../web/src/domain/thresholds.ts';
 import { createAi } from './index.mjs';
 import { cabinStatus } from './cabin.mjs';
 
 const readJson = (p) => JSON.parse(readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8'));
 const PACKETS = readJson('../../shared/mock/astronaut-packets.json').astronauts;
 const HAZARDS = readJson('../../shared/mock/nasa-hazards.json').hazards;
+const SAMPLES = readJson('../../shared/mock/samples.json');
 
-function setup() {
+function setup(extra = {}) {
   const packets = structuredClone(PACKETS);
   const clock = { t: Date.parse('2026-11-14T08:00:00Z') };
   const applySamples = (list) => {
@@ -26,11 +27,13 @@ function setup() {
     getPackets: () => packets,
     getVitalStatus: (type, value, p) => getStatus(type, value, p.mission?.radiationBudgetMsv),
     getVitalGuidance: getGuidance,
+    getTrendStatus: (crewId, type) => getTrendStatus(SAMPLES.filter((x) => x.crewId === crewId), type),
     vitalLabel: (t) => INDICATOR_META[t].label,
     hazards: HAZARDS,
     applySamples,
     now: () => new Date(clock.t),
     log: {},
+    ...extra,
   });
   return { ai, packets, clock, applySamples };
 }
@@ -65,6 +68,8 @@ test('problems present at start are a silent baseline (crew-1 SpO2 89 in mock da
   assert.ok(a, 'crew-1 low SpO2 is listed');
   assert.deepEqual(a.crewIds, ['crew-1']);
   assert.equal(ai.cabin().crewIds.join(), 'crew-1,crew-2', 'crew-3 is on another mission, not in this cabin');
+  const fatigue = active(ai).find((x) => x.scenarioId === 'fatigue-isolation' && x.crewIds[0] === 'crew-1');
+  assert.equal(fatigue?.severity, 'red', 'mood 3 on two days in a row → shared trend rule says red');
 });
 
 test('gas leak: one red cabin alert for everyone in the cabin, routed only to their phones', async () => {
@@ -206,4 +211,59 @@ test('SSE: a phone only receives alerts for its astronaut; cabin alerts reach th
   assert.ok(p1.events[0].ev === 'hello' && p1.events[0].data.cabin);
   p1.close(); p3.close();
   server.close();
+});
+
+// ---- Chat (#12) ----
+
+test('chat fallback answers a Turkish status question from the computed statuses', async () => {
+  const { ai } = setup();
+  const r = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Astronotun şu anki durumu nasıl?' }] });
+  assert.equal(r.source, 'fallback');
+  assert.match(r.reply, /kandaki oksijen %89 \(KRİTİK\)/);
+  assert.match(r.reply, /Uçuş cerrahına hemen başvurun/);
+  assert.equal(r.escalation, 'flightSurgeon');
+  assert.ok(r.disclaimer.includes('not a medical device'));
+});
+
+test('chat fallback: topic question in English, healthy astronaut, cabin scope', async () => {
+  const { ai } = setup();
+  const hr = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'How is her heart rate?' }] });
+  assert.deepEqual(hr.indicators, ['heartRate']);
+  assert.match(hr.reply, /Heart Rate 112 bpm \(needs attention\)/);
+
+  await call(ai, 'POST', '/api/ai/demo/cabin-gas-leak');
+  const cabin = await call(ai, 'POST', '/api/ai/chat', { scope: 'cabin', messages: [{ role: 'user', text: 'Kabinde gaz var mı?' }] });
+  assert.equal(cabin.status, 200);
+  assert.deepEqual(cabin.json.indicators, ['contaminant']);
+  assert.match(cabin.json.reply, /gaz kirliliği 14 ppm \(KRİTİK\)/);
+
+  const brief = await ai.chat({ scope: 'cabin', messages: [] });
+  assert.ok(brief.reply.length > 0, 'empty messages = briefing');
+});
+
+test('chat input errors: 400 without crewId, 404 unknown crew', async () => {
+  const { ai } = setup();
+  assert.equal((await call(ai, 'POST', '/api/ai/chat', { scope: 'crew', messages: [] })).status, 400);
+  assert.equal((await call(ai, 'POST', '/api/ai/chat', { crewId: 'crew-9', messages: [] })).status, 404);
+});
+
+test('chat with Gemini: statuses are facts, escalation cannot be lowered, failures fall back', async () => {
+  let sent;
+  const reply = { reply: 'She is fine.', escalation: 'none', indicators: ['spo2', 'made-up'], suggestions: ['Why?'] };
+  const fetchImpl = async (_url, init) => {
+    sent = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(reply) }] } }] }) };
+  };
+  const { ai } = setup({ gemini: { apiKey: 'test-key' }, fetchImpl });
+  const r = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'How is she?' }] });
+  assert.equal(r.source, 'gemini');
+  assert.equal(r.escalation, 'flightSurgeon', 'red SpO2 → never "none"');
+  assert.deepEqual(r.indicators, ['spo2']);
+  const system = sent.systemInstruction.parts[0].text;
+  assert.match(system, /spo2: 89 % -> red/);
+  assert.match(system, /FINAL/);
+
+  const broken = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => ({ ok: false, status: 503 }) });
+  const fb = await broken.ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'status?' }] });
+  assert.equal(fb.source, 'fallback');
 });

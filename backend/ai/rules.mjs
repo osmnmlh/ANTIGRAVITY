@@ -148,12 +148,18 @@ function crewRules(ctx, c, cabinHypoxiaFired) {
       escalate: 'If it stays below 90%, alert the crew medical officer and contact the flight surgeon now.',
     }));
   }
-  if (v('sleepHours') < 6 && v('mood') <= 3) {
+  // Multi-day part comes from the shared trend rule (2 days at mood <= 3 → red), never a copy of it.
+  const moodTrend = c.trend('mood');
+  if (c.vitals.mood && (moodTrend === 'red' || (v('sleepHours') < 6 && v('mood') <= 3))) {
+    const statuses = [c.vitals.mood.status, moodTrend];
     out.push(crewFiring(ctx, c, {
-      scenarioId: 'fatigue-isolation', hazardId: 'isolationConfinement', severity: 'amber',
-      types: ['sleepHours', 'mood'],
-      title: 'short sleep and low mood',
-      spokenText: `Notice. ${c.name} slept ${num(v('sleepHours'))} hours and reports low mood.`,
+      scenarioId: 'fatigue-isolation', hazardId: 'isolationConfinement',
+      severity: statuses.includes('red') ? 'red' : 'amber',
+      types: c.vitals.sleepHours ? ['sleepHours', 'mood'] : ['mood'],
+      title: moodTrend === 'red' ? 'low mood two days in a row' : 'short sleep and low mood',
+      spokenText: moodTrend === 'red'
+        ? `Notice. ${c.name} has reported low mood two days in a row.`
+        : `Notice. ${c.name} slept ${num(v('sleepHours'))} hours and reports low mood.`,
       why: 'Months of isolation and disrupted day-night cycles wear down sleep and mood, which affects focus and safety.',
       doNow: ['Use the light therapy schedule tonight.', 'Rebalance today\'s workload.', 'Book a private call with family or the support team.'],
       escalate: 'Talk to the flight surgeon or psychologist if this continues for 2 more days.',
