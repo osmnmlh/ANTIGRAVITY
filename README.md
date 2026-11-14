@@ -2,79 +2,81 @@
 
 # 🚀 ANTIGRAVITY
 
-### 2026 NASA Space Apps Challenge — Astronaut Health Monitoring Software
+### 2026 NASA Space Apps Challenge — Astronot Sağlık İzleme Yazılımı
 
-[![Event](https://img.shields.io/badge/Event-2026_NASA_Space_Apps_Challenge-0B3D91?style=for-the-badge&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/2026/challenges/)
-[![Difficulty](https://img.shields.io/badge/Difficulty-Intermediate-F59E0B?style=for-the-badge)](./docs/Hackathon-Subject.md)
-[![Subjects](https://img.shields.io/badge/Focus-Human_Exploration_%E2%80%A2_Software_%E2%80%A2_Space-6366F1?style=for-the-badge)](./docs/Hackathon-Subject.md)
+[![Etkinlik](https://img.shields.io/badge/Etkinlik-2026_NASA_Space_Apps_Challenge-0B3D91?style=for-the-badge&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/2026/challenges/)
+[![Zorluk](https://img.shields.io/badge/Zorluk-Orta_Seviye-F59E0B?style=for-the-badge)](./Hackathon-Subject-TR.pdf)
+[![Odak](https://img.shields.io/badge/Odak_%C3%87al%C4%B1%C5%9Fmas%C4%B1-%C4%B0nsanl%C4%B1_Ke%C5%9Fif_%E2%80%A2_Yaz%C4%B1l%C4%B1m_%E2%80%A2_Uzay-6366F1?style=for-the-badge)](./docs/Hackathon-Subject.md)
 
 </div>
 
 ---
 
-## 🌌 About the Challenge
+## 🌌 Yarışma Konusu Hakkında
 
-**ANTIGRAVITY** is our project repository for the **2026 NASA Space Apps Challenge** under the topic:
-> **"Create Health Monitoring Software for Astronauts on Space Missions"**
+**ANTIGRAVITY**, **2026 NASA Space Apps Challenge** kapsamında belirlenen şu konu için geliştirilen proje deposudur:
+> **"Uzay Görevlerindeki Astronotlar İçin Sağlık İzleme Yazılımı Oluşturma"** *(Create Health Monitoring Software for Astronauts on Space Missions)*
 
-As crewed spaceflight expands beyond low Earth orbit—through NASA’s **Artemis** lunar missions and future journeys toward **Mars**—astronauts face extended exposure to harsh space environments. On long-duration missions, crews bear greater responsibility for tracking, evaluating, and acting upon changes in their own physical and behavioral health.
+NASA’nın **Artemis** Ay görevleri ve gelecekteki **Mars** hedefleriyle birlikte insanlı uzay görevleri giderek uzamaktadır. Uzun süreli görevlerde astronotlar, fiziksel ve davranışsal sağlıklarındaki değişimleri fark etme, değerlendirme ve erken önlem alma konusunda doğrudan sorumluluk taşırlar.
 
-The goal of this challenge is to design and build an intuitive **visual health monitoring tool** that collects health indicators, translates complex medical metrics into clear assessments, and provides actionable guidance for prevention, treatment, and overall well-being in space.
+Bu yarışmanın amacı; sağlık göstergelerini toplayan, tıbbi ölçümleri anlaşılır görsel değerlendirmelere dönüştüren ve astronotlara önleme, tedavi ve sağlık iyileştirme süreçlerinde rehberlik sunan **etkileşimli ve görsel bir sağlık izleme yazılımı** tasarlayıp geliştirmektir.
 
 ---
 
-## ☄️ Five Hazards of Human Spaceflight
+## ☄️ İnsanlı Uzay Uçuşunun Beş Temel Tehlikesi
 
-Per NASA’s Human Research Program (HRP), software solutions should account for the five core hazards of human spaceflight and their downstream effects on astronaut health:
+NASA İnsan Araştırmaları Programı (HRP) tarafından tanımlanan beş temel uzay uçuşu tehlikesi ve bunların astronot sağlığı üzerindeki olası etkileri şunlardır:
 
-| Hazard | Associated Health Risks |
+| Tehlike | İlişkili Sağlık Riskleri |
 | :--- | :--- |
-| **Space Radiation** | Immune system changes, cellular & long-term radiation damage |
-| **Isolation & Confinement** | Behavioral health conditions, sleep disruption, mood shifts |
-| **Distance from Earth** | Delayed ground support, need for autonomous self-assessment |
-| **Altered Gravity Fields** | Bone density loss, cardiovascular deconditioning, fluid shifts |
-| **Hostile Closed Environments** | Inadequate nutrition, environmental & physiological stressors |
+| **Uzay Radyasyonu** | Bağışıklık sistemi değişiklikleri, hücresel ve uzun vadeli radyasyon hasarı |
+| **İzolasyon ve Kapalı Ortam** | Davranışsal sağlık sorunları, uyku düzensizliği, ruh hâli değişimleri |
+| **Dünya'dan Uzaklık** | Gecikmeli yer desteği, otonom öz değerlendirme ihtiyacı |
+| **Değişen Yerçekimi Alanları** | Kemik yoğunluğu kaybı, kardiyovasküler kondisyon düşüşü, sıvı kaymaları |
+| **Düşmanca Kapalı Ortamlar** | Yetersiz beslenme, çevresel ve fizyolojik stres faktörleri |
 
-### Key Health Indicators
+### Öne Çıkan Sağlık Göstergeleri
 
-- 💓 **Cardiovascular:** Heart rate, blood pressure
-- 🩸 **Metabolic & Physiological:** Blood sugar (`mg/dL`), body temperature
-- 😴 **Behavioral & Recovery:** Daily sleep hours, mood tracking
-- 🩻 **Diagnostic & Visual Inputs:** Keyboard/numeric entries, interactive selections, or medical imagery (e.g., ultrasound images)
-
----
-
-## 🎯 Core Objectives & Design Directions
-
-1. **Multi-Modal Health Data Collection** — Support flexible inputs (manual metrics, guided prompts, interactive clicks, or camera/ultrasound imagery) representing meaningful health indicators.
-2. **Interactive & Visual UI/UX** — Present metrics and diagnoses clearly using animations, dynamic time-series charts, color-coded status indicators, and interactive visualizations (such as a clickable human body map).
-3. **Actionable Guidance & Triage** — Explain *why* a measurement matters, when an anomaly warrants crew or flight-surgeon attention, and what preventive or corrective actions to take.
-4. **Mission-Routine Integration** — Adapt insights to mission environments (spacecraft, space station, rover, or planetary/lunar base), schedule periodic check-in prompts, and optionally encourage engagement through gamification.
-5. **Accessible Explanations** — Never assume prior medical expertise; provide plain-language instructions for measurements, indicators, and risks.
+- 💓 **Kardiyovasküler:** Kalp atış hızı, kan basıncı
+- 🩸 **Metabolik ve Fizyolojik:** Kan şekeri (`mg/dL`), vücut sıcaklığı
+- 😴 **Davranışsal ve Toparlanma:** Günlük uyku saati, ruh hâli takibi
+- 🩻 **Çoklu Girdi ve Görüntüleme:** Klavye/sayısal veriler, etkileşimli seçimler veya tıbbi görüntüler (örn. ultrason görüntüleri)
 
 ---
 
-## 📁 Repository Structure
+## 🎯 Temel Hedefler ve Tasarım Yaklaşımları
+
+1. **Çok Modlu Sağlık Verisi Toplama** — Manuel ölçümler, yönlendirmeli seçimler veya kamera/ultrason görüntüleri gibi farklı girdi biçimlerini desteklemek.
+2. **Etkileşimli ve Görsel Arayüz (UI/UX)** — Dinamik zaman serisi grafikleri, durumları tek bakışta gösteren renk kodlamaları, animasyonlar ve tıklanabilir insan vücudu haritası gibi görsel bileşenlerle verileri net biçimde sunmak.
+3. **Eyleme Dönük Rehberlik ve Uyarı** — Bir ölçümün neden yapıldığını, hangi durumda mürettebat veya yerdeki uçuş cerrahlarının müdahalesinin gerektiğini ve kritik durumları önlemek için ne yapılabileceğini açıklamak.
+4. **Görev Rutini ile Uyum** — Uzay aracı, uzay istasyonu, keşif aracı (rover) veya gezegen/Ay üssü gibi farklı ortamlara göre içgörüler üretmek; periyodik ölçüm hatırlatmaları ve isteğe bağlı oyunlaştırma (gamification) ile katılımı artırmak.
+5. **Anlaşılır Tıbbi Açıklamalar** — Astronotların tüm tıbbi değerlendirmeleri önceden bildiğini varsaymadan; ölçümler, göstergeler ve riskler için sade ve erişilebilir talimatlar sunmak.
+
+---
+
+## 📁 Depo Yapısı
 
 ```text
 ANTIGRAVITY/
 ├── docs/
-│   ├── Hackathon-Subject.md    # Structured Markdown specification of the challenge brief
-│   └── Hackathon-Subject.pdf   # Original challenge brief PDF
-└── README.md                   # Project overview and challenge documentation
+│   ├── Hackathon-Subject.md    # Orijinal yarışma metninin yapılandırılmış Markdown sürümü (EN)
+│   └── Hackathon-Subject.pdf   # Orijinal yarışma metni PDF dosyası (EN)
+├── Hackathon-Subject-TR.pdf    # Yarışma metninin Türkçe çeviri PDF dosyası (TR)
+└── README.md                   # Proje özeti ve Türkçe dokümantasyon
 ```
 
-- 📄 **Challenge Specification (Markdown):** [`docs/Hackathon-Subject.md`](./docs/Hackathon-Subject.md)
-- 📑 **Original Challenge Brief (PDF):** [`docs/Hackathon-Subject.pdf`](./docs/Hackathon-Subject.pdf)
+- 🇹🇷 **Yarışma Konusu (Türkçe PDF):** [`Hackathon-Subject-TR.pdf`](./Hackathon-Subject-TR.pdf)
+- 📄 **Yarışma Konusu (Orijinal Markdown - EN):** [`docs/Hackathon-Subject.md`](./docs/Hackathon-Subject.md)
+- 📑 **Yarışma Konusu (Orijinal PDF - EN):** [`docs/Hackathon-Subject.pdf`](./docs/Hackathon-Subject.pdf)
 
 ---
 
-## 🔗 Official Resources
+## 🔗 Resmi Kaynaklar
 
-- 🎥 **Challenge Briefing Video:** [YouTube — 2026 NASA Space Apps Challenge](https://www.youtube.com/watch?v=RERG3gEmdC8)
-- 🌐 **Challenge Portal:** [NASA Space Apps Challenge 2026](https://www.spaceappschallenge.org/2026/challenges/)
-- 🧬 **NASA HRP — 5 Hazards of Human Spaceflight:** [nasa.gov/hrp/hazards](https://www.nasa.gov/hrp/hazards/)
-- ⚠️ **NASA HRP — Risks of Human Spaceflight:** [nasa.gov/hrp/risks](https://www.nasa.gov/hrp/risks/)
-- 🔬 **NASA HRP — Ongoing Research in Space:** [nasa.gov/hrp/ongoing-hrp-research](https://www.nasa.gov/hrp/ongoing-hrp-research/)
-- 🇨🇦 **CSA — Monitoring Radiation for Astronaut Health:** [asc-csa.gc.ca](https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp)
-- 🛰️ **CSA — Why Do We Conduct Science Experiments in Space?:** [asc-csa.gc.ca](https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp)
+- 🎥 **Yarışma Tanıtım Videosu:** [YouTube — 2026 NASA Space Apps Challenge](https://www.youtube.com/watch?v=RERG3gEmdC8)
+- 🌐 **Yarışma Portalı:** [NASA Space Apps Challenge 2026](https://www.spaceappschallenge.org/2026/challenges/)
+- 🧬 **NASA HRP — İnsanlı Uzay Uçuşunun 5 Tehlikesi:** [nasa.gov/hrp/hazards](https://www.nasa.gov/hrp/hazards/)
+- ⚠️ **NASA HRP — İnsanlı Uzay Uçuşunun Riskleri:** [nasa.gov/hrp/risks](https://www.nasa.gov/hrp/risks/)
+- 🔬 **NASA HRP — Uzayda Devam Eden Araştırmalar:** [nasa.gov/hrp/ongoing-hrp-research](https://www.nasa.gov/hrp/ongoing-hrp-research/)
+- 🇨🇦 **CSA — Astronot Sağlığı İçin Radyasyonun İzlenmesi:** [asc-csa.gc.ca](https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp)
+- 🛰️ **CSA — Uzayda Neden Bilimsel Deneyler Yapıyoruz?:** [asc-csa.gc.ca](https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp)
