@@ -94,6 +94,14 @@ const CABIN_RULES = [
     escalate: 'Basınç düşmeye devam ederse veya kendini kötü hisseden varsa uçuş cerrahına ve görev kontrolüne hemen haber verin.',
   }),
   cabinRule({
+    scenarioId: 'cabin-temperature', metric: 'temperature', hazardId: 'hostileClosedEnvironments',
+    title: (r) => `Kabin sıcaklığı ${r.value < 18 ? 'düşük' : 'yüksek'}: ${num(r.value)} °C`,
+    spoken: (r) => `Kabin sıcaklığı ${r.value < 18 ? 'düşük' : 'yüksek'}.`,
+    why: 'Aşırı soğuk ya da sıcak vücut ısısını ve ekipmanı etkiler; soğukta yoğuşma elektronik sistemlere zarar verebilir.',
+    doNow: ['Kabin ısıtma ve soğutma sistemini kontrol edin.', 'Soğukta kat kat giyinin, sıcakta eforu azaltıp sıvı için.', 'Yoğuşma olan yerlerdeki elektronik cihazları kontrol edin.'],
+    escalate: 'Titreme, bilinç bulanıklığı veya sıcak çarpması belirtisi olan varsa uçuş cerrahına başvurun.',
+  }),
+  cabinRule({
     scenarioId: 'solar-event', metric: 'radiationRate', hazardId: 'spaceRadiation',
     title: (r) => `Güneş parçacık fırtınası: radyasyon ${num(r.value)} mSv/gün`,
     spoken: () => 'Radyasyon seviyesi yüksek.',

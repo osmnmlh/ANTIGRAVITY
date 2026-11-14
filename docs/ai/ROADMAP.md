@@ -52,6 +52,7 @@ Phases 1 and 2 can run in parallel once the contract is merged (web codes agains
 | ⭐ `cabin-gas-leak` | cabin | contaminant red (ammonia) | Hostile/Closed |
 | `cabin-co2-high` | cabin | ppCO2 amber/red | Hostile/Closed |
 | `cabin-pressure-drop` | cabin | pressure red or falling fast | Hostile/Closed |
+| `cabin-temperature` | cabin | cabin temperature outside 18-27 °C (Apollo 13 cold cabin) | Hostile/Closed |
 | ⭐ `solar-event` | cabin | radiation dose rate red | Space Radiation |
 | `power-life-support` | cabin | life-support power `fault` | Hostile/Closed |
 | ⭐ `cabin-hypoxia` | cabin + crew | cabin O2 amber/red **and** ≥ 2 crew SpO2 < 94 | Hostile/Closed |

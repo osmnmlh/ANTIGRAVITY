@@ -335,3 +335,9 @@
 .ai-phone-choices { display: grid; gap: 10px; }
 .ai-phone-choices .ai-btn { justify-content: center; min-height: 52px; font-size: 16px; text-decoration: none; }
 .ai-phone-alerts { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+
+/* ---- mounted in the dashboard (App.tsx) ---- */
+.ai-slot { margin: 18px 0; }
+.ai-base-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin: 18px 0; align-items: start; }
+.ai-base-side { display: grid; gap: 16px; }
+@media (max-width: 900px) { .ai-base-grid { grid-template-columns: minmax(0, 1fr); } }

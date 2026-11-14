@@ -549,3 +549,48 @@ test('high systolic AND diastolic is one "kan basıncı" alert, not two popups',
   assert.match(bp[0].spokenText, /kan basıncı kritik/);
   assert.match(bp[0].title, /170 mmHg \/ 105 mmHg/);
 });
+
+// ---- Incident replay: cabin hints become cabin readings ----
+import { parseCabinHint } from './cabin-hint.mjs';
+
+const INCIDENTS = readJson('../../shared/mock/historical-incidents.json').incidents;
+
+test('cabin hints of the historical incidents are read into cabin readings', () => {
+  const read = (hint) => parseCabinHint(hint).map((r) => `${r.metric}=${r.value}`);
+  assert.deepEqual(read('ppCO2: 8.2 mmHg (Kritik) · Kabin Sıcaklığı: 3.8 °C'), ['ppCO2=8.2', 'temperature=3.8']);
+  assert.deepEqual(read('Ana Güç Düşüyor · O2 Basınç Alarmı'), ['ppO2=17.9', 'lifeSupportPower=degraded']);
+  assert.deepEqual(read('Toksik Kontaminant: 14,5 ppm (Kritik) · Kabin Isısı: 28.4 °C').sort(), ['contaminant=14.5', 'temperature=28.4']);
+  assert.deepEqual(read('ppCO2: 2.3 mmHg · Kabin Sıcaklığı: 21.8 °C · Güç: Nominal'), ['ppCO2=2.3', 'temperature=21.8', 'lifeSupportPower=nominal']);
+  assert.deepEqual(read('EMU Kıyafet Basıncı: 29.6 kPa · PLSS: Nominal'), [], 'a suit is not the cabin');
+  assert.deepEqual(read('ISS Kabin: Nominal · Tıbbi Değerlendirme Stabil'), []);
+  assert.deepEqual(read(null), []);
+  // every phase of every incident is accepted by the cabin (valid metric names and values)
+  const { ai } = setup();
+  for (const incident of INCIDENTS) for (const phase of incident.phases) assert.doesNotThrow(() => ai.onCabinHint(phase.cabinHint), `${incident.id} #${phase.phaseIndex}`);
+});
+
+test('an incident replay raises cabin alerts and they clear when the phase passes (Apollo 13)', () => {
+  const { ai } = setup();
+  const active = () => ai.alerts({ state: 'active' }).filter((a) => a.scope === 'cabin').map((a) => `${a.scenarioId}:${a.severity}`).sort();
+
+  ai.onCabinHint('ppCO2: 2.3 mmHg · Kabin Sıcaklığı: 21.8 °C · Güç: Nominal');
+  assert.deepEqual(active(), []);
+  ai.onCabinHint('Kabin Sıcaklığı: 6.5 °C · Yoğun Yoğuşma · Güç: Kısıtlı');
+  assert.deepEqual(active(), ['cabin-temperature:red', 'power-life-support:amber']);
+  ai.onCabinHint('ppCO2: 8.2 mmHg (Kritik) · Kabin Sıcaklığı: 3.8 °C');
+  assert.deepEqual(active(), ['cabin-co2-high:red', 'cabin-temperature:red'], 'power is nominal again: what the text does not state is normal');
+  const cold = ai.alerts({ state: 'active' }).find((a) => a.scenarioId === 'cabin-temperature');
+  assert.match(cold.title, /Kabin sıcaklığı düşük: 3\.8 °C/);
+  assert.match(cold.spokenText, /Kabin sıcaklığı düşük/);
+  ai.onCabinHint('Kabin Sıcaklığı: 19.5 °C · İletişim & Sistemler Stabil');
+  assert.deepEqual(active(), []);
+  ai.onCabinHint(null);
+  assert.equal(ai.cabin().overallStatus, 'green');
+});
+
+test('the cabin-temperature demo scenario exists and fires', async () => {
+  const { ai } = setup();
+  const { json } = await call(ai, 'POST', '/api/ai/demo/cabin-temperature');
+  assert.equal(json.created.length, 1);
+  assert.equal(ai.alerts().find((a) => a.id === json.created[0]).scenarioId, 'cabin-temperature');
+});
