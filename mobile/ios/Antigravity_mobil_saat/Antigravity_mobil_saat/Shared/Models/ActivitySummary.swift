@@ -6,3 +6,11 @@
 //
 
 import Foundation
+
+struct ActivitySummary: Codable {
+    let stepCount: Int
+    let activeCaloriesBurned: Double
+    let exerciseMinutes: Int
+    let standHours: Int
+    let distanceMeters: Double
+}

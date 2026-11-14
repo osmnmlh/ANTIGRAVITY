@@ -6,3 +6,10 @@
 //
 
 import Foundation
+
+struct VitalsData: Codable {
+    let currentHeartRate: Double
+    let restingHeartRate: Double?
+    let bloodOxygenPercentage: Double?
+    let bodyTemperature: Double?
+}
