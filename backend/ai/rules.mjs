@@ -181,20 +181,27 @@ function crewRules(ctx, c, cabinHypoxiaFired) {
 }
 
 function vitalRed(ctx, c, covered) {
-  return Object.entries(c.vitals)
-    .filter(([type, s]) => s.status === 'red' && !covered.has(`${c.id}:${type}`))
-    .map(([type, s]) => {
-      const label = ctx.vitalLabel(type);
-      const g = ctx.vitalGuidance(type, 'red');
-      return {
-        scenarioId: 'vital-red', scope: 'crew', hazardId: ctx.hazardFor(type), crewIds: [c.id], severity: 'red',
-        metrics: [vitalMetric(c, type)],
-        title: `${c.name}: ${lower(label)} kritik (${num(s.value)} ${s.unit})`,
-        spokenText: `Uyarı. ${spokenName(c.name)} için ${lower(label)} kritik.`,
-        advice: { why: g.why, doNow: g.doNow, escalate: `${g.escalate} ${COMMS(ctx)}` },
-        type,
-      };
-    });
+  const reds = Object.entries(c.vitals).filter(([type, s]) => s.status === 'red' && !covered.has(`${c.id}:${type}`));
+  // Systolic and diastolic are one reading of the same thing: one "kan basıncı" alert, not two popups for one event.
+  const pair = ['bloodPressureSys', 'bloodPressureDia'];
+  const bp = reds.filter(([type]) => pair.includes(type));
+  const rest = reds.filter(([type]) => !pair.includes(type));
+  const items = [
+    ...(bp.length ? [{ key: 'bloodPressure', types: bp.map(([t]) => t), label: 'Kan basıncı', lead: bp[0][0] }] : []),
+    ...rest.map(([type]) => ({ key: type, types: [type], label: ctx.vitalLabel(type), lead: type })),
+  ];
+  return items.map(({ key, types, label, lead: leadType }) => {
+    const g = ctx.vitalGuidance(leadType, 'red');
+    const reading = types.map((t) => `${num(c.vitals[t].value)} ${c.vitals[t].unit}`).join(' / ');
+    return {
+      scenarioId: 'vital-red', scope: 'crew', hazardId: ctx.hazardFor(leadType), crewIds: [c.id], severity: 'red',
+      metrics: types.map((t) => vitalMetric(c, t)),
+      title: `${c.name}: ${lower(label)} kritik (${reading})`,
+      spokenText: `Uyarı. ${spokenName(c.name)} için ${lower(label)} kritik.`,
+      advice: { why: g.why, doNow: g.doNow, escalate: `${g.escalate} ${COMMS(ctx)}` },
+      type: key,
+    };
+  });
 }
 
 export function evaluate(ctx) {

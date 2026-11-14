@@ -535,3 +535,17 @@ test('a normal radiation sentence ("dozu verebilir") is not mistaken for dosing,
     assert.equal(no.ai.alerts().find((x) => x.id === b.json.created[0]).advice.source, 'fallback', bad);
   }
 });
+
+test('high systolic AND diastolic is one "kan basıncı" alert, not two popups', async () => {
+  const { ai, applySamples } = setup();
+  applySamples([
+    { crewId: 'crew-1', type: 'bloodPressureSys', value: 170, timestamp: 't', source: 'mock' },
+    { crewId: 'crew-1', type: 'bloodPressureDia', value: 105, timestamp: 't', source: 'mock' },
+  ]);
+  ai.onSamples();
+  const bp = ai.alerts({ state: 'active' }).filter((a) => a.scenarioId === 'vital-red' && a.crewIds[0] === 'crew-1');
+  assert.equal(bp.length, 1);
+  assert.deepEqual(bp[0].metrics.map((m) => m.type).sort(), ['bloodPressureDia', 'bloodPressureSys']);
+  assert.match(bp[0].spokenText, /kan basıncı kritik/);
+  assert.match(bp[0].title, /170 mmHg \/ 105 mmHg/);
+});
