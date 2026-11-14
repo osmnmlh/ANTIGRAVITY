@@ -5,7 +5,7 @@
 - Affects: iOS + watchOS (Skylowerr), backend (osmnmlh), shared (Mehmetson01)
 
 ## Context
-Swift models exist in `mobile/ios/Shared/` (PR #2/#3). The iPhone must show "AI recommendation" from `aiGuidance`.
+Swift models exist in `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/` (PR #2/#3). The iPhone must show "AI recommendation" from `aiGuidance`.
 Real HealthKit on a real Watch is slow to set up and fragile on stage; the simulator has no heart rate.
 
 ## Options
