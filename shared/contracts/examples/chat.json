@@ -1,0 +1,15 @@
+{
+  "request": {
+    "scope": "crew",
+    "crewId": "crew-1",
+    "messages": [{ "role": "user", "text": "How is Elena doing right now?" }]
+  },
+  "response": {
+    "reply": "Elena's blood oxygen is 89%, which is in the red range, and her heart rate is high at 112 bpm. Everything else is normal. She should stop exertion, sit upright and re-measure in 5 minutes. If it stays below 90%, the crew medical officer should contact the flight surgeon now.",
+    "source": "gemini",
+    "escalation": "flightSurgeon",
+    "indicators": ["spo2", "heartRate"],
+    "suggestions": ["What should she do now?", "Could the cabin air be the cause?"],
+    "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
+  }
+}
