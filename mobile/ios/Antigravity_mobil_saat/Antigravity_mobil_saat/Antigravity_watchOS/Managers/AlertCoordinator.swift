@@ -5,4 +5,192 @@
 //  Created by Emirhan Gökçe on 14.11.2026.
 //
 
+import Combine
 import Foundation
+
+/// Subscribes to the shared `MockTelemetryService`, evaluates vitals against
+/// `HealthThresholds`, triggers ALL CAPS warnings + local notifications,
+/// and drives continuous wrist haptics via `HapticManager`.
+@MainActor
+final class AlertCoordinator: ObservableObject {
+    private static let turkishLocale = Locale(identifier: "tr_TR")
+
+    @Published private(set) var heartRate: Int = 72
+    @Published private(set) var spo2: Int? = 98
+    @Published private(set) var bodyTemp: Double? = 36.6
+
+    @Published private(set) var heartRateStatus: HealthStatus = .green
+    @Published private(set) var spo2Status: HealthStatus = .green
+    @Published private(set) var bodyTempStatus: HealthStatus = .green
+    @Published private(set) var overallStatus: HealthStatus = .green
+
+    @Published private(set) var uppercaseWarningTitle: String?
+    @Published private(set) var uppercaseWarningDetail: String?
+    @Published private(set) var isMuted: Bool = false
+    @Published private(set) var isSimulatingSpike: Bool = false
+
+    let hapticManager: HapticManager
+    let notificationController: NotificationController
+
+    private let telemetryService: TelemetryServiceProtocol
+    private var cancellables = Set<AnyCancellable>()
+    private var lastAlertSignature: String?
+    private var isRunning = false
+    private let sideEffectsEnabled: Bool
+
+    init(
+        telemetryService: TelemetryServiceProtocol? = nil,
+        hapticManager: HapticManager? = nil,
+        notificationController: NotificationController? = nil,
+        sideEffectsEnabled: Bool = true
+    ) {
+        self.telemetryService = telemetryService ?? MockTelemetryService()
+        self.hapticManager = hapticManager ?? HapticManager()
+        self.notificationController = notificationController ?? NotificationController()
+        self.sideEffectsEnabled = sideEffectsEnabled
+
+        bindTelemetry()
+    }
+
+    func start() {
+        guard !isRunning else { return }
+        isRunning = true
+        if sideEffectsEnabled {
+            notificationController.requestAuthorization()
+        }
+        telemetryService.startMonitoring()
+    }
+
+    func stop() {
+        guard isRunning else { return }
+        isRunning = false
+        telemetryService.stopMonitoring()
+        hapticManager.stopContinuousAlert()
+    }
+
+    func toggleMute() {
+        isMuted.toggle()
+        guard sideEffectsEnabled else { return }
+        if isMuted {
+            hapticManager.stopContinuousAlert()
+        } else if overallStatus == .amber || overallStatus == .red {
+            hapticManager.startContinuousAlert(urgent: overallStatus == .red)
+        }
+    }
+
+    /// Forces a red-threshold telemetry reading so alerts, ALL CAPS banner,
+    /// notification, and continuous wrist haptics can be verified immediately.
+    func toggleSpikeSimulation() {
+        isSimulatingSpike.toggle()
+        if isSimulatingSpike {
+            isMuted = false
+            applyReadings(heartRate: 138, spo2: 88, bodyTemp: 38.6)
+        } else {
+            applyReadings(heartRate: 74, spo2: 98, bodyTemp: 36.6)
+        }
+    }
+
+    private func bindTelemetry() {
+        telemetryService.telemetryPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] data in
+                guard let self, !self.isSimulatingSpike else { return }
+                self.applyReadings(
+                    heartRate: Int(data.vitals.currentHeartRate),
+                    spo2: data.vitals.bloodOxygenPercentage.map { Int($0) },
+                    bodyTemp: data.vitals.bodyTemperature
+                )
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyReadings(heartRate: Int, spo2: Int?, bodyTemp: Double?) {
+        self.heartRate = heartRate
+        self.spo2 = spo2
+        self.bodyTemp = bodyTemp
+
+        let hrStatus = HealthThresholds.status(for: .heartRate, value: Double(heartRate))
+        let o2Status = HealthThresholds.status(for: .spo2, value: spo2.map(Double.init))
+        let tempStatus = HealthThresholds.status(for: .bodyTemp, value: bodyTemp)
+
+        heartRateStatus = hrStatus
+        spo2Status = o2Status
+        bodyTempStatus = tempStatus
+
+        let highest = [hrStatus, o2Status, tempStatus].filter { $0 != .missing }.max() ?? .green
+        overallStatus = highest
+
+        let breaches = buildBreachMessages(hrStatus: hrStatus, o2Status: o2Status, tempStatus: tempStatus)
+
+        if highest == .amber || highest == .red, !breaches.isEmpty {
+            let title = (highest == .red
+                ? "ACİL EŞİK AŞILDI! UÇUŞ CERRAHINA ULAŞ"
+                : "DİKKAT! EŞİK DEĞERİ AŞILDI"
+            ).uppercased(with: Self.turkishLocale)
+            let detail = breaches.joined(separator: " • ").uppercased(with: Self.turkishLocale)
+            let signature = "\(highest)|\(breaches.map { $0.prefix(10) }.joined(separator: ","))"
+
+            if signature != lastAlertSignature {
+                isMuted = false
+                lastAlertSignature = signature
+            }
+
+            uppercaseWarningTitle = title
+            uppercaseWarningDetail = detail
+
+            if sideEffectsEnabled {
+                notificationController.sendThresholdWarning(
+                    title: title,
+                    body: detail,
+                    signature: signature
+                )
+
+                if !isMuted {
+                    hapticManager.startContinuousAlert(urgent: highest == .red)
+                }
+            }
+        } else {
+            lastAlertSignature = nil
+            isMuted = false
+            uppercaseWarningTitle = nil
+            uppercaseWarningDetail = nil
+            if sideEffectsEnabled {
+                hapticManager.stopContinuousAlert()
+                notificationController.clearAlertState()
+            }
+        }
+    }
+
+    private func buildBreachMessages(
+        hrStatus: HealthStatus,
+        o2Status: HealthStatus,
+        tempStatus: HealthStatus
+    ) -> [String] {
+        var messages: [String] = []
+        if hrStatus == .amber || hrStatus == .red {
+            messages.append("NABIZ \(heartRate) BPM")
+        }
+        if (o2Status == .amber || o2Status == .red), let spo2 {
+            messages.append("SPO2 %\(spo2)")
+        }
+        if (tempStatus == .amber || tempStatus == .red), let bodyTemp {
+            messages.append(String(format: "ATEŞ %.1f °C", bodyTemp))
+        }
+        return messages
+    }
+
+    /// Lightweight side-effect-free instance for SwiftUI `#Preview` rendering.
+    static func preview(status: HealthStatus) -> AlertCoordinator {
+        let coordinator = AlertCoordinator(sideEffectsEnabled: false)
+        switch status {
+        case .amber:
+            coordinator.applyReadings(heartRate: 112, spo2: 93, bodyTemp: 37.2)
+        case .red:
+            coordinator.isSimulatingSpike = true
+            coordinator.applyReadings(heartRate: 138, spo2: 88, bodyTemp: 38.6)
+        case .green, .missing:
+            coordinator.applyReadings(heartRate: 74, spo2: 98, bodyTemp: 36.6)
+        }
+        return coordinator
+    }
+}
