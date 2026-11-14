@@ -336,7 +336,7 @@
     "id": "153e7c2a-26a2-c0bd-3b12-87fff52ddf5d",
     "crewId": "crew-1",
     "type": "bloodPressureSys",
-    "value": 120,
+    "value": 116,
     "unit": "mmHg",
     "timestamp": "2026-11-12T08:00:00Z",
     "source": "manual"
@@ -417,7 +417,7 @@
     "id": "0fef7928-6683-6886-a260-cd0b7b45145c",
     "crewId": "crew-1",
     "type": "bloodPressureSys",
-    "value": 111,
+    "value": 122,
     "unit": "mmHg",
     "timestamp": "2026-11-13T08:00:00Z",
     "source": "manual"
@@ -498,7 +498,7 @@
     "id": "15fc899e-4fd5-8dbe-7bdc-968b7afb2c68",
     "crewId": "crew-1",
     "type": "bloodPressureSys",
-    "value": 122,
+    "value": 128,
     "unit": "mmHg",
     "timestamp": "2026-11-14T08:00:00Z",
     "source": "manual"

@@ -266,3 +266,14 @@ export interface IndicatorGuidance {
   doNow: string[];
   escalateWhen: string;
 }
+
+export type TrendDirection = 'rising' | 'falling' | 'stable';
+
+export interface TrendAssessment {
+  type: HealthIndicatorType;
+  pointStatus: HealthStatus;
+  trendStatus: HealthStatus;
+  effectiveStatus: HealthStatus;
+  direction: TrendDirection;
+  reason: string | null;
+}

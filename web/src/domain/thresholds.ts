@@ -4,6 +4,8 @@ import type {
   HealthSample,
   HealthStatus,
   IndicatorGuidance,
+  TrendAssessment,
+  TrendDirection,
   WatchTelemetryData,
 } from './types.ts';
 
@@ -119,22 +121,244 @@ export function getStatus(
 }
 
 export function getOverallStatus(
-  packet: AstronautHealthPacket
+  packet: AstronautHealthPacket,
+  samples?: HealthSample[]
 ): HealthStatus {
+  const crewSamples = samples?.filter((s) => s.crewId === packet.astronautId);
   let worst: HealthStatus = 'green';
   for (const type of INDICATOR_ORDER) {
     const snapshot = packet.measurements[type];
-    const current = getStatus(
+    const pointStatus = getStatus(
       type,
       snapshot?.value,
       packet.mission.radiationBudgetMsv
     );
+    const trendStatus = crewSamples
+      ? getTrendStatus(crewSamples, type)
+      : 'green';
+    const current = maxStatus(pointStatus, trendStatus);
     if (SEVERITY_RANK[current] > SEVERITY_RANK[worst]) {
       worst = current;
     }
   }
   return worst;
 }
+
+export function maxStatus(a: HealthStatus, b: HealthStatus): HealthStatus {
+  return SEVERITY_RANK[a] >= SEVERITY_RANK[b] ? a : b;
+}
+
+interface DriftRule {
+  upperMinDelta?: number;
+  upperNearLimit?: number;
+  lowerMinDelta?: number;
+  lowerNearLimit?: number;
+}
+
+// Mirrored identically in mobile/ios/Shared/Thresholds.swift.
+const DRIFT_RULES: Partial<Record<HealthIndicatorType, DriftRule>> = {
+  heartRate: {
+    upperMinDelta: 8,
+    upperNearLimit: 80,
+    lowerMinDelta: 8,
+    lowerNearLimit: 60,
+  },
+  bloodPressureSys: {
+    upperMinDelta: 8,
+    upperNearLimit: 118,
+    lowerMinDelta: 8,
+    lowerNearLimit: 100,
+  },
+  bloodPressureDia: {
+    upperMinDelta: 5,
+    upperNearLimit: 74,
+    lowerMinDelta: 5,
+    lowerNearLimit: 66,
+  },
+  spo2: {
+    lowerMinDelta: 2,
+    lowerNearLimit: 97,
+  },
+  bodyTemp: {
+    upperMinDelta: 0.4,
+    upperNearLimit: 37.1,
+    lowerMinDelta: 0.4,
+    lowerNearLimit: 36.4,
+  },
+  bloodGlucose: {
+    upperMinDelta: 12,
+    upperNearLimit: 110,
+    lowerMinDelta: 12,
+    lowerNearLimit: 85,
+  },
+  sleepHours: {
+    lowerMinDelta: 0.8,
+    lowerNearLimit: 7.5,
+  },
+};
+
+function sortByTimestampAsc(samples: HealthSample[], type: HealthIndicatorType): HealthSample[] {
+  return samples
+    .filter((s) => s.type === type && Number.isFinite(Date.parse(s.timestamp)))
+    .slice()
+    .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+}
+
+function latestPerUtcDay(sortedSamples: HealthSample[]): Array<{ day: string; value: number }> {
+  const byDay = new Map<string, number>();
+  for (const s of sortedSamples) {
+    const day = new Date(s.timestamp).toISOString().slice(0, 10);
+    byDay.set(day, s.value);
+  }
+  return Array.from(byDay.entries())
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([day, value]) => ({ day, value }));
+}
+
+function utcDayDiff(dayA: string, dayB: string): number {
+  const msA = Date.parse(`${dayA}T00:00:00Z`);
+  const msB = Date.parse(`${dayB}T00:00:00Z`);
+  return Math.round((msB - msA) / 86_400_000);
+}
+
+function computeDirection(sortedSamples: HealthSample[]): TrendDirection {
+  if (sortedSamples.length < 2) return 'stable';
+  const prev = sortedSamples[sortedSamples.length - 2].value;
+  const curr = sortedSamples[sortedSamples.length - 1].value;
+  if (curr > prev) return 'rising';
+  if (curr < prev) return 'falling';
+  return 'stable';
+}
+
+function evaluateTrend(
+  samples: HealthSample[],
+  type: HealthIndicatorType
+): { status: HealthStatus; direction: TrendDirection; reason: string | null } {
+  const sorted = sortByTimestampAsc(samples, type);
+  if (sorted.length === 0) {
+    return { status: 'green', direction: 'stable', reason: null };
+  }
+  const direction = computeDirection(sorted);
+
+  if (type === 'mood') {
+    const daily = latestPerUtcDay(sorted);
+    if (daily.length >= 2) {
+      const prev = daily[daily.length - 2];
+      const curr = daily[daily.length - 1];
+      if (utcDayDiff(prev.day, curr.day) === 1 && prev.value <= 3 && curr.value <= 3) {
+        return {
+          status: 'red',
+          direction,
+          reason: 'Mood has remained 3 or lower for 2 consecutive days.',
+        };
+      }
+    }
+    return { status: 'green', direction, reason: null };
+  }
+
+  if (type === 'radiationDose') {
+    const daily = latestPerUtcDay(sorted);
+    if (daily.length >= 3) {
+      const d0 = daily[daily.length - 3];
+      const d1 = daily[daily.length - 2];
+      const d2 = daily[daily.length - 1];
+      const gap1 = Math.max(utcDayDiff(d0.day, d1.day), 1);
+      const gap2 = Math.max(utcDayDiff(d1.day, d2.day), 1);
+      const rate1 = (d1.value - d0.value) / gap1;
+      const rate2 = (d2.value - d1.value) / gap2;
+      if (rate2 >= 3.0 || (rate1 > 0 && rate2 >= rate1 * 2.0 && rate2 >= 2.0)) {
+        return {
+          status: 'amber',
+          direction: 'rising',
+          reason: 'Daily radiation dose rate spiked above normal mission baseline.',
+        };
+      }
+    }
+    return { status: 'green', direction, reason: null };
+  }
+
+  const rule = DRIFT_RULES[type];
+  if (rule && sorted.length >= 3) {
+    const [v0, v1, v2] = sorted.slice(-3).map((s) => s.value);
+    if (
+      rule.upperMinDelta !== undefined &&
+      rule.upperNearLimit !== undefined &&
+      v0 < v1 &&
+      v1 < v2 &&
+      v2 - v0 >= rule.upperMinDelta &&
+      v2 >= rule.upperNearLimit
+    ) {
+      return {
+        status: 'amber',
+        direction: 'rising',
+        reason: '3 consecutive readings rising toward the upper safety limit.',
+      };
+    }
+    if (
+      rule.lowerMinDelta !== undefined &&
+      rule.lowerNearLimit !== undefined &&
+      v0 > v1 &&
+      v1 > v2 &&
+      v0 - v2 >= rule.lowerMinDelta &&
+      v2 <= rule.lowerNearLimit
+    ) {
+      return {
+        status: 'amber',
+        direction: 'falling',
+        reason: '3 consecutive readings drifting toward the lower safety limit.',
+      };
+    }
+  }
+
+  return { status: 'green', direction, reason: null };
+}
+
+/**
+ * Pure multi-day trend evaluation. Returns `green` when no multi-day drift is detected,
+ * `amber` for 3 consecutive drifting readings (or radiation rate spike), `red` for 2 consecutive days at mood <= 3,
+ * or `missing` when no samples exist.
+ */
+export function getTrendStatus(
+  samples: HealthSample[],
+  type: HealthIndicatorType
+): HealthStatus {
+  return evaluateTrend(samples, type).status;
+}
+
+export function getEffectiveStatus(
+  samples: HealthSample[],
+  type: HealthIndicatorType,
+  radiationBudgetMsv = DEFAULT_RADIATION_BUDGET_MSV
+): HealthStatus {
+  const sorted = sortByTimestampAsc(samples, type);
+  const latestValue = sorted.length > 0 ? sorted[sorted.length - 1].value : undefined;
+  const pointStatus = getStatus(type, latestValue, radiationBudgetMsv);
+  if (pointStatus === 'missing') return 'missing';
+  const trendStatus = getTrendStatus(sorted, type);
+  return maxStatus(pointStatus, trendStatus);
+}
+
+export function assessIndicatorTrend(
+  samples: HealthSample[],
+  type: HealthIndicatorType,
+  radiationBudgetMsv = DEFAULT_RADIATION_BUDGET_MSV
+): TrendAssessment {
+  const sorted = sortByTimestampAsc(samples, type);
+  const latestValue = sorted.length > 0 ? sorted[sorted.length - 1].value : undefined;
+  const pointStatus = getStatus(type, latestValue, radiationBudgetMsv);
+  const trend = evaluateTrend(sorted, type);
+  const effectiveStatus =
+    pointStatus === 'missing' ? 'missing' : maxStatus(pointStatus, trend.status);
+  return {
+    type,
+    pointStatus,
+    trendStatus: trend.status,
+    effectiveStatus,
+    direction: trend.direction,
+    reason: trend.reason,
+  };
+}
+
 
 /**
  * Converts WatchTelemetryData from Apple Watch into canonical HealthSample[]
