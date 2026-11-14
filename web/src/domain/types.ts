@@ -109,3 +109,171 @@ export function isHealthSample(value: unknown): value is HealthSample {
     ['watch', 'iphone', 'manual', 'mock'].includes(String(sample.source))
   )
 }
+
+// ---------------------------------------------------------------------------
+// Packet, Watch telemetry, NASA hazard and AI guidance types (shared contract,
+// mirrored in mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/HealthModels.swift; used by backend/server.mjs).
+// ---------------------------------------------------------------------------
+
+/** Alias used by the packet / backend code; same union as `HealthType`. */
+export type HealthIndicatorType = HealthType
+/** Alias used by the packet / backend code; same union as `HealthSource`. */
+export type SampleSource = HealthSource
+
+export type MissionEnvironment =
+  | 'spacecraft'
+  | 'iss'
+  | 'lunarBase'
+  | 'marsTransit'
+  | 'rover';
+
+export interface MeasurementSnapshot {
+  value: number;
+  unit: string;
+  timestamp: string;
+  source: SampleSource;
+}
+
+export interface MissionContext {
+  name: string;
+  environment: MissionEnvironment;
+  missionDay: number;
+  commsDelayMinutes: number;
+  radiationBudgetMsv: number;
+}
+
+export interface ActivitySummary {
+  stepCount: number;
+  activeCaloriesBurned: number;
+  exerciseMinutes: number;
+  standHours: number;
+  distanceMeters: number;
+}
+
+export interface VitalsData {
+  currentHeartRate: number;
+  restingHeartRate?: number | null;
+  bloodOxygenPercentage?: number | null;
+  bodyTemperature?: number | null;
+}
+
+export interface GForceData {
+  xAxis: number;
+  yAxis: number;
+  zAxis: number;
+}
+
+export interface EnvironmentalData {
+  altitudeMeters: number;
+  atmosphericPressure: number;
+  gForce?: GForceData | null;
+}
+
+export interface WatchTelemetryData {
+  userId: string;
+  syncTimestamp: string;
+  deviceModel: string;
+  activitySummary: ActivitySummary;
+  vitals: VitalsData;
+  environmentalData?: EnvironmentalData | null;
+}
+
+export type NasaHazardId =
+  | 'spaceRadiation'
+  | 'isolationConfinement'
+  | 'distanceFromEarth'
+  | 'gravityFields'
+  | 'hostileClosedEnvironments';
+
+export interface AstronautHealthPacket {
+  astronautId: string;
+  fullName: string;
+  role: string;
+  mission: MissionContext;
+  activeHazardIds?: NasaHazardId[];
+  lastUpdated: string;
+  measurements: Partial<Record<HealthIndicatorType, MeasurementSnapshot>>;
+  watchTelemetry?: WatchTelemetryData | null;
+  /** AI recommendation produced by the backend (Gemini) and shown on iPhone/Web. */
+  aiGuidance?: AiGuidance | null;
+}
+
+/**
+ * AI recommendation attached to an AstronautHealthPacket.
+ * Created only by the backend (`POST /api/ai/guidance`), which keeps the Gemini key server-side.
+ * `overallStatus` is copied from the deterministic threshold engine; the AI never decides the color.
+ */
+export interface AiGuidance {
+  generatedAt: string; // ISO-8601 UTC
+  source: 'gemini' | 'fallback';
+  model?: string | null;
+  overallStatus: HealthStatus;
+  summary: string;
+  actions: string[];
+  escalate: string;
+  disclaimer: string;
+}
+
+export interface AstronautPacketBundle {
+  schemaVersion: string;
+  disclaimer: string;
+  generatedAt: string;
+  nasaHazardsSource?: string;
+  astronauts: AstronautHealthPacket[];
+}
+
+export interface NasaHazardReferenceMetrics {
+  issDailyDoseMsv?: string;
+  marsTransitDailyDoseMsv?: string;
+  nasaCareerLimitMsv?: number;
+  targetSleepHours?: string;
+  targetMoodScale?: string;
+  marsAverageDistanceMiles?: number;
+  marsMissionDurationYears?: number;
+  lunarTripDays?: number;
+  maxOneWayCommsDelayMinutes?: number;
+  boneLossPerMonthPercent?: string;
+  marsGravityFractionEarth?: string;
+  lunarGravityFractionEarth?: string;
+  habitabilityFactors?: string[];
+}
+
+export interface NasaHazard {
+  id: NasaHazardId;
+  order: number;
+  title: string;
+  url: string;
+  videoUrl: string;
+  summary: string;
+  healthEffects: string[];
+  mitigations: string[];
+  referenceMetrics: NasaHazardReferenceMetrics;
+  relatedIndicators: HealthIndicatorType[];
+  relatedWatchMetrics: string[];
+}
+
+export interface NasaHazardsCatalog {
+  schemaVersion: string;
+  sourceName: string;
+  sourceUrl: string;
+  sourceLastUpdated: string;
+  hazards: NasaHazard[];
+}
+
+export interface IndicatorGuidance {
+  whatItIs: string;
+  whyInSpace: string;
+  doNow: string[];
+  escalateWhen: string;
+}
+
+export type TrendDirection = 'rising' | 'falling' | 'stable';
+
+export interface TrendAssessment {
+  type: HealthIndicatorType;
+  pointStatus: HealthStatus;
+  trendStatus: HealthStatus;
+  effectiveStatus: HealthStatus;
+  direction: TrendDirection;
+  reason: string | null;
+}

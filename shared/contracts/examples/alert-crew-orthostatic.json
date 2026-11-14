@@ -1,0 +1,63 @@
+{
+  "id": "alert-0002",
+  "scope": "crew",
+  "crewIds": [
+    "crew-2"
+  ],
+  "severity": "red",
+  "scenarioId": "orthostatic",
+  "hazardId": "gravityFields",
+  "title": "Cmdr. Marcus Chen: düşük tansiyon ve hızlı nabız",
+  "spokenText": "Uyarı. Marcus Chen için kan basıncı düşük.",
+  "metrics": [
+    {
+      "kind": "vital",
+      "crewId": "crew-2",
+      "type": "bloodPressureSys",
+      "value": 85,
+      "unit": "mmHg",
+      "status": "red"
+    },
+    {
+      "kind": "vital",
+      "crewId": "crew-2",
+      "type": "bloodPressureDia",
+      "value": 55,
+      "unit": "mmHg",
+      "status": "red"
+    },
+    {
+      "kind": "vital",
+      "crewId": "crew-2",
+      "type": "heartRate",
+      "value": 112,
+      "unit": "bpm",
+      "status": "amber"
+    }
+  ],
+  "advice": {
+    "why": "Ağırlıksızlıkta vücut sıvıları yer değiştirir ve kalp zayıflar; tansiyon düşebilir ve kalp bunu telafi etmek için hızlanır.",
+    "doNow": [
+      "Uzanın veya bacaklarınızı yükseltip oturun.",
+      "Elektrolitli sıvı için.",
+      "Tansiyonu 5 dakika sonra tekrar ölçün."
+    ],
+    "escalate": "Büyük tansiyon 90'ın altında kalırsa, bayılma veya göğüs ağrısı olursa uçuş cerrahına hemen başvurun. Dünya ile iletişim gecikmesi 20 dakikaya kadar çıkabilir; önce siz harekete geçin.",
+    "source": "fallback",
+    "model": null,
+    "generatedAt": "2026-11-14T09:15:00.000Z"
+  },
+  "deliveries": [
+    {
+      "deviceId": "9b1d2c4e-0000-4000-8000-000000000002",
+      "crewId": "crew-2",
+      "deliveredAt": null,
+      "ackedAt": null
+    }
+  ],
+  "cockpitAckedAt": null,
+  "state": "active",
+  "createdAt": "2026-11-14T09:15:00.000Z",
+  "updatedAt": "2026-11-14T09:15:00.000Z",
+  "disclaimer": "Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir."
+}

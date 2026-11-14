@@ -24,13 +24,13 @@
       "lastUpdated": "2026-11-14T08:00:00Z",
       "measurements": {
         "heartRate": {
-          "value": 112,
+          "value": 72,
           "unit": "bpm",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "watch"
         },
         "bloodPressureSys": {
-          "value": 128,
+          "value": 118,
           "unit": "mmHg",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "manual"
@@ -42,7 +42,7 @@
           "source": "manual"
         },
         "spo2": {
-          "value": 89,
+          "value": 97,
           "unit": "%",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "watch"
@@ -60,13 +60,13 @@
           "source": "manual"
         },
         "sleepHours": {
-          "value": 5.5,
+          "value": 7.5,
           "unit": "h",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "watch"
         },
         "mood": {
-          "value": 3,
+          "value": 4,
           "unit": "1-5",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "watch"
@@ -90,9 +90,9 @@
           "distanceMeters": 3120.5
         },
         "vitals": {
-          "currentHeartRate": 112.0,
+          "currentHeartRate": 72.0,
           "restingHeartRate": 74.0,
-          "bloodOxygenPercentage": 89.0,
+          "bloodOxygenPercentage": 97.0,
           "bodyTemperature": 36.5
         },
         "environmentalData": {
@@ -109,14 +109,13 @@
         "generatedAt": "2026-11-14T08:05:00Z",
         "source": "fallback",
         "model": null,
-        "overallStatus": "red",
-        "summary": "Your blood oxygen (89%) is below the safe level and your heart rate is raised. Short sleep and a mood of 3 may be adding stress. The red SpO2 reading needs attention first.",
+        "overallStatus": "green",
+        "summary": "Tüm değerlerin normal aralıkta. Günlük rutinine devam et.",
         "actions": [
-          "Stop exertion, sit upright and check the cabin CO2/O2 readouts.",
-          "Re-measure SpO2 on the Apple Watch in 5 minutes.",
-          "Plan a protected 8-hour sleep window tonight."
+          "Planlanan egzersiz önlemlerine devam et.",
+          "Uyku ve sıvı alımı düzenini koru."
         ],
-        "escalate": "If SpO2 stays below 90% after re-measuring, alert the crew medical officer and contact the flight surgeon now.",
+        "escalate": "Şu an uçuş cerrahına başvurman gerekmiyor. Yeni bir belirti fark edersen haber ver.",
         "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
       }
     },
@@ -224,12 +223,12 @@
         "source": "fallback",
         "model": null,
         "overallStatus": "green",
-        "summary": "All your readings are in the normal range. Keep your daily routine.",
+        "summary": "Tüm değerlerin normal aralıkta. Günlük rutinine devam et.",
         "actions": [
-          "Continue the scheduled exercise countermeasures.",
-          "Keep your current sleep and hydration routine."
+          "Planlanan egzersiz önlemlerine devam et.",
+          "Uyku ve sıvı alımı düzenini koru."
         ],
-        "escalate": "No escalation needed. Contact the flight surgeon if you notice new symptoms.",
+        "escalate": "Şu an uçuş cerrahına başvurman gerekmiyor. Yeni bir belirti fark edersen haber ver.",
         "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
       }
     },
@@ -253,43 +252,43 @@
       "lastUpdated": "2026-11-14T08:00:00Z",
       "measurements": {
         "heartRate": {
-          "value": 82,
+          "value": 76,
           "unit": "bpm",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "watch"
         },
         "bloodPressureSys": {
-          "value": 134,
+          "value": 120,
           "unit": "mmHg",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "manual"
         },
         "bloodPressureDia": {
-          "value": 84,
+          "value": 78,
           "unit": "mmHg",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "manual"
         },
         "spo2": {
-          "value": 94,
+          "value": 97,
           "unit": "%",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "watch"
         },
         "bodyTemp": {
-          "value": 37.7,
+          "value": 36.7,
           "unit": "°C",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "watch"
         },
         "bloodGlucose": {
-          "value": 132,
+          "value": 98,
           "unit": "mg/dL",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "manual"
         },
         "sleepHours": {
-          "value": 6.4,
+          "value": 7.2,
           "unit": "h",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "watch"
@@ -301,7 +300,7 @@
           "source": "iphone"
         },
         "radiationDose": {
-          "value": 54.0,
+          "value": 24.0,
           "unit": "mSv",
           "timestamp": "2026-11-14T08:00:00Z",
           "source": "mock"
@@ -319,10 +318,10 @@
           "distanceMeters": 3890.0
         },
         "vitals": {
-          "currentHeartRate": 82.0,
+          "currentHeartRate": 76.0,
           "restingHeartRate": 71.0,
-          "bloodOxygenPercentage": 94.0,
-          "bodyTemperature": 37.7
+          "bloodOxygenPercentage": 97.0,
+          "bodyTemperature": 36.7
         },
         "environmentalData": {
           "altitudeMeters": 0.0,
@@ -338,14 +337,13 @@
         "generatedAt": "2026-11-14T08:05:00Z",
         "source": "fallback",
         "model": null,
-        "overallStatus": "amber",
-        "summary": "Several readings are slightly outside the normal range: blood pressure, temperature, glucose and SpO2 are in caution, and cumulative radiation has passed 50% of the mission budget.",
+        "overallStatus": "green",
+        "summary": "Tüm değerlerin normal aralıkta. Günlük rutinine devam et.",
         "actions": [
-          "Rest for 30 minutes, hydrate, then re-measure blood pressure and temperature.",
-          "Check the space-weather alerts and limit time outside shielded quarters.",
-          "Aim for at least 7 hours of sleep tonight."
+          "Planlanan egzersiz önlemlerine devam et.",
+          "Uyku ve sıvı alımı düzenini koru."
         ],
-        "escalate": "Contact the flight surgeon if temperature reaches 38.5 °C, blood pressure reaches 140/90 mmHg, or SpO2 drops below 90%.",
+        "escalate": "Şu an uçuş cerrahına başvurman gerekmiyor. Yeni bir belirti fark edersen haber ver.",
         "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
       }
     }

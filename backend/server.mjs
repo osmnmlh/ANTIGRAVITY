@@ -6,28 +6,30 @@
 // Every client must keep working when this server is down (fall back to shared/mock/*.json).
 
 import http from 'node:http';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import {
+  DEMO_DISCLAIMER,
+  INDICATOR_META,
+  INDICATOR_ORDER,
+  getOverallStatus,
+  getStatus,
+  getTrendStatus,
+} from '../web/src/domain/thresholds.ts';
 import { guidanceByType } from '../web/src/domain/guidance.ts';
-import { healthTypes as INDICATOR_ORDER, metricDefinitions as INDICATOR_META } from '../web/src/domain/types.ts';
-import { getStatus } from '../web/src/domain/thresholds.ts';
+import { metricDefinitions } from '../web/src/domain/types.ts';
+import { createAi } from './ai/index.mjs';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
-const envPath = here('./.env');
-if (existsSync(envPath)) process.loadEnvFile(envPath);
+try { process.loadEnvFile(here('./.env')); } catch { /* .env is optional */ }
 
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? '0.0.0.0'; // 0.0.0.0 so a phone on the same Wi-Fi can reach it
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
-const DEMO_DISCLAIMER = 'Demo software, not a medical device.';
-const AI_DISCLAIMER = `AI-generated suggestion. ${DEMO_DISCLAIMER}`;
+const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-flash-lite-latest';
+const AI_DISCLAIMER = `AI-generated suggestion. ${DEMO_DISCLAIMER}`; // same string as shared/mock packets
+let geminiLastError = null; // shown in /api/health so a failing key is visible without the server logs
 const RANK = { green: 0, missing: 1, amber: 2, red: 3 };
-
-function getGuidance(type) {
-  const guidance = guidanceByType[type];
-  return { doNow: guidance.doNow, escalateWhen: guidance.escalate };
-}
 
 // ---- In-memory state, loaded from shared mock data on every start ----
 const readJson = (p) => JSON.parse(readFileSync(here(p), 'utf8'));
@@ -41,26 +43,6 @@ let samples = structuredClone(INITIAL_SAMPLES);
 
 const findPacket = (crewId) => bundle.astronauts.find((a) => a.astronautId === crewId);
 const withStatus = (p) => ({ ...p, overallStatus: getOverallStatus(p, samples) });
-
-function getOverallStatus(packet, history = samples) {
-  const crewSamples = history.filter((sample) => sample.crewId === packet.astronautId);
-  const statuses = INDICATOR_ORDER.map((type) => {
-    const latestSample = crewSamples
-      .filter((sample) => sample.type === type)
-      .reduce((current, sample) => (
-        !current || Date.parse(sample.timestamp) > Date.parse(current.timestamp) ? sample : current
-      ), undefined);
-    const packetMeasurement = packet.measurements[type];
-    const measurement = !latestSample ||
-      (packetMeasurement && Date.parse(packetMeasurement.timestamp) > Date.parse(latestSample.timestamp))
-      ? packetMeasurement
-      : latestSample;
-    return measurement
-      ? getStatus(type, measurement.value, packet.mission.radiationBudgetMsv)
-      : 'missing';
-  });
-  return statuses.reduce((worst, status) => RANK[status] > RANK[worst] ? status : worst, 'green');
-}
 
 // ---- Server-Sent Events: push every change to open dashboards & mobile clients ----
 const clients = new Set();
@@ -116,6 +98,27 @@ function addSamples(input) {
   return packets;
 }
 
+// ---- AI module (backend/ai/, ADR-0007): proactive alerts, cabin, phone fan-out, chat ----
+const ai = createAi({
+  getPackets: () => bundle.astronauts,
+  getVitalStatus: (type, value, packet) => getStatus(type, value, packet.mission?.radiationBudgetMsv),
+  getVitalGuidance: (type) => guidanceByType[type],
+  getTrendStatus: (crewId, type) => getTrendStatus(samples.filter((s) => s.crewId === crewId), type),
+  vitalLabel: (type) => metricDefinitions[type]?.label ?? type,
+  hazards,
+  applySamples: (list) => addSamples(list), // vital demo scenarios write real samples, so web SSE sees them too
+  gemini: { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL },
+});
+
+// Rehearsal reset (POST /api/demo/reset and /api/simulation/reset): stop any simulation, reload shared/mock/*.json
+// into RAM (same as a restart), reset the AI module (alerts, cabin) and send every client a fresh `hello`.
+function resetRelay() {
+  const payload = resetAllData();
+  ai.resetDemo();
+  broadcast('hello', { astronauts: bundle.astronauts.map(withStatus), simulation: payload });
+  return payload;
+}
+
 // ---- AI guidance: Gemini when a key is set, deterministic fallback otherwise ----
 function indicatorStatuses(packet) {
   return INDICATOR_ORDER.map((type) => {
@@ -124,22 +127,25 @@ function indicatorStatuses(packet) {
   });
 }
 
-function fallbackGuidance(packet, overallStatus) {
+// Turkish UI everywhere (ADR-0005): texts come from web/src/domain/guidance.ts + metricDefinitions labels.
+const STATUS_TR = { amber: 'dikkat', red: 'KRİTİK' };
+function fallbackGuidance(packet) {
   const flagged = indicatorStatuses(packet)
     .filter((i) => i.status === 'amber' || i.status === 'red')
     .sort((a, b) => RANK[b.status] - RANK[a.status]);
   if (flagged.length === 0) {
     return {
-      summary: 'All your readings are in the normal range. Keep your daily routine.',
-      actions: ['Continue the scheduled exercise countermeasures.', 'Keep your current sleep and hydration routine.'],
-      escalate: 'No escalation needed. Contact the flight surgeon if you notice new symptoms.',
+      summary: 'Tüm değerlerin normal aralıkta. Günlük rutinine devam et.',
+      actions: ['Planlanan egzersiz önlemlerine devam et.', 'Uyku ve sıvı alımı düzenini koru.'],
+      escalate: 'Şu an uçuş cerrahına başvurman gerekmiyor. Yeni bir belirti fark edersen haber ver.',
     };
   }
-  const list = flagged.map((i) => `${i.type} ${i.value} ${i.unit} (${i.status})`).join(', ');
+  const label = (t) => metricDefinitions[t]?.label ?? t;
+  const list = flagged.map((i) => `${label(i.type)} ${i.value} ${i.unit} (${STATUS_TR[i.status]})`).join(', ');
   return {
-    summary: `${flagged.length} reading(s) need attention: ${list}. Overall status is ${overallStatus}.`,
-    actions: flagged.slice(0, 3).map((i) => getGuidance(i.type, i.status).doNow[0]),
-    escalate: getGuidance(flagged[0].type, flagged[0].status).escalateWhen,
+    summary: `${flagged.length} değer dikkat gerektiriyor: ${list}.`,
+    actions: [...new Set(flagged.slice(0, 3).map((i) => guidanceByType[i.type].doNow[0]))],
+    escalate: guidanceByType[flagged[0].type].escalate,
   };
 }
 
@@ -150,7 +156,7 @@ async function geminiGuidance(packet, overallStatus) {
     .join('\n');
   const prompt = [
     'You support an astronaut on a long-duration mission. This is demo software, not a medical device.',
-    'Write plain-language self-care guidance. Do not diagnose. Do not change the status colors below; they are final.',
+    'Write plain-language self-care guidance in Turkish (the astronaut reads Turkish). Do not diagnose. Do not change the status colors below; they are final.',
     'Return JSON only: {"summary": string (max 2 sentences), "actions": string[] (1-3 concrete steps), "escalate": string (when to contact the crew medical officer / flight surgeon)}.',
     `Mission: ${packet.mission.name}, day ${packet.mission.missionDay}, comms delay ${packet.mission.commsDelayMinutes} min.`,
     `Overall status (deterministic): ${overallStatus}`,
@@ -169,10 +175,10 @@ async function geminiGuidance(packet, overallStatus) {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(20_000),
     },
   );
-  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${(await res.text()).replace(/\s+/g, " ").slice(0, 300)}`);
   const data = await res.json();
   const out = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
   if (typeof out.summary !== 'string' || !Array.isArray(out.actions) || typeof out.escalate !== 'string') {
@@ -191,11 +197,13 @@ async function createAiGuidance(crewId) {
     try {
       text = await geminiGuidance(packet, overallStatus);
       source = 'gemini';
+      geminiLastError = null;
     } catch (err) {
+      geminiLastError = `${new Date().toISOString()} ${err.message}`;
       console.warn(`[ai] Gemini failed, using fallback: ${err.message}`);
     }
   }
-  text ??= fallbackGuidance(packet, overallStatus);
+  text ??= fallbackGuidance(packet);
   packet.aiGuidance = {
     generatedAt: new Date().toISOString(),
     source,
@@ -213,10 +221,12 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const stepInt = (v, d, lo, hi) => Math.round(clamp(v + (Math.floor(Math.random() * (d * 2 + 1)) - d), lo, hi));
 const stepTemp = (v, lo, hi) => Number(clamp(v + (Math.floor(Math.random() * 3) - 1) * 0.1, lo, hi).toFixed(1));
 
+// Live jitter stays inside green for everyone (team decision: red/amber only from a scenario or incident replay).
+// Steps are small enough that the 3-reading drift rule cannot fire; SpO2 stays 98-99 so it never "falls" 3 times in a row.
 const LIVE_BOUNDS = {
-  'crew-1': { heartRate: [98, 118], bloodPressureSys: [122, 134], bloodPressureDia: [68, 78], spo2: [88, 93], bodyTemp: [36.3, 36.8], bloodGlucose: [90, 104] },
-  'crew-2': { heartRate: [60, 72], bloodPressureSys: [112, 122], bloodPressureDia: [70, 78], spo2: [97, 99], bodyTemp: [36.4, 36.8], bloodGlucose: [88, 98] },
-  'crew-3': { heartRate: [76, 88], bloodPressureSys: [128, 138], bloodPressureDia: [80, 88], spo2: [93, 96], bodyTemp: [37.4, 37.9], bloodGlucose: [124, 138] },
+  'crew-1': { heartRate: [66, 80], bloodPressureSys: [110, 122], bloodPressureDia: [68, 78], spo2: [98, 99], bodyTemp: [36.4, 36.9], bloodGlucose: [88, 104] },
+  'crew-2': { heartRate: [60, 72], bloodPressureSys: [112, 122], bloodPressureDia: [70, 78], spo2: [98, 99], bodyTemp: [36.4, 36.8], bloodGlucose: [88, 98] },
+  'crew-3': { heartRate: [70, 82], bloodPressureSys: [112, 124], bloodPressureDia: [72, 78], spo2: [98, 99], bodyTemp: [36.5, 36.9], bloodGlucose: [90, 106] },
 };
 
 let preSimSnapshot = null;
@@ -316,6 +326,7 @@ function restoreSnapshotOrInitial(useInitial = false) {
   samples = structuredClone(source.samples);
   if (useInitial || preSimSnapshot) preSimSnapshot = null;
   for (const p of bundle.astronauts) broadcast('packet', withStatus(p));
+  ai.onSamples(); // values are back to normal: open alerts resolve
 }
 
 function generateLiveTick(targetCrewIds) {
@@ -333,10 +344,11 @@ function generateLiveTick(targetCrewIds) {
       { crewId: id, type: 'spo2', value: stepInt(cur('spo2') ?? 97, 1, ...b.spo2), timestamp: ts, source: 'watch' },
       { crewId: id, type: 'bodyTemp', value: stepTemp(cur('bodyTemp') ?? 36.5, ...b.bodyTemp), timestamp: ts, source: 'watch' },
       { crewId: id, type: 'bloodGlucose', value: stepInt(cur('bloodGlucose') ?? 95, 2, ...b.bloodGlucose), timestamp: ts, source: 'manual' },
-      { crewId: id, type: 'radiationDose', value: Number(((cur('radiationDose') ?? 20) + 0.02).toFixed(2)), timestamp: ts, source: 'mock' },
+      { crewId: id, type: 'radiationDose', value: Number(((cur('radiationDose') ?? 20) + 0.001).toFixed(3)) /* slow: a fast climb would trip the daily dose-rate trend rule */, timestamp: ts, source: 'mock' },
     );
   }
   const updated = addSamples(batch);
+  ai.onSamples(); // proactive alerts reach the web and the phones during the simulation too
   for (const p of updated) recordSimulationAlerts(p, 'Canlı Simülasyon');
   broadcast('simulation', simulationPayload());
 }
@@ -385,6 +397,7 @@ function startIncidentSimulation({ incidentId, crewId = 'crew-1', stepIntervalMs
       source: type === 'heartRate' || type === 'spo2' || type === 'sleepHours' || type === 'mood' ? 'watch' : 'mock',
     }));
     const [updated] = addSamples(batch);
+    ai.onSamples();
     recordSimulationAlerts(updated, `${phase.missionTimeLabel} · ${phase.title}`);
     broadcast('simulation', simulationPayload());
 
@@ -452,6 +465,27 @@ function resetAllData() {
   return payload;
 }
 
+// ---- Rate limits: loose on purpose. On stage 2 iPhones + the web can share one venue IP. ----
+// AI routes cost Gemini quota (free tier is small and the key is shared), so they get a tighter bucket.
+const LIMITS = {
+  ai: { max: Number(process.env.RATE_AI_PER_MIN ?? 30), test: (r) => /^POST \/api\/ai\/(guidance|chat)$/.test(r) },
+  all: { max: Number(process.env.RATE_ALL_PER_MIN ?? 600), test: () => true },
+};
+const hits = new Map(); // "bucket:ip" → { count, resetAt }
+function rateLimited(ip, route) {
+  if (route === 'GET /api/health' || route === 'OPTIONS /api/health') return null; // Render's health check
+  const now = Date.now();
+  for (const [name, { max, test }] of Object.entries(LIMITS)) {
+    if (!test(route)) continue;
+    const key = `${name}:${ip}`;
+    let h = hits.get(key);
+    if (!h || h.resetAt <= now) hits.set(key, (h = { count: 0, resetAt: now + 60_000 }));
+    if (++h.count > max) return Math.ceil((h.resetAt - now) / 1000);
+  }
+  return null;
+}
+setInterval(() => { const now = Date.now(); for (const [k, h] of hits) if (h.resetAt <= now) hits.delete(k); }, 60_000).unref();
+
 // ---- HTTP plumbing ----
 function send(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -475,12 +509,24 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, 'http://localhost');
   const route = `${req.method} ${url.pathname}`;
+  const started = Date.now();
+  res.on('finish', () => {
+    if (route !== 'GET /api/health') console.log(`[http] ${route} ${res.statusCode} ${Date.now() - started}ms`); // health is polled by Render
+  });
+  const ip = String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '').split(',')[0].trim();
+  const retryAfter = rateLimited(ip, route);
+  if (retryAfter) {
+    res.setHeader('retry-after', String(retryAfter));
+    return send(res, 429, { error: `Çok fazla istek, ${retryAfter} sn sonra tekrar deneyin.`, retryAfter });
+  }
   try {
+    if (route === 'POST /api/demo/reset' || route === 'POST /api/simulation/reset') {
+      return send(res, 200, resetRelay());
+    }
+    if (await ai.handle(req, res, url)) return; // /api/ai/* except /api/ai/guidance (handled below)
     if (route === 'GET /api/health') {
       return send(res, 200, {
-        ok: true,
-        gemini: Boolean(GEMINI_API_KEY),
-        clients: clients.size,
+        ok: true, gemini: Boolean(GEMINI_API_KEY), model: GEMINI_API_KEY ? GEMINI_MODEL : null, geminiLastError, clients: clients.size, ai: true,
         simulation: { mode: simState.mode, running: simState.running, incidentId: simState.incidentId },
       });
     }
@@ -496,7 +542,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, crewId ? samples.filter((s) => s.crewId === crewId) : samples);
     }
     if (route === 'POST /api/samples') {
-      return send(res, 201, { packets: addSamples(await readBody(req)) });
+      const packets = addSamples(await readBody(req));
+      ai.onSamples();
+      return send(res, 201, { packets });
     }
     if (route === 'GET /api/incidents') {
       return send(res, 200, { disclaimer: DEMO_DISCLAIMER, incidents });
@@ -516,9 +564,6 @@ const server = http.createServer(async (req, res) => {
     if (route === 'POST /api/simulation/stop') {
       return send(res, 200, stopSimulation(await readBody(req)));
     }
-    if (route === 'POST /api/simulation/reset') {
-      return send(res, 200, resetAllData());
-    }
     if (route === 'POST /api/ai/guidance') {
       const { crewId } = await readBody(req);
       return send(res, 200, await createAiGuidance(crewId));
@@ -535,6 +580,10 @@ const server = http.createServer(async (req, res) => {
     send(res, err.status ?? 400, { error: err.message });
   }
 });
+
+// Time limits for *receiving* a request (slow or stuck clients). SSE responses stay open; Gemini has its own 20 s timeout.
+server.headersTimeout = 10_000;
+server.requestTimeout = 15_000;
 
 server.listen(PORT, HOST, () => {
   console.log(`ANTIGRAVITY relay on http://localhost:${PORT}  (Gemini: ${GEMINI_API_KEY ? GEMINI_MODEL : 'off, using fallback'})`);

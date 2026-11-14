@@ -9,8 +9,8 @@ iPhone = **hub**: receives watch samples, stores history, shows trends/guidance,
 
 ## Setup
 
-- One Xcode project `mobile/ios/Antigravity.xcodeproj` with targets: iOS app (iOS 18, iPhone 16 Pro), Watch App (sources in `/watch`).
-- Shared files (target membership on both): `HealthSample.swift`, `Thresholds.swift`, `ConnectivityManager.swift`.
+- One Xcode project `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj` with targets: iOS app (iOS 18, iPhone 16 Pro, sources `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_iOS/`) and Watch App (sources `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_watchOS/`).
+- Shared files (target membership on both): `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/HealthModels.swift`, `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/Thresholds.swift`, plus `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/` (put `ConnectivityManager.swift` there).
 - Persistence: SwiftData or a JSON file in Documents. Pick the faster one for you; no CloudKit, no backend.
 
 ## WatchConnectivity (one manager, both sides)
@@ -56,6 +56,15 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 
 - Use `sendMessageData` for live (both apps foreground), `transferUserInfo` for guaranteed queued delivery, `updateApplicationContext` for "latest status" phone → watch.
 - Call `activate()` in each app's `init`/`App` body at launch.
+
+## AI recommendation (from backend)
+
+- `AstronautHealthPacket.aiGuidance` (optional) is filled by `backend/` via Gemini. Decode it with `HealthJSONCodec.decoder` and show it as an **"AI recommendation"** card: `summary`, `actions` as bullets, `escalate`, and `disclaimer`. Hide the card when it is `nil`.
+- Base URL in one constant (ADR-0004): `https://antigravity-backend-8lv8.onrender.com` (HTTPS, no ATS exception). Get packets with `GET /api/packets/<crewId>`, alerts with `GET /api/ai/stream?deviceId=…&crewId=…` (SSE) + a local notification, report `POST /api/ai/alerts/:id/delivered|ack`, forward Watch samples with `POST /api/samples`. Contract: `shared/contracts/ai.md`.
+- Always keep the bundled `shared/mock/astronaut-packets.json` as a silent fallback (ADR-0002, no "offline" badge, no "Gemini/fallback" label).
+- Plan B only (laptop relay on a hotspot): plain HTTP to a LAN IP needs `NSAppTransportSecurity` → `NSAllowsLocalNetworking = YES` and a `NSLocalNetworkUsageDescription` in Info.plist; the simulator can use `http://localhost:8787`.
+- UI text is Turkish (ADR-0005).
+- Never put the Gemini key in the app; color/status still comes from `HealthThresholds`, not from the AI text.
 
 ## Rules
 

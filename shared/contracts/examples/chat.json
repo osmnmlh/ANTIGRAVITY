@@ -1,0 +1,23 @@
+{
+  "request": {
+    "crewId": "crew-1",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Astronotun şu anki durumu nasıl?"
+      }
+    ]
+  },
+  "response": {
+    "reply": "Dr. Elena Vance iyi durumda: tüm değerler normal aralıkta. Yeni bir belirti olmadıkça uçuş cerrahına başvurmaya gerek yok.",
+    "escalation": "none",
+    "indicators": [],
+    "suggestions": [
+      "Uyku durumu nasıl?",
+      "Ne zaman uçuş cerrahını aramalıyım?"
+    ],
+    "source": "fallback",
+    "model": null,
+    "disclaimer": "Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir."
+  }
+}
