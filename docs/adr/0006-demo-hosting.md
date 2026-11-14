@@ -1,0 +1,20 @@
+# 0006. Demo hosting and submission link
+
+- Status: Proposed
+- Date: 2026-11-14
+- Affects: web, backend (osmnmlh), submission (Mehmetson01)
+
+## Context
+The submission needs a demo video and usually a project link judges can open. The relay holds the Gemini key and must
+not be exposed carelessly. Hosting a backend costs setup time.
+
+## Options
+1. **Local only + video.** + zero setup. − judges cannot click anything.
+2. **Static web on GitHub Pages / Vercel, mock mode only** (ADR-0002 fallback), backend runs on the demo Mac for the live demo. + clickable link, no secret online. − hosted version has no live AI chat (canned fallback only).
+3. **Static web + hosted backend (Render/Fly/etc.) with the key.** + everything online. − secret management, cold starts, rate limits, more to break.
+
+## Recommendation
+Option 2. Decide at hour ~14 whether there is time for option 3; never put the key in the frontend.
+
+## Decision
+_To be filled by the team._
