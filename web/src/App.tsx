@@ -139,8 +139,8 @@ function TrendChart({ type, value }: { type: HealthType; value: number }) {
       <svg viewBox="0 0 280 134" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#52e6b2" stopOpacity=".23" />
-            <stop offset="100%" stopColor="#52e6b2" stopOpacity="0" />
+            <stop offset="0%" stopColor="#10b981" stopOpacity=".23" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[30, 71, 112].map((y) => (
@@ -300,7 +300,7 @@ function App() {
         </div>
         <div className="crew-profile">
           <span className="crew-avatar">AK</span>
-          <span><strong>Alex Kim</strong><small>MISSION SPECIALIST</small></span>
+          <span><strong>Ahmet Özkan Taşsever</strong><small>MISSION SPECIALIST</small></span>
           <button type="button" className="profile-menu" aria-label="Profil menüsü">···</button>
         </div>
       </header>
@@ -357,8 +357,17 @@ function App() {
         )}
 
         <section className="dashboard-grid">
-          <aside className="control-column">
-            <div className="section-label"><span>01</span> GÖREV KONTROLLERİ</div>
+          <details className="dashboard-disclosure control-column" data-testid="controls-disclosure">
+            <summary className="disclosure-summary">
+              <span className="disclosure-icon" aria-hidden="true">+</span>
+              <span className="disclosure-copy">
+                <span className="eyebrow">GÖREV ARAÇLARI</span>
+                <strong>Ölçüm ve senaryo kontrolleri</strong>
+                <small>Manuel kayıt · Demo senaryoları</small>
+              </span>
+              <span className="disclosure-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div className="disclosure-content">
             <section className="panel manual-panel">
               <div className="panel-heading">
                 <div><span className="eyebrow">HIZLI GİRİŞ</span><h2>Ölçüm kaydet</h2></div>
@@ -431,24 +440,11 @@ function App() {
                 <span>Radyasyon</span><span>İzolasyon</span><span>Uzaklık</span><span>Yerçekimi</span><span>Kapalı ortam</span>
               </div>
             </div>
-          </aside>
+            </div>
+          </details>
 
           <section className="body-column">
             <div className="section-label"><span>02</span> DURUM HARİTASI</div>
-            <section className={`panel overview-panel ${getStatusTone(overallStatus)}`} data-testid="overall-status">
-              <div className="overview-copy">
-                <span className="eyebrow">GENEL SAĞLIK DURUMU</span>
-                <h2>{overallStatus === 'green' ? 'Tüm göstergeler nominal' : overallStatus === 'amber' ? 'Takip gereken göstergeler var' : overallStatus === 'red' ? 'Kritik gösterge tespit edildi' : 'Ölçüm bekleniyor'}</h2>
-                <p>{statusDescriptions[overallStatus]}</p>
-              </div>
-              <StatusBadge status={overallStatus} />
-              <div className="overview-counts">
-                <span className="status-green"><i /> {statusCounts.green} normal</span>
-                <span className="status-amber"><i /> {statusCounts.amber} dikkat</span>
-                <span className="status-red"><i /> {statusCounts.red} kritik</span>
-              </div>
-            </section>
-
             <section className="panel body-panel">
               <div className="panel-heading body-heading">
                 <div><span className="eyebrow">MÜRETTEBAT / AST-01</span><h2>Vücut risk haritası</h2></div>
@@ -464,19 +460,73 @@ function App() {
                   <span className="map-live"><i /> GÜNCEL</span>
                 </div>
               </div>
-              <ThreeBodyMap
-                statuses={statuses}
-                values={values}
-                selected={selectedMetric}
-                focused={focusedMetric}
-                onSelect={selectMetric}
-              />
+              <section className={`overview-panel ${getStatusTone(overallStatus)}`} data-testid="overall-status">
+                <div className="overview-copy">
+                  <span className="eyebrow">GENEL SAĞLIK DURUMU</span>
+                  <h2>{overallStatus === 'green' ? 'Tüm göstergeler nominal' : overallStatus === 'amber' ? 'Takip gereken göstergeler var' : overallStatus === 'red' ? 'Kritik gösterge tespit edildi' : 'Ölçüm bekleniyor'}</h2>
+                  <p>{statusDescriptions[overallStatus]}</p>
+                </div>
+                <StatusBadge status={overallStatus} />
+                <div className="overview-counts">
+                  <span className="status-green"><i /> {statusCounts.green} normal</span>
+                  <span className="status-amber"><i /> {statusCounts.amber} dikkat</span>
+                  <span className="status-red"><i /> {statusCounts.red} kritik</span>
+                </div>
+              </section>
+              <div className="map-indicator-layout">
+                <ThreeBodyMap
+                  environment={environment}
+                  statuses={statuses}
+                  values={values}
+                  selected={selectedMetric}
+                  focused={focusedMetric}
+                  onSelect={selectMetric}
+                />
+                <aside className="map-indicators" aria-label="Mürettebat sağlık göstergeleri">
+                  <div className="map-indicators-heading">
+                    <span className="eyebrow">CANLI GÖSTERGELER</span>
+                    <span>{metricOrder.length} ÖLÇÜM</span>
+                  </div>
+                  <div className="map-indicator-list">
+                    {metricOrder.map((type, index) => {
+                      const sample = latest[type]
+                      const status = statuses[type]
+                      return (
+                        <button
+                          className={`map-indicator-card ${getStatusTone(status)} ${selectedMetric === type ? 'is-selected' : ''}`}
+                          data-testid={`status-card-${type}`}
+                          key={type}
+                          onClick={() => selectMetric(type)}
+                          type="button"
+                        >
+                          <span className="map-indicator-index">0{index + 1}</span>
+                          <span className="map-indicator-copy">
+                            <span>{metricDefinitions[type].shortLabel}</span>
+                            <strong>{formatValue(type, sample?.value)} <small>{metricDefinitions[type].displayUnit}</small></strong>
+                          </span>
+                          <StatusBadge status={status} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </aside>
+              </div>
               <div className="map-instruction"><span>↖</span> Bir bölgeye dokunarak ölçümü ve rehberi aç</div>
             </section>
           </section>
 
-          <aside className="guidance-column">
-            <div className="section-label"><span>03</span> YORUMLA &amp; HAREKETE GEÇ</div>
+          <details className="dashboard-disclosure guidance-column" data-testid="guidance-disclosure">
+            <summary className="disclosure-summary">
+              <span className={`disclosure-icon status-${selectedStatus}`} aria-hidden="true">◎</span>
+              <span className="disclosure-copy">
+                <span className="eyebrow">SEÇİLİ GÖSTERGE · {metricDefinitions[selectedMetric].shortLabel.toLocaleUpperCase('tr-TR')}</span>
+                <strong>{formatValue(selectedMetric, selectedSample?.value)} {metricDefinitions[selectedMetric].displayUnit} · Rehber ve eğilim</strong>
+                <small>{selectedGuidance.hazard}</small>
+              </span>
+              <StatusBadge status={selectedStatus} />
+              <span className="disclosure-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div className="disclosure-content">
             <section className="panel guidance-panel" data-testid="guidance-panel">
               <div className="guidance-topline">
                 <span className="eyebrow">SEÇİLİ GÖSTERGE</span>
@@ -516,34 +566,8 @@ function App() {
                 {selectedSample ? ` · ${new Date(selectedSample.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : ''}
               </p>
             </section>
-          </aside>
-        </section>
-
-        <section className="metrics-section">
-          <div className="metrics-heading">
-            <div><span className="eyebrow">MÜRETTEBAT BIYOMETRİKLERİ</span><h2>Gösterge özeti</h2></div>
-            <span className="metric-count">{metricOrder.length} GÖSTERGE · TEK BAKIŞTA</span>
-          </div>
-          <div className="metric-grid">
-            {metricOrder.map((type, index) => {
-              const sample = latest[type]
-              const status = statuses[type]
-              return (
-                <button
-                  className={`metric-card ${getStatusTone(status)} ${selectedMetric === type ? 'metric-card-selected' : ''}`}
-                  data-testid={`status-card-${type}`}
-                  key={type}
-                  onClick={() => selectMetric(type)}
-                  type="button"
-                >
-                  <span className="metric-card-top"><span className="metric-card-index">0{index + 1}</span><StatusBadge status={status} /></span>
-                  <span className="metric-card-name">{metricDefinitions[type].shortLabel}</span>
-                  <span className="metric-card-value">{formatValue(type, sample?.value)} <small>{metricDefinitions[type].displayUnit}</small></span>
-                  <span className="metric-card-foot"><span>{metricDefinitions[type].label}</span><b>↗</b></span>
-                </button>
-              )
-            })}
-          </div>
+            </div>
+          </details>
         </section>
 
         <footer className="app-footer">

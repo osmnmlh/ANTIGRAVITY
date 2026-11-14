@@ -112,7 +112,7 @@ export function isHealthSample(value: unknown): value is HealthSample {
 
 // ---------------------------------------------------------------------------
 // Packet, Watch telemetry, NASA hazard and AI guidance types (shared contract,
-// mirrored in mobile/ios/Shared/HealthModels.swift; used by backend/server.mjs).
+// mirrored in mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/HealthModels.swift; used by backend/server.mjs).
 // ---------------------------------------------------------------------------
 
 /** Alias used by the packet / backend code; same union as `HealthType`. */

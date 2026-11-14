@@ -15,6 +15,14 @@ const PACKETS = readJson('../../shared/mock/astronaut-packets.json').astronauts;
 const HAZARDS = readJson('../../shared/mock/nasa-hazards.json').hazards;
 const SAMPLES = readJson('../../shared/mock/samples.json');
 
+// The demo mock starts all-green (team decision). These tests need a crew-1 that already has problems,
+// so they overlay the earlier "bad morning" values: SpO2 89, HR 112, sleep 5.5, mood 3 two days in a row.
+const CREW1_BAD_MORNING = { spo2: 89, heartRate: 112, sleepHours: 5.5, mood: 3 };
+for (const [type, value] of Object.entries(CREW1_BAD_MORNING)) {
+  PACKETS.find((p) => p.astronautId === 'crew-1').measurements[type].value = value;
+  SAMPLES.find((x) => x.crewId === 'crew-1' && x.type === type && x.timestamp.startsWith('2026-11-14')).value = value;
+}
+
 function setup(extra = {}) {
   const packets = structuredClone(PACKETS);
   const clock = { t: Date.parse('2026-11-14T08:00:00Z') };
@@ -64,7 +72,7 @@ test('cabin thresholds follow the contract table', () => {
   assert.equal(cabinStatus('lifeSupportPower', 'degraded'), 'amber');
 });
 
-test('problems present at start are a silent baseline (crew-1 SpO2 89 in mock data)', () => {
+test('problems present at start are a silent baseline (crew-1 SpO2 89, test fixture)', () => {
   const { ai } = setup();
   const a = active(ai).find((x) => x.scenarioId === 'individual-hypoxia');
   assert.ok(a, 'crew-1 low SpO2 is listed');

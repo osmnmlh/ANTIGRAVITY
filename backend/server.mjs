@@ -12,10 +12,13 @@ import {
   DEMO_DISCLAIMER,
   INDICATOR_META,
   INDICATOR_ORDER,
-  getGuidance,
   getOverallStatus,
   getStatus,
+  getTrendStatus,
 } from '../web/src/domain/thresholds.ts';
+import { guidanceByType } from '../web/src/domain/guidance.ts';
+import { metricDefinitions } from '../web/src/domain/types.ts';
+import { createAi } from './ai/index.mjs';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 try { process.loadEnvFile(here('./.env')); } catch { /* .env is optional */ }
@@ -24,7 +27,7 @@ const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? '0.0.0.0'; // 0.0.0.0 so a phone on the same Wi-Fi can reach it
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
-const AI_DISCLAIMER = `AI-generated suggestion. ${DEMO_DISCLAIMER}`;
+const AI_DISCLAIMER = `AI-generated suggestion. ${DEMO_DISCLAIMER}`; // same string as shared/mock packets
 const RANK = { green: 0, missing: 1, amber: 2, red: 3 };
 
 // ---- In-memory state, loaded from shared mock data on every start ----
@@ -77,6 +80,26 @@ function addSamples(input) {
   return packets;
 }
 
+// ---- AI module (backend/ai/, ADR-0007): proactive alerts, cabin, phone fan-out, chat ----
+const ai = createAi({
+  getPackets: () => bundle.astronauts,
+  getVitalStatus: (type, value, packet) => getStatus(type, value, packet.mission?.radiationBudgetMsv),
+  getVitalGuidance: (type) => guidanceByType[type],
+  getTrendStatus: (crewId, type) => getTrendStatus(samples.filter((s) => s.crewId === crewId), type),
+  vitalLabel: (type) => metricDefinitions[type]?.label ?? type,
+  hazards,
+  applySamples: (list) => addSamples(list), // vital demo scenarios write real samples, so web SSE sees them too
+  gemini: { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL },
+});
+
+// Rehearsal reset: reload shared/mock/*.json into RAM (same as a restart), then reset the AI module.
+function resetRelay() {
+  const fresh = readJson('../shared/mock/astronaut-packets.json');
+  Object.assign(bundle, fresh);
+  samples.splice(0, samples.length, ...readJson('../shared/mock/samples.json'));
+  broadcast('hello', { astronauts: bundle.astronauts.map(withStatus) });
+}
+
 // ---- AI guidance: Gemini when a key is set, deterministic fallback otherwise ----
 function indicatorStatuses(packet) {
   return INDICATOR_ORDER.map((type) => {
@@ -85,22 +108,25 @@ function indicatorStatuses(packet) {
   });
 }
 
-function fallbackGuidance(packet, overallStatus) {
+// Turkish UI everywhere (ADR-0005): texts come from web/src/domain/guidance.ts + metricDefinitions labels.
+const STATUS_TR = { amber: 'dikkat', red: 'KRİTİK' };
+function fallbackGuidance(packet) {
   const flagged = indicatorStatuses(packet)
     .filter((i) => i.status === 'amber' || i.status === 'red')
     .sort((a, b) => RANK[b.status] - RANK[a.status]);
   if (flagged.length === 0) {
     return {
-      summary: 'All your readings are in the normal range. Keep your daily routine.',
-      actions: ['Continue the scheduled exercise countermeasures.', 'Keep your current sleep and hydration routine.'],
-      escalate: 'No escalation needed. Contact the flight surgeon if you notice new symptoms.',
+      summary: 'Tüm değerlerin normal aralıkta. Günlük rutinine devam et.',
+      actions: ['Planlanan egzersiz önlemlerine devam et.', 'Uyku ve sıvı alımı düzenini koru.'],
+      escalate: 'Şu an uçuş cerrahına başvurman gerekmiyor. Yeni bir belirti fark edersen haber ver.',
     };
   }
-  const list = flagged.map((i) => `${i.type} ${i.value} ${i.unit} (${i.status})`).join(', ');
+  const label = (t) => metricDefinitions[t]?.label ?? t;
+  const list = flagged.map((i) => `${label(i.type)} ${i.value} ${i.unit} (${STATUS_TR[i.status]})`).join(', ');
   return {
-    summary: `${flagged.length} reading(s) need attention: ${list}. Overall status is ${overallStatus}.`,
-    actions: flagged.slice(0, 3).map((i) => getGuidance(i.type, i.status).doNow[0]),
-    escalate: getGuidance(flagged[0].type, flagged[0].status).escalateWhen,
+    summary: `${flagged.length} değer dikkat gerektiriyor: ${list}.`,
+    actions: [...new Set(flagged.slice(0, 3).map((i) => guidanceByType[i.type].doNow[0]))],
+    escalate: guidanceByType[flagged[0].type].escalate,
   };
 }
 
@@ -111,7 +137,7 @@ async function geminiGuidance(packet, overallStatus) {
     .join('\n');
   const prompt = [
     'You support an astronaut on a long-duration mission. This is demo software, not a medical device.',
-    'Write plain-language self-care guidance. Do not diagnose. Do not change the status colors below; they are final.',
+    'Write plain-language self-care guidance in Turkish (the astronaut reads Turkish). Do not diagnose. Do not change the status colors below; they are final.',
     'Return JSON only: {"summary": string (max 2 sentences), "actions": string[] (1-3 concrete steps), "escalate": string (when to contact the crew medical officer / flight surgeon)}.',
     `Mission: ${packet.mission.name}, day ${packet.mission.missionDay}, comms delay ${packet.mission.commsDelayMinutes} min.`,
     `Overall status (deterministic): ${overallStatus}`,
@@ -156,7 +182,7 @@ async function createAiGuidance(crewId) {
       console.warn(`[ai] Gemini failed, using fallback: ${err.message}`);
     }
   }
-  text ??= fallbackGuidance(packet, overallStatus);
+  text ??= fallbackGuidance(packet);
   packet.aiGuidance = {
     generatedAt: new Date().toISOString(),
     source,
@@ -192,9 +218,18 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, 'http://localhost');
   const route = `${req.method} ${url.pathname}`;
+  const started = Date.now();
+  res.on('finish', () => console.log(`[http] ${route} ${res.statusCode} ${Date.now() - started}ms`));
   try {
+    if (route === 'POST /api/demo/reset') {
+      resetRelay();
+      return ai.handle(req, res, new URL('/api/ai/demo/reset', 'http://localhost'));
+    }
+    if (await ai.handle(req, res, url)) return; // /api/ai/* except /api/ai/guidance (handled below)
     if (route === 'GET /api/health') {
-      return send(res, 200, { ok: true, gemini: Boolean(GEMINI_API_KEY), clients: clients.size });
+      return send(res, 200, {
+        ok: true, gemini: Boolean(GEMINI_API_KEY), model: GEMINI_API_KEY ? GEMINI_MODEL : null, clients: clients.size, ai: true,
+      });
     }
     if (route === 'GET /api/packets') {
       return send(res, 200, { ...bundle, astronauts: bundle.astronauts.map(withStatus) });
@@ -208,7 +243,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, crewId ? samples.filter((s) => s.crewId === crewId) : samples);
     }
     if (route === 'POST /api/samples') {
-      return send(res, 201, { packets: addSamples(await readBody(req)) });
+      const packets = addSamples(await readBody(req));
+      ai.onSamples();
+      return send(res, 201, { packets });
     }
     if (route === 'POST /api/ai/guidance') {
       const { crewId } = await readBody(req);
