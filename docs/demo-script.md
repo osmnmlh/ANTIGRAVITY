@@ -6,6 +6,34 @@ Bu doküman, jüri önünde gerçekleştirilecek **yaklaşık 3 dakikalık (180 
 
 ---
 
+## Hazırlık Durumu (14 Kasım, `main` ile karşılaştırma)
+
+> Bu senaryo hedef akışı anlatır. Aşağıdaki tablo her adımın bugün `main` üzerinde çalışıp çalışmadığını ve neye bağlı olduğunu gösterir. Sahnede yalnızca ✅ olan şeyleri "canlı" diye gösterin; ⏳ olanlar birleşmeden önce senaryodan çıkarılmalı veya "yol haritası" diye anlatılmalı.
+
+| Adım | Gerekli özellik | Durum | Bağlı olduğu iş / karar |
+| --- | --- | --- | --- |
+| 2 | Web durum kartları, 7 günlük grafik, 3B vücut haritası, eşik + trend renkleri | ✅ Web'de var (yerel mock) | — |
+| 2 | Web'in `GET /api/packets` ile backend'den veri alması (`VITE_API_URL`) | ⏳ Yok, web yalnızca yerel mock kullanıyor | ADR-0002, web ↔ backend bağlantısı |
+| 3 | Web'deki "Senaryo çalıştır" butonları | ✅ Var ama yalnızca yerel: Güneş parçacık olayı ve Uyku yoksunluğu (telefona gitmez) | — |
+| 3 | `POST /api/ai/demo/:scenarioId` ile 11 AI senaryosu (`cabin-gas-leak` vb.) | ⚠️ Sadece `backend/ai/dev-server.mjs` (`:8788`) üzerinde; `server.mjs` (`:8787`) içinde yok | AI modülünün `server.mjs`'e bağlanması (PR #21 notu) |
+| 3 | Uyarının web + iPhone'a SSE ile aynı anda düşmesi (`/api/ai/stream`) | ⏳ Backend tarafı hazır (dev-server), web ve iPhone istemcisi yok | ADR-0007, web `src/ai/`, iOS `NetworkManager` |
+| 3 | Uyarının Apple Watch'a düşmesi | ⏳ AI dağıtımı telefonları hedefliyor; saate iletim iPhone uygulamasına bağlı | ADR-0004 |
+| 4 | Web'de NASA 5 tehlike gösterimi | ✅ Var (metinler `web/src/domain/guidance.ts` içinde; `nasa-hazards.json` backend AI tarafından kullanılıyor) | — |
+| 4 | `POST /api/ai/guidance` (Gemini + `fallback`) | ✅ `server.mjs` içinde var | Gemini anahtarı yoksa `fallback` |
+| 4 | AI Bot sohbeti `POST /api/ai/chat` | ⏳ Hiçbir yerde yok | ADR-0003 |
+| 4 | iPhone'da **AI recommendation** kartı | ⏳ iOS uygulaması `main`'de değil (`features/ios_viewmodel` branch'inde) | iOS PR'ı |
+| — | Vercel üzerinde canlı web + HTTPS backend | ⏳ Kurulum yok | ADR-0006 (öneri: web statik + mock, backend demo Mac'inde) |
+
+> **Dikkat:** `shared/mock/astronaut-packets.json` içinde crew-1 (Dr. Elena Vance) SpO2 89% ile başlıyor; backend `reset` sonrası da kırmızı (`individual-hypoxia`) görünür. Web ise kendi başlangıç değerleriyle (SpO2 97) yeşil açılır. Sahnede iki ekran yan yana gösterilecekse başlangıç değerleri hizalanmalı.
+
+### Bugün çalışan yedek akış (hiçbir bekleyen işe bağlı değil)
+
+1. `cd web && npm run dev` → durum kartları, grafik, vücut haritası, rehberlik paneli, "Güneş parçacık olayı" ve "Uyku yoksunluğu" senaryoları, "Sıfırla".
+2. Ayrı terminalde `node --experimental-strip-types backend/ai/dev-server.mjs` → `curl -X POST localhost:8788/api/ai/demo/cabin-gas-leak` ile proaktif uyarının deterministik metni ve öneri (`advice`) terminalde/`/api/ai/stream` akışında gösterilebilir.
+3. Telefon/saat adımı, iOS PR'ı birleşene kadar ekran kaydı veya simülatör videosu ile anlatılır.
+
+---
+
 ## Rol Dağılımı (Sahne Planı)
 
 > Ekip içi sahne görev dağılımı henüz kesinleştirilmediği için roller `[Belirlenecek]` olarak bırakılmıştır.

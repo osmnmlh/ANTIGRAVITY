@@ -16,7 +16,19 @@ Bu liste, proje tesliminden önce tamamlanması gereken tüm çıktıları takip
 | 4 | **Ekran Görüntüleri (`docs/screenshots/`)** | `[Belirlenecek]` | `[ ]` | Web kokpiti, grafik/vücut haritası, iPhone uyarı/AI önerisi ve Apple Watch ekran görüntüleri |
 | 5 | **Canlı Bağlantı (Vercel) & Backend Relay Doğrulaması** | `[Belirlenecek]` | `[ ]` | Vercel linki aktif; `VITE_API_URL` canlı HTTPS backend'e bağlı ve `POST /api/ai/demo/:scenarioId` canlı yayında test edilmiş |
 | 6 | **Taze Klon Üzerinden Kurulum Testi** | `[Belirlenecek]` | `[ ]` | Temiz klonda `web` (`npm install && npm run build`), `backend` (`npm start`) ve `node shared/tests/check-trends.mjs` hatasız çalışıyor |
-| 7 | **Tıbbi Cihaz Değildir Uyarısı Kontrolü** | `[Belirlenecek]` | `[x]` | `README.md`, `docs/demo-script.md` ve uygulama arayüzlerinde `"Demo software, not a medical device."` / Türkçe eşdeğeri yer alıyor |
+| 7 | **Tıbbi Cihaz Değildir Uyarısı Kontrolü** | `[Belirlenecek]` | `[ ]` | Web (`App.tsx` alt bilgisi), `README.md` ve `docs/demo-script.md` içinde var; iPhone ve Apple Watch ekranlarında da kontrol edilecek. Hedef: tüm arayüzlerde `"Demo software, not a medical device."` / Türkçe eşdeğeri yer alıyor |
 | 8 | **NASA & CSA Kaynak Referansları** | `[Belirlenecek]` | `[x]` | `https://www.nasa.gov/hrp/hazards/` ve `shared/mock/nasa-hazards.json` dosyası dokümante edildi |
 | 9 | **Kullanılan AI Araçları Beyanı** | `[Belirlenecek]` | `[ ]` | `[Teslim öncesi ekipçe doldurulacak]` — *Teslim formundaki AI kullanım beyanı ekip tarafından karar verilip son aşamada eklenecektir.* |
 | 10 | **NASA Space Apps Portal Teslimi** | `[Belirlenecek]` | `[ ]` | Video bağlantısı, canlı Vercel URL, GitHub repo linki, ekran görüntüleri ve proje özeti son teslimden önce doğrulandı |
+
+---
+
+## Teslimden Önce Verilmesi Gereken Kararlar
+
+| Karar | Seçenekler | Etkilediği yer |
+| --- | --- | --- |
+| Sunum ve arayüz dili ([ADR-0005](./adr/0005-ui-language.md)) | Türkçe / İngilizce (öneri: İngilizce, jüri için) / Türkçe + İngilizce altyazı | Demo videosu, `demo-script.md`, web/iOS metinleri |
+| Barındırma ve teslim linki ([ADR-0006](./adr/0006-demo-hosting.md)) | Sadece yerel + video / statik web (mock) + backend demo Mac'inde (öneri) / web + barındırılan backend | `demo-script.md` hazırlık adımları, madde 5 |
+| Canlı demoda telefon/saat adımı | iOS PR'ı zamanında birleşirse canlı / değilse kayıtlı video | `demo-script.md` adım 3–4 |
+| Video süresi ve formatı | Etkinliğin resmi teslim kurallarından doğrulanacak (3 dk varsayımı kontrol edilmeli) | Madde 3 |
+| Sahne rolleri ve sorumlular | Ekip belirleyecek | Tüm `[Belirlenecek]` alanları |
