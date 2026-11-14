@@ -24,7 +24,7 @@ Bu doküman, **10 dakikalık** jüri sunumunun içindeki **yaklaşık 3 dakikal�
 | 4 | iPhone'da **AI recommendation** kartı | ⏳ iOS uygulaması `main`'de değil (`features/ios_viewmodel` branch'inde) | iOS PR'ı |
 | — | Vercel üzerinde canlı web + HTTPS backend | ⏳ Kurulum yok | ADR-0006 (öneri: web statik + mock, backend demo Mac'inde) |
 
-> **Dikkat:** `shared/mock/astronaut-packets.json` içinde crew-1 (Dr. Elena Vance) SpO2 89% ile başlıyor; backend `reset` sonrası da kırmızı (`individual-hypoxia`) görünür. Web ise kendi başlangıç değerleriyle (SpO2 97) yeşil açılır. Sahnede iki ekran yan yana gösterilecekse başlangıç değerleri hizalanmalı.
+> **Başlangıç durumu (karar, 14 Kasım):** Tüm astronotlar `shared/mock` verisinde **yeşil** başlar (web ile aynı). Kırmızıya geçiş sahnede senaryo ile yapılır (`POST /api/ai/demo/individual-hypoxia` vb.). Provadan sonra `POST /api/demo/reset` her şeyi yeşile döndürür.
 
 ### Bugün çalışan yedek akış (hiçbir bekleyen işe bağlı değil)
 
