@@ -47,16 +47,20 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Antigravity_iOS/App/AntigravityApp.swift,
+				Antigravity_iOS/Components/ActivityRingsChartView.swift,
 				Antigravity_iOS/Components/AstronautBodyMapView.swift,
 				Antigravity_iOS/Components/GlassBottomNavBar.swift,
 				Antigravity_iOS/Components/GlassCardView.swift,
 				Antigravity_iOS/Components/NeonButton.swift,
 				Antigravity_iOS/Components/PlanetHeroHeader.swift,
+				Antigravity_iOS/Models/JournalEntry.swift,
 				Antigravity_iOS/Resources/Assets.xcassets,
+				"Antigravity_iOS/Resources/astronaut-packets.json",
 				Antigravity_iOS/ViewModels/DashboardViewModel.swift,
+				Antigravity_iOS/ViewModels/JournalViewModel.swift,
 				Antigravity_iOS/ViewModels/VitalsViewModel.swift,
 				Antigravity_iOS/Views/Dashboard/DashboardView.swift,
-				Antigravity_iOS/Views/LogBook/LogbookView.swift,
+				Antigravity_iOS/Views/Journal/JournalView.swift,
 				Antigravity_iOS/Views/Missions/MissionListView.swift,
 				Antigravity_iOS/Views/Vitals/VitalsView.swift,
 			);

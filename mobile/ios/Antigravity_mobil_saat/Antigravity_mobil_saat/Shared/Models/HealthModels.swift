@@ -163,6 +163,38 @@ struct AiGuidance: Codable, Sendable {
     let disclaimer: String
 }
 
+// MARK: - Proactive AI Alerts (SSE /api/ai/stream)
+
+struct AiAlertAdvice: Codable, Sendable, Equatable {
+    let summary: String?
+    let why: String
+    let doNow: [String]
+    let escalate: String
+    let source: String
+    let model: String?
+    let generatedAt: Date
+}
+
+struct AiAlert: Codable, Identifiable, Sendable, Equatable {
+    let id: String
+    let scope: String
+    let crewIds: [String]
+    let severity: HealthStatus
+    let scenarioId: String
+    let hazardId: String
+    let title: String
+    let spokenText: String
+    let advice: AiAlertAdvice?
+    let state: String
+    let createdAt: Date
+    let updatedAt: Date
+    let disclaimer: String
+}
+
+struct AiHelloPayload: Codable, Sendable {
+    let alerts: [AiAlert]
+}
+
 // MARK: - Apple Watch Telemetry Package
 
 /// Primary telemetry packet sent from Apple Watch to iPhone and Web.
@@ -298,9 +330,31 @@ struct NasaHazardReferenceMetrics: Codable, Sendable {
 // MARK: - Shared JSON Coding Helpers
 
 enum HealthJSONCodec {
+    private static let isoWithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let isoStandard: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
     static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+            if let date = isoWithFractionalSeconds.date(from: string) ?? isoStandard.date(from: string) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Invalid ISO-8601 date: \(string)"
+            )
+        }
         return decoder
     }()
 

@@ -11,7 +11,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     case dashboard
     case vitals
     case missions
-    case logbook
+    case journal
 
     var id: String { rawValue }
 
@@ -20,7 +20,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .dashboard: return "Komuta"
         case .vitals: return "Vital"
         case .missions: return "Görevler"
-        case .logbook: return "Kayıtlar"
+        case .journal: return "Günlük"
         }
     }
 
@@ -29,7 +29,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .dashboard: return "gauge.with.dots.needle.67percent"
         case .vitals: return "waveform.path.ecg"
         case .missions: return "checklist"
-        case .logbook: return "book.closed.fill"
+        case .journal: return "book.closed.fill"
         }
     }
 }
@@ -87,6 +87,7 @@ struct GlassBottomNavBar: View {
                 }
         }
         .padding(.horizontal, 16)
+        .padding(.top, 8)
         .padding(.bottom, 6)
     }
 }

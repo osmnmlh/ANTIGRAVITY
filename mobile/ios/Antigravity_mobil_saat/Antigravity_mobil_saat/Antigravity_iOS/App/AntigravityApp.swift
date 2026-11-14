@@ -20,42 +20,55 @@ struct AntigravityApp: App {
 struct MainTabContainerView: View {
     @State private var selectedTab: AppTab = .dashboard
     @StateObject private var dashboardViewModel = DashboardViewModel()
+    @StateObject private var journalViewModel = JournalViewModel()
 
     var body: some View {
-        Group {
-            switch selectedTab {
-            case .dashboard:
-                NavigationStack {
-                    tabBackground {
-                        DashboardView(viewModel: dashboardViewModel) { tab in
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedTab = tab
+        ZStack {
+            ColorTheme.spaceBackdropGradient
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Group {
+                    switch selectedTab {
+                    case .dashboard:
+                        NavigationStack {
+                            tabBackground {
+                                DashboardView(viewModel: dashboardViewModel) { tab in
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedTab = tab
+                                    }
+                                }
+                            }
+                        }
+                    case .vitals:
+                        NavigationStack {
+                            tabBackground {
+                                VitalsView(dashboardViewModel: dashboardViewModel)
+                            }
+                        }
+                    case .missions:
+                        NavigationStack {
+                            tabBackground {
+                                MissionListView(dashboardViewModel: dashboardViewModel)
+                            }
+                        }
+                    case .journal:
+                        NavigationStack {
+                            tabBackground {
+                                JournalView(viewModel: journalViewModel)
                             }
                         }
                     }
                 }
-            case .vitals:
-                NavigationStack {
-                    tabBackground {
-                        VitalsView(dashboardViewModel: dashboardViewModel)
-                    }
-                }
-            case .missions:
-                NavigationStack {
-                    tabBackground {
-                        MissionListView(dashboardViewModel: dashboardViewModel)
-                    }
-                }
-            case .logbook:
-                NavigationStack {
-                    tabBackground {
-                        LogbookView(dashboardViewModel: dashboardViewModel)
-                    }
-                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+
+                GlassBottomNavBar(selectedTab: $selectedTab)
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            GlassBottomNavBar(selectedTab: $selectedTab)
+        .task {
+            dashboardViewModel.startAiAlertStream()
+            await dashboardViewModel.syncFromBackend()
         }
     }
 
