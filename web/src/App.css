@@ -1209,11 +1209,17 @@ h3 {
   font: 9px var(--mono);
 }
 
-.mission-select-wrap label {
+.mission-select-wrap label,
+.mission-environment-info {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.mission-environment-value {
+  color: #e2ebf1;
+  font: 600 12px var(--heading);
 }
 
 .eyebrow {
