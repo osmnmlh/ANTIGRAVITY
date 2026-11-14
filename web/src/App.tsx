@@ -479,8 +479,8 @@ function App() {
           <span className="mission-day">GÖREV GÜNÜ <b>120</b></span>
         </div>
         <div className="crew-profile">
-          <span className="crew-avatar">AK</span>
-          <span><strong>Ahmet Özkan Taşsever</strong><small>MISSION SPECIALIST</small></span>
+          <span className="crew-avatar">AT</span>
+          <span><strong>ANTIGRAVITY TEAM</strong><small>MISSION SPECIALIST</small></span>
           <button type="button" className="profile-menu" aria-label="Profil menüsü">···</button>
         </div>
       </header>
