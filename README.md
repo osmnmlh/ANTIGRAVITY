@@ -58,12 +58,22 @@ NASA İnsan Araştırmaları Programı (HRP) tarafından tanımlanan beş temel 
 
 ```text
 ANTIGRAVITY/
+├── AGENTS.md                   # Tüm AI ajanları için tek kural dosyası (EN)
+├── CLAUDE.md / GEMINI.md       # AGENTS.md'ye yönlendirir (Claude Code / Antigravity)
+├── .agent/skills/              # 7 skill'in asıl kopyası (Antigravity)
+├── .claude/skills/             # .agent/skills'e işaret eden kısa dosyalar (Claude Code)
+├── web/                        # Web dashboard (Vite + React + TS, Playwright)
+├── watch/                      # watchOS uygulaması (SwiftUI, HealthKit)
+├── mobile/ios/                 # iPhone 16 Pro uygulaması (SwiftUI, WatchConnectivity)
+├── shared/                     # Ortak veri sözleşmesi + mock veri
 ├── docs/
-│   ├── Hackathon-Subject.md    # Orijinal yarışma metninin yapılandırılmış Markdown sürümü (EN)
-│   └── Hackathon-Subject.pdf   # Orijinal yarışma metni PDF dosyası (EN)
-├── Hackathon-Subject-TR.pdf    # Yarışma metninin Türkçe çeviri PDF dosyası (TR)
-└── README.md                   # Proje özeti ve Türkçe dokümantasyon
+│   ├── Hackathon-Subject.md    # Orijinal yarışma metni (EN)
+│   └── Hackathon-Subject.pdf   # Orijinal yarışma metni PDF (EN)
+├── Hackathon-Subject-TR.pdf    # Yarışma metninin Türkçe çevirisi
+└── README.md
 ```
+
+> 🤖 **Ajanlarla çalışırken:** Kurallar yalnızca [`AGENTS.md`](./AGENTS.md) içinde. Skill eklemek/değiştirmek için `.agent/skills/<isim>/SKILL.md` dosyasını düzenleyin; `.claude/skills/` altındaki dosyalar sadece yönlendirmedir.
 
 - 🇹🇷 **Yarışma Konusu (Türkçe PDF):** [`Hackathon-Subject-TR.pdf`](./Hackathon-Subject-TR.pdf)
 - 📄 **Yarışma Konusu (Orijinal Markdown - EN):** [`docs/Hackathon-Subject.md`](./docs/Hackathon-Subject.md)

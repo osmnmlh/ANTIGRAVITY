@@ -1,0 +1,65 @@
+---
+name: ios-watch-connectivity
+description: Build the iPhone 16 Pro companion app in mobile/ios/ with SwiftUI and sync data with the Apple Watch via WatchConnectivity (WCSession). Use for iPhone app work or anything about phone-watch communication.
+---
+
+# iPhone App + WatchConnectivity (mobile/ios/)
+
+iPhone = **hub**: receives watch samples, stores history, shows trends/guidance, accepts manual entries (BP, glucose, temp, sleep).
+
+## Setup
+
+- One Xcode project `mobile/ios/Antigravity.xcodeproj` with targets: iOS app (iOS 18, iPhone 16 Pro), Watch App (sources in `/watch`).
+- Shared files (target membership on both): `HealthSample.swift`, `Thresholds.swift`, `ConnectivityManager.swift`.
+- Persistence: SwiftData or a JSON file in Documents. Pick the faster one for you; no CloudKit, no backend.
+
+## WatchConnectivity (one manager, both sides)
+
+```swift
+import WatchConnectivity
+
+final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
+    static let shared = ConnectivityManager()
+    @Published var received: [HealthSample] = []
+
+    func activate() {
+        guard WCSession.isSupported() else { return }
+        WCSession.default.delegate = self
+        WCSession.default.activate()
+    }
+
+    func send(_ sample: HealthSample) {
+        guard let data = try? JSONEncoder().encode(sample) else { return }
+        let s = WCSession.default
+        if s.isReachable {
+            s.sendMessageData(data, replyHandler: nil) { _ in s.transferUserInfo(["sample": data]) }
+        } else {
+            s.transferUserInfo(["sample": data])   // queued, delivered later
+        }
+    }
+
+    func session(_ s: WCSession, didReceiveMessageData data: Data) { handle(data) }
+    func session(_ s: WCSession, didReceiveUserInfo info: [String: Any] = [:]) {
+        if let d = info["sample"] as? Data { handle(d) }
+    }
+    private func handle(_ data: Data) {
+        guard let sample = try? JSONDecoder().decode(HealthSample.self, from: data) else { return }
+        DispatchQueue.main.async { self.received.append(sample) }
+    }
+    func session(_ s: WCSession, activationDidCompleteWith st: WCSessionActivationState, error: Error?) {}
+    #if os(iOS)
+    func sessionDidBecomeInactive(_ s: WCSession) {}
+    func sessionDidDeactivate(_ s: WCSession) { WCSession.default.activate() }
+    #endif
+}
+```
+
+- Use `sendMessageData` for live (both apps foreground), `transferUserInfo` for guaranteed queued delivery, `updateApplicationContext` for "latest status" phone → watch.
+- Call `activate()` in each app's `init`/`App` body at launch.
+
+## Rules
+
+- `HealthSample` is `Codable` and matches the JSON contract in AGENTS.md exactly (camelCase keys, ISO-8601 dates via `.iso8601` strategy).
+- Testing: run iOS + paired Watch simulator together (scheme with both). If sync is flaky in the simulator, keep a "Load mock data" button so the demo never depends on it.
+- Optional bonus: export JSON so the web dashboard can import the same data.
+- Done = a watch check-in appears on the phone within seconds in the simulator pair.
