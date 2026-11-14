@@ -92,6 +92,8 @@ enum BodyMapCallout: String, CaseIterable, Identifiable {
 struct AstronautBodyMapView: View {
     let values: [HealthIndicatorType: Double]
     let statuses: [HealthIndicatorType: HealthStatus]
+    /// The backend's AI recommendation. When it carries a text for the tapped indicator, that text is shown; otherwise the Turkish rule table.
+    var aiGuidance: AiGuidance? = nil
     @State private var selected: BodyMapCallout = .heartRate
     @State private var inspectedCallout: BodyMapCallout?
 
@@ -185,7 +187,8 @@ struct AstronautBodyMapView: View {
                 callout: callout,
                 valueText: formattedValue(for: callout),
                 status: status(for: callout),
-                guidance: HealthThresholds.guidance(for: primaryIndicator(for: callout), status: status(for: callout))
+                guidance: indicatorGuidance(for: callout),
+                sourceNote: guidanceSourceNote(for: callout)
             )
         }
     }
@@ -325,6 +328,30 @@ struct AstronautBodyMapView: View {
             .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    /// AI text of the backend for this indicator, else the app's own Turkish rule table.
+    private func aiIndicator(for callout: BodyMapCallout) -> AiIndicatorGuidance? {
+        aiGuidance?.indicators?[primaryIndicator(for: callout).rawValue]
+    }
+
+    private func indicatorGuidance(for callout: BodyMapCallout) -> IndicatorGuidance {
+        if let ai = aiIndicator(for: callout) {
+            return IndicatorGuidance(
+                whatItIs: ai.whatItIs,
+                whyInSpace: ai.whyInSpace,
+                doNow: ai.doNow,
+                escalateWhen: ai.escalateWhen
+            )
+        }
+        return HealthThresholds.guidance(for: primaryIndicator(for: callout), status: status(for: callout))
+    }
+
+    private func guidanceSourceNote(for callout: BodyMapCallout) -> String {
+        guard aiIndicator(for: callout) != nil, let source = aiGuidance?.source else {
+            return "Kural tabanlı öneri (AI önerisi şu an alınamadı)"
+        }
+        return source == .gemini ? "AI önerisi · Gemini" : "AI önerisi · kural tabanlı"
     }
 
     private func primaryIndicator(for callout: BodyMapCallout) -> HealthIndicatorType {
@@ -485,6 +512,7 @@ private struct IndicatorGuidanceSheet: View {
     let valueText: String
     let status: HealthStatus
     let guidance: IndicatorGuidance
+    let sourceNote: String
 
     @Environment(\.dismiss) private var dismiss
 
@@ -539,6 +567,11 @@ private struct IndicatorGuidanceSheet: View {
                         text: guidance.escalateWhen,
                         tint: status == .red ? ColorTheme.statusRed : ColorTheme.statusAmber
                     )
+
+                    Text(sourceNote)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(ColorTheme.accent)
+                        .frame(maxWidth: .infinity, alignment: .center)
 
                     Text(Constants.turkishDemoDisclaimer)
                         .font(.caption2)

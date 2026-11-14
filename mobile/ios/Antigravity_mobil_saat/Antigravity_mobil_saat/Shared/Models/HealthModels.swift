@@ -161,6 +161,17 @@ struct AiGuidance: Codable, Sendable {
     let actions: [String]
     let escalate: String
     let disclaimer: String
+    /// The four texts of the indicator guidance sheet, written by the backend (Gemini, or Turkish rules while it answers).
+    /// Keys are `HealthIndicatorType.rawValue`. Nil when the backend is old or unreachable: the app then uses its own Turkish table.
+    var indicators: [String: AiIndicatorGuidance]? = nil
+}
+
+/// Per-indicator recommendation inside `AiGuidance`: what it is, why it matters in space, what to do now, when to call the flight surgeon.
+struct AiIndicatorGuidance: Codable, Sendable {
+    let whatItIs: String
+    let whyInSpace: String
+    let doNow: [String]
+    let escalateWhen: String
 }
 
 // MARK: - Proactive AI Alerts (SSE /api/ai/stream)
