@@ -81,6 +81,168 @@
     "source": "mock"
   },
   {
+    "id": "2b1a0259-1724-4fe5-8c01-9cfba31f0505",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 63,
+    "unit": "bpm",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "b41392c1-b963-46e3-864a-ef84d14ed348",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 115,
+    "unit": "mmHg",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "1b038c00-56a3-4dc6-8140-0643e88f168a",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 73,
+    "unit": "mmHg",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "db27caf9-41cb-4e46-854b-bec1d3745e10",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 99,
+    "unit": "%",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "f22a7543-5cb2-4dd0-8ad1-243e4e4763e5",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.5,
+    "unit": "°C",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "dca9aff5-32ab-47df-809e-57cf5f77a0a3",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 91,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "c3c3864a-2e48-4aeb-86e3-e9476d640fb9",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.7,
+    "unit": "h",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "c754afb3-2544-430c-8be0-7f34cda3517e",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 5,
+    "unit": "1-5",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "d9834c63-c125-4d05-8561-60b247a975b3",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 17.6,
+    "unit": "mSv",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "3bb6c1c0-05e6-428d-842a-5527209b0b1f",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 74,
+    "unit": "bpm",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "7cb4f7d5-dbea-4655-8ba2-7ba1533f25b7",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 122,
+    "unit": "mmHg",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "ed4be818-19e6-4b7b-87df-a958f04586cb",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 78,
+    "unit": "mmHg",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "e5a5d94b-e70d-4c9a-8016-83b4b5f4ecad",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 97,
+    "unit": "%",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "d638dea8-c59c-420c-8ac1-a43647e610d1",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 36.7,
+    "unit": "°C",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "70887dcd-b690-4fa0-8c7c-4c63981aca92",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 106,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "a802b6a5-26e3-4792-81ea-9d6fa1912747",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 7.2,
+    "unit": "h",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "2b499ef3-2a85-4a5a-88bf-db62f5742af3",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "c028c895-7821-4563-8d22-b589e673cc81",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 48,
+    "unit": "mSv",
+    "timestamp": "2026-11-08T08:00:00Z",
+    "source": "mock"
+  },
+  {
     "id": "92276658-1e27-a1c0-8a6a-63ec24ede6a4",
     "crewId": "crew-1",
     "type": "heartRate",
@@ -157,6 +319,168 @@
     "crewId": "crew-1",
     "type": "radiationDose",
     "value": 3.6,
+    "unit": "mSv",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "cb58647f-1bcb-4b11-8331-f61a2986aa48",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 66,
+    "unit": "bpm",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "1687da0b-19f1-41f3-8ee4-4692e3535e95",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 117,
+    "unit": "mmHg",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "0c2857f7-7adc-41f7-8134-55cc2b883509",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 75,
+    "unit": "mmHg",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "7ce82e05-d7ce-429a-81de-fc7ced492a89",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 98,
+    "unit": "%",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "e1afbef6-d308-4206-830a-8b08b2e4a4a5",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.6,
+    "unit": "°C",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "f19b9300-61d0-4bd3-89c9-cf665cd23569",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 94,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "3294a2ea-0bee-4575-8dd0-0dab9db0853b",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.6,
+    "unit": "h",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "35bc67c1-ed69-4bfc-8f21-c770c4206bdc",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 5,
+    "unit": "1-5",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "d8d261e2-ad5f-42af-87f8-d64921ed35bf",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 17.9,
+    "unit": "mSv",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "5dcc5c38-5b02-4d92-8e4d-266c60bc7871",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 76,
+    "unit": "bpm",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "f51ff200-638e-4a1a-8def-64c33b473359",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 124,
+    "unit": "mmHg",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "b0719a69-d4f6-41eb-86df-73400245c8bb",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 79,
+    "unit": "mmHg",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "4c6b99fd-c792-4d8e-8752-c23b08902f28",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 96,
+    "unit": "%",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "aa5b0d7a-f58a-4d3b-87c8-c176484d6c2f",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 36.8,
+    "unit": "°C",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "a9e8fc87-ea82-4eee-8dfd-416823993619",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 110,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "6c0e69d2-d7e6-4af9-8134-6c32f13a4907",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 7,
+    "unit": "h",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "1a5df6e2-5a7f-4549-8f38-129a1667a42b",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-09T08:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "f791b592-8718-46b0-82f4-ec7c6dd8f423",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 49,
     "unit": "mSv",
     "timestamp": "2026-11-09T08:00:00Z",
     "source": "mock"
@@ -243,6 +567,168 @@
     "source": "mock"
   },
   {
+    "id": "e7f1b246-1a25-45bd-8a0f-3168787a2b11",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 62,
+    "unit": "bpm",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "09547240-786c-4101-8962-4417eadc2269",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 114,
+    "unit": "mmHg",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "982530d4-0e8e-4d62-8606-fb5deb120882",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 72,
+    "unit": "mmHg",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "11b79605-7966-44c1-86a6-ffc7aaba3ceb",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 99,
+    "unit": "%",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "4ab4716a-21dd-4969-81de-53bba484df7b",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.5,
+    "unit": "°C",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "84d2ca22-e375-4bc8-810f-d867a8c25676",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 90,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "c4d78fa3-c731-4a85-8abe-8819db02989b",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.9,
+    "unit": "h",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "c4c51f44-a9a7-438e-8860-ae25ff9f8e71",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "f6ec121e-cf34-46f2-82dd-1aaee7df3fef",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 18.2,
+    "unit": "mSv",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "ae171b08-dcfd-479a-89e8-357b33ec807c",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 75,
+    "unit": "bpm",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "8d5a9f6f-d45c-4ff1-879c-7f123caabded",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 126,
+    "unit": "mmHg",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "1e801e33-c18b-4d93-8a4a-90005a12cf31",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 80,
+    "unit": "mmHg",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "0fed14a4-e8dd-40dd-8ede-fc5238d7dddd",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 96,
+    "unit": "%",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "e9ae5dba-297d-4974-883f-066be4c25e49",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 37,
+    "unit": "°C",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "5f10607d-db09-409e-8596-65b465015d96",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 114,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "b9a4dd21-88c0-4654-841c-227bd6bd2972",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 6.9,
+    "unit": "h",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "851d3892-9e5a-44ec-88aa-7bcdb3da6fc7",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "32a1df33-6f0a-476d-84ed-b91769e4869e",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 50,
+    "unit": "mSv",
+    "timestamp": "2026-11-10T08:00:00Z",
+    "source": "mock"
+  },
+  {
     "id": "d269a9a5-ae65-8f33-fe3b-890b93f448b3",
     "crewId": "crew-1",
     "type": "heartRate",
@@ -324,6 +810,168 @@
     "source": "mock"
   },
   {
+    "id": "fd5ac51d-5cb0-48d4-87ef-64c127ab89fd",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 65,
+    "unit": "bpm",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "2d21985a-4669-42c0-8ae6-a2ca7b2d48e6",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 116,
+    "unit": "mmHg",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "b09b6c83-2487-41e2-83e2-d0dcedffdfdc",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 74,
+    "unit": "mmHg",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "baed3c12-e7b6-4b9f-82fe-e6e8ffda4c2a",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 98,
+    "unit": "%",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "0767823b-eaf3-4058-8cd7-274817f22d7b",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.6,
+    "unit": "°C",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "937e7d4b-8cbc-48cc-8dbd-518286f460db",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 93,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "1e9415c2-c1dc-47fb-8ca2-2bb19de021bd",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.5,
+    "unit": "h",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "c1cedccf-01f2-433b-8cd8-16f10e0e4c9d",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 5,
+    "unit": "1-5",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "60769fee-b40a-4b04-83e0-cdd32734bc3e",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 18.5,
+    "unit": "mSv",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "17e2784d-75cd-41b1-8d35-5cd513462fad",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 78,
+    "unit": "bpm",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "d5d00967-2675-4668-8cfc-155b1314be5f",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 128,
+    "unit": "mmHg",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "08798503-110f-413b-8f82-b1a9d7bc3fbd",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 81,
+    "unit": "mmHg",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "c5181500-bedb-46bb-8cdc-14a8b4acc873",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 95,
+    "unit": "%",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "cfa8c87e-3a0b-43df-8b93-285062fc272f",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 37.2,
+    "unit": "°C",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "d6a09ba0-7f04-4f28-889f-53cfa9e3bf7e",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 118,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "4dd1fc7c-dd37-464a-8bdc-c0aebc827d36",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 6.7,
+    "unit": "h",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "38fe3e5f-9445-4a9d-80b9-19150740c90c",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "f1eb9e68-3079-4e0d-8454-defa10405171",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 51,
+    "unit": "mSv",
+    "timestamp": "2026-11-11T08:00:00Z",
+    "source": "mock"
+  },
+  {
     "id": "e25a7605-aec6-f024-5bd8-6d40fc891b4a",
     "crewId": "crew-1",
     "type": "heartRate",
@@ -399,7 +1047,169 @@
     "id": "cc4169a3-ae3a-2b7f-dfe0-1893f3aed0b6",
     "crewId": "crew-1",
     "type": "radiationDose",
-    "value": 9.0,
+    "value": 9,
+    "unit": "mSv",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "3d123ffe-a863-4471-8191-427eb51347ce",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 64,
+    "unit": "bpm",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "bba2a4d9-aac7-48a1-83e5-cd3f7972e1e7",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 115,
+    "unit": "mmHg",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "2f7c91f8-7e09-4dd0-8999-4406d4d945f2",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 73,
+    "unit": "mmHg",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "88b3cd8d-0462-4da7-8899-3892ae47d3c0",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 99,
+    "unit": "%",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "c0484cf1-8f71-472f-8eda-a43347eaaca0",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.5,
+    "unit": "°C",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "1bce67c2-650c-431a-8865-6c10e69b7206",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 95,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "fd29dd01-9490-47cf-8eb6-ef59b97b221d",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.8,
+    "unit": "h",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "1a294fb7-09ce-4274-8a01-aea89ca5a012",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 5,
+    "unit": "1-5",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "a2344933-f6b4-4de3-88ea-f8e6286987c8",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 18.8,
+    "unit": "mSv",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "56b99658-bd18-418e-8795-ba4301950e96",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 79,
+    "unit": "bpm",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "588e1f7f-1597-461d-8871-0ae33806c47a",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 130,
+    "unit": "mmHg",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "83cbd4e6-e199-4322-85d9-fcc1e81d6c28",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 82,
+    "unit": "mmHg",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "ba088fff-0e3a-470a-8ddf-f9769aa321a8",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 95,
+    "unit": "%",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "fd5580b5-3bc7-4ad2-8025-4748e5a12e06",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 37.3,
+    "unit": "°C",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "36895ad2-8514-43a0-89dc-c6bb303d1b90",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 122,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "5b5f8bf0-6657-4a02-8e79-15e9459c099c",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 6.6,
+    "unit": "h",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "e9769829-add2-4c75-8de8-80d37998c831",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-12T08:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "0c502748-d101-403d-8d58-bf7fb2074a8a",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 52,
     "unit": "mSv",
     "timestamp": "2026-11-12T08:00:00Z",
     "source": "mock"
@@ -480,9 +1290,657 @@
     "id": "1f7296ab-7961-fd92-5d39-d0a89a2ef80f",
     "crewId": "crew-1",
     "type": "radiationDose",
-    "value": 15.0,
+    "value": 15,
     "unit": "mSv",
     "timestamp": "2026-11-13T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "47c3daa9-e452-4731-8761-dfb01cdd4ac8",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 66,
+    "unit": "bpm",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "c5d9c335-940b-4138-89a0-993a20df2f31",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 117,
+    "unit": "mmHg",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "eff80547-1cd1-488d-821f-ee4e4b14c06e",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 75,
+    "unit": "mmHg",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "f0392caf-ecb7-4e7a-8e17-bda357081f8a",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 98,
+    "unit": "%",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "65d91ffe-b755-4428-859b-52ccb876b955",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.6,
+    "unit": "°C",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "a6fd7c29-8c4e-4e5b-80c9-60acacf24eda",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 91,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "9c0beec0-fdef-4003-869f-5fecdefcd74a",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.7,
+    "unit": "h",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "5500b026-cdc2-49be-817f-981168951829",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 5,
+    "unit": "1-5",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "1b9e70fc-3923-43ff-8e48-d6e25d4d6a0b",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 19.1,
+    "unit": "mSv",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "177b8c1f-71ba-4276-8fbf-e8b3ec576540",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 80,
+    "unit": "bpm",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "dca1681c-fc40-48fb-8b4c-0af3e064ba05",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 131,
+    "unit": "mmHg",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "850813c1-8fd5-4770-8875-33c8ef8b8513",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 83,
+    "unit": "mmHg",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "726458b0-5174-4e1c-8d62-5a68b43b5a55",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 94,
+    "unit": "%",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "e7b92516-3bc7-4b52-86a3-69b22526d52b",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 37.5,
+    "unit": "°C",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "95b17f23-c53e-47d4-8b6f-a3066e455930",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 127,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "e65d5980-9bea-4cf2-862b-cff0749be181",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 6.5,
+    "unit": "h",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "78e57d26-ca8a-433b-83ab-31e4458d6f6b",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "97957b1e-16ff-4d31-8248-22a586f112c2",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 53,
+    "unit": "mSv",
+    "timestamp": "2026-11-13T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "1741046c-623a-4d44-8bae-d05f1112c8ac",
+    "crewId": "crew-1",
+    "type": "heartRate",
+    "value": 82,
+    "unit": "bpm",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "c7c7a43f-3e2e-4d98-83a8-917a63eb2108",
+    "crewId": "crew-1",
+    "type": "bloodPressureSys",
+    "value": 120,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "499d37e5-b600-4ee2-86eb-78aa03adcc2b",
+    "crewId": "crew-1",
+    "type": "bloodPressureDia",
+    "value": 72,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "9f5f4758-2832-4f1f-85a6-fddf298dd3af",
+    "crewId": "crew-1",
+    "type": "spo2",
+    "value": 95,
+    "unit": "%",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "15eb2bea-c31d-46d6-8f61-32184fd222b0",
+    "crewId": "crew-1",
+    "type": "bodyTemp",
+    "value": 36.4,
+    "unit": "°C",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "24cd0331-1702-4a60-88e0-046ee7fd8a89",
+    "crewId": "crew-1",
+    "type": "bloodGlucose",
+    "value": 92,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "10a0e29e-4861-4c20-83ab-ef6f0db884c1",
+    "crewId": "crew-1",
+    "type": "sleepHours",
+    "value": 5.5,
+    "unit": "h",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "ffcee8a1-51b6-459f-8c27-af967cacce13",
+    "crewId": "crew-1",
+    "type": "mood",
+    "value": 3,
+    "unit": "1-5",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "854dfe0c-7ec7-419f-8e76-21ecc51b5f8b",
+    "crewId": "crew-1",
+    "type": "radiationDose",
+    "value": 17.5,
+    "unit": "mSv",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "75b37799-0a89-488e-8f22-7d98c7ee72e7",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 61,
+    "unit": "bpm",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "a14e853c-2795-45bc-8c88-82b6789d0c95",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 114,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "465e8031-9015-47b5-83b1-45cd9b049403",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 72,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "b1279e97-9a87-4172-8048-41683dd63c9d",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 99,
+    "unit": "%",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "4773f7de-e9fd-4912-8f87-ed9cd07dfada",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.5,
+    "unit": "°C",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "e1d2b86f-e934-4f45-8910-49c4c2a66044",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 90,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "510ae318-3791-45ba-88de-de5d5e47b9ba",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.8,
+    "unit": "h",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "b079a9fb-d830-492a-8e51-b32888fcfeba",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 5,
+    "unit": "1-5",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "453729a8-484e-49fa-89af-4bd609f33ed2",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 19.2,
+    "unit": "mSv",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "c49d4340-ed4a-4ada-89c4-cfd8bd61f6db",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 79,
+    "unit": "bpm",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "932ad090-6d62-47f9-8ae0-14c51693d2c2",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 132,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "9a917b9d-1b4e-41b2-801f-964f93be2930",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 83,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "eb1a876a-ff06-4bc1-8449-90dae82535cf",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 95,
+    "unit": "%",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "d7ceae23-c61f-460b-8a16-f83f26f56380",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 37.5,
+    "unit": "°C",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "20443294-2ba5-43ce-887d-bf0f2518781d",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 128,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "91a8285f-1c41-43c6-8ad3-a2d7d027a2e2",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 6.4,
+    "unit": "h",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "14feb971-9c29-4306-8f15-99f4b1392944",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "95f84e3b-e944-4195-8575-16b976cf409f",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 53.4,
+    "unit": "mSv",
+    "timestamp": "2026-11-14T02:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "8b5c071f-39fd-4bd9-86a2-eaa06be6f51b",
+    "crewId": "crew-1",
+    "type": "heartRate",
+    "value": 96,
+    "unit": "bpm",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "ad30e64e-42bf-4bfc-8387-2460d769a533",
+    "crewId": "crew-1",
+    "type": "bloodPressureSys",
+    "value": 124,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "91ee733b-330d-4174-8fa2-17321146654f",
+    "crewId": "crew-1",
+    "type": "bloodPressureDia",
+    "value": 71,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "4560dc14-d26b-4386-8a99-f62ce246f088",
+    "crewId": "crew-1",
+    "type": "spo2",
+    "value": 92,
+    "unit": "%",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "2a167e8e-4ef9-489a-8331-a8cf5eee47af",
+    "crewId": "crew-1",
+    "type": "bodyTemp",
+    "value": 36.5,
+    "unit": "°C",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "f6e317ef-94cb-4159-8eb4-114d8b626552",
+    "crewId": "crew-1",
+    "type": "bloodGlucose",
+    "value": 94,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "23da410f-cd89-4685-8152-5c5ca9ced33f",
+    "crewId": "crew-1",
+    "type": "sleepHours",
+    "value": 5.5,
+    "unit": "h",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "3fb69eb7-ed6e-4763-829d-6932f930c67a",
+    "crewId": "crew-1",
+    "type": "mood",
+    "value": 3,
+    "unit": "1-5",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "e7956af9-d2e4-4cc0-86e0-4526236d3a92",
+    "crewId": "crew-1",
+    "type": "radiationDose",
+    "value": 19.2,
+    "unit": "mSv",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "8bc81ea0-b513-4d74-883c-0f00ac5e6f31",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 63,
+    "unit": "bpm",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "b30617f1-6122-49c4-8cce-8a3fa1fccf01",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 115,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "d0d7f87f-51b3-4e61-86b2-f01ff2e7881c",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 73,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "8e8fc1a9-657f-472a-8b4a-d10122001fd9",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 98,
+    "unit": "%",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "0680329e-d191-4650-8702-aed7a35004f4",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.6,
+    "unit": "°C",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "c982fa3c-aab8-4b05-8505-2fa5d8a36f49",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 93,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "86258f55-07e1-48a2-85b9-34584721c0ed",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.8,
+    "unit": "h",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "f786b101-ca0d-488d-8b26-37c9dc318949",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 5,
+    "unit": "1-5",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "746ad66e-7b1a-44af-8df9-c228160d9d83",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 19.3,
+    "unit": "mSv",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "c9282e5e-4486-45ea-81f5-2c40c1230bd0",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 81,
+    "unit": "bpm",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "403cdaaf-4472-443e-8c04-afddf35b700c",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 133,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "f567bb4b-eb71-4441-85d2-0aa38f80d00e",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 84,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "cb1a0925-4a5a-4197-830a-b83bc11d2f9d",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 94,
+    "unit": "%",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "71359605-a579-43ea-8519-095abe574c98",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 37.6,
+    "unit": "°C",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "00fdf721-a9e3-4466-8985-887a3893d6e8",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 130,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "c080ff66-615e-49f6-847a-494dcefba0c5",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 6.4,
+    "unit": "h",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "d5f58c83-7a1b-474e-88f0-0c497d7bee3b",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-14T05:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "c9a66011-2246-4d89-8238-af31c7bfa8ba",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 53.7,
+    "unit": "mSv",
+    "timestamp": "2026-11-14T05:00:00Z",
     "source": "mock"
   },
   {
@@ -561,7 +2019,169 @@
     "id": "42d87208-d86f-40f6-b239-f3c7174c77a2",
     "crewId": "crew-1",
     "type": "radiationDose",
-    "value": 21.0,
+    "value": 21,
+    "unit": "mSv",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "6b6bfe25-7ad0-4edc-8610-9e1466622e1c",
+    "crewId": "crew-2",
+    "type": "heartRate",
+    "value": 64,
+    "unit": "bpm",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "32865b3a-c208-4a6a-8ccf-ca96b302d52f",
+    "crewId": "crew-2",
+    "type": "bloodPressureSys",
+    "value": 116,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "e0e11a8e-5601-4f3a-86ee-6a5fa73463f4",
+    "crewId": "crew-2",
+    "type": "bloodPressureDia",
+    "value": 74,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "167a5173-8074-40f3-8826-33bcfa095ea0",
+    "crewId": "crew-2",
+    "type": "spo2",
+    "value": 98,
+    "unit": "%",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "3dd1e9e9-5e3b-4f35-8ff3-c945233776a3",
+    "crewId": "crew-2",
+    "type": "bodyTemp",
+    "value": 36.6,
+    "unit": "°C",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "1a4ab8b7-2608-4c9b-811b-ddd8a74abe83",
+    "crewId": "crew-2",
+    "type": "bloodGlucose",
+    "value": 92,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "affb8026-a13d-4b18-8dc7-ebef79ba8293",
+    "crewId": "crew-2",
+    "type": "sleepHours",
+    "value": 7.8,
+    "unit": "h",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "7607e2dd-be3e-4524-8554-f3247ad7c073",
+    "crewId": "crew-2",
+    "type": "mood",
+    "value": 5,
+    "unit": "1-5",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "d470773a-16cb-49b6-87ed-61a1dd93774e",
+    "crewId": "crew-2",
+    "type": "radiationDose",
+    "value": 19.4,
+    "unit": "mSv",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "mock"
+  },
+  {
+    "id": "4d5c3a19-4fcc-420c-8e88-f51339290094",
+    "crewId": "crew-3",
+    "type": "heartRate",
+    "value": 82,
+    "unit": "bpm",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "eeb9fc29-97d4-4885-80e4-ae4879a9a658",
+    "crewId": "crew-3",
+    "type": "bloodPressureSys",
+    "value": 134,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "e9f06089-1f59-44c4-8a8c-7d4b9c96fdec",
+    "crewId": "crew-3",
+    "type": "bloodPressureDia",
+    "value": 84,
+    "unit": "mmHg",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "ecfca13f-7db2-45e5-82a7-87022b02baf8",
+    "crewId": "crew-3",
+    "type": "spo2",
+    "value": 94,
+    "unit": "%",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "6de6ec90-e566-4b71-8f7c-22908fb75f14",
+    "crewId": "crew-3",
+    "type": "bodyTemp",
+    "value": 37.7,
+    "unit": "°C",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "52acb7c3-b885-4ba1-820d-563275545a51",
+    "crewId": "crew-3",
+    "type": "bloodGlucose",
+    "value": 132,
+    "unit": "mg/dL",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "manual"
+  },
+  {
+    "id": "0d044aa9-967f-4860-8d70-11cc1b5a2d4e",
+    "crewId": "crew-3",
+    "type": "sleepHours",
+    "value": 6.4,
+    "unit": "h",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "watch"
+  },
+  {
+    "id": "b436b9d8-1485-444e-8cff-f1d20efc5329",
+    "crewId": "crew-3",
+    "type": "mood",
+    "value": 4,
+    "unit": "1-5",
+    "timestamp": "2026-11-14T08:00:00Z",
+    "source": "iphone"
+  },
+  {
+    "id": "9d6a3987-7a60-4aa4-835c-ba6ccdbb4255",
+    "crewId": "crew-3",
+    "type": "radiationDose",
+    "value": 54,
     "unit": "mSv",
     "timestamp": "2026-11-14T08:00:00Z",
     "source": "mock"

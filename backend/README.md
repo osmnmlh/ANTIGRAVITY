@@ -14,13 +14,19 @@ npm start                 # = node --experimental-strip-types server.mjs  (Node 
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| GET | `/api/health` | `{ ok, gemini, clients }` |
+| GET | `/api/health` | `{ ok, gemini, clients, simulation }` |
 | GET | `/api/packets` | Packet bundle; each astronaut gets a computed `overallStatus` |
 | GET | `/api/packets/:crewId` | One packet (the iPhone reads `aiGuidance` from here) |
 | GET | `/api/samples?crewId=crew-1` | `HealthSample[]` history |
-| POST | `/api/samples` | `HealthSample` or `HealthSample[]` → stored, packet `measurements` updated, pushed over SSE |
+| POST | `/api/samples` | `HealthSample` or `HealthSample[]` → stored, packet `measurements` & `watchTelemetry.vitals` updated, pushed over SSE |
+| GET | `/api/incidents` | 3 calibrated historical spaceflight incident simulations (`shared/mock/historical-incidents.json`) |
+| GET | `/api/simulation` | Current simulation status + summary + available incidents |
+| POST | `/api/simulation/live/start` | `{ crewId?, intervalMs? }` → starts periodic physiological telemetry simulation pushed over SSE |
+| POST | `/api/simulation/incident/start` | `{ incidentId, crewId?, stepIntervalMs? }` → replays a historical accident phase-by-phase over SSE |
+| POST | `/api/simulation/stop` | `{ reset? }` → stops active simulation and returns summary (`reset: true` restores pre-simulation baseline) |
+| POST | `/api/simulation/reset` | Stops simulation and restores initial `shared/mock/*.json` data in RAM |
 | POST | `/api/ai/guidance` | `{ "crewId": "crew-1" }` → Gemini (or fallback) → saved as `packet.aiGuidance`, pushed over SSE |
-| GET | `/api/stream` | SSE: `hello` (all packets) then `packet` on every change |
+| GET | `/api/stream` | SSE: `hello` (`astronauts`, `simulation`), then `sample`, `packet`, and `simulation` on every change |
 
 ## AI guidance flow
 

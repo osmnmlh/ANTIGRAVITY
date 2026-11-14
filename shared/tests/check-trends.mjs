@@ -29,23 +29,27 @@ const mockPackets = JSON.parse(
   fs.readFileSync(new URL('../mock/astronaut-packets.json', import.meta.url), 'utf8')
 );
 
-const bpTrend = assessIndicatorTrend(mockSamples, 'bloodPressureSys');
+const crew1Samples = mockSamples.filter((s) => s.crewId === 'crew-1');
+
+const bpTrend = assessIndicatorTrend(crew1Samples, 'bloodPressureSys');
 assert.equal(bpTrend.pointStatus, 'green', 'crew-1 mock bloodPressureSys point should stay green');
 assert.equal(bpTrend.trendStatus, 'amber', 'crew-1 mock bloodPressureSys trend should trigger amber');
 assert.equal(bpTrend.effectiveStatus, 'amber', 'crew-1 mock bloodPressureSys effective should be amber');
 
-const moodTrend = assessIndicatorTrend(mockSamples, 'mood');
+const moodTrend = assessIndicatorTrend(crew1Samples, 'mood');
 assert.equal(moodTrend.pointStatus, 'amber', 'crew-1 mock mood point should be amber');
 assert.equal(moodTrend.trendStatus, 'red', 'crew-1 mock mood 2-day rule should escalate to red');
 assert.equal(moodTrend.effectiveStatus, 'red', 'crew-1 mock mood effective should be red');
 
-const radTrend = assessIndicatorTrend(mockSamples, 'radiationDose');
+const radTrend = assessIndicatorTrend(crew1Samples, 'radiationDose');
 assert.equal(radTrend.pointStatus, 'green', 'crew-1 mock radiation point should be green');
 assert.equal(radTrend.trendStatus, 'amber', 'crew-1 mock radiation spike should trigger amber');
 
 for (const crew of mockPackets.astronauts) {
+  const crewSamples = mockSamples.filter((s) => s.crewId === crew.astronautId);
+  assert.ok(crewSamples.length >= 63, `${crew.astronautId} should have full multi-day sample history`);
   const overall = getOverallStatus(crew, mockSamples);
-  console.log(`MOCK CREW ${crew.astronautId} -> overall=${overall}`);
+  console.log(`MOCK CREW ${crew.astronautId} (${crewSamples.length} samples) -> overall=${overall}`);
   if (crew.astronautId === 'crew-1') assert.equal(overall, 'red');
   if (crew.astronautId === 'crew-2') assert.equal(overall, 'green');
   if (crew.astronautId === 'crew-3') assert.equal(overall, 'amber');
