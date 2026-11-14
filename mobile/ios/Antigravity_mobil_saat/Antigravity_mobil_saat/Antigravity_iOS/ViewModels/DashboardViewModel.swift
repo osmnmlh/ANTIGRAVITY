@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import UserNotifications
 
 struct MissionTask: Identifiable, Equatable {
     let id: UUID
@@ -35,6 +36,14 @@ class DashboardViewModel: ObservableObject {
     @Published var bodyTempStatus: HealthStatus = .green
 
     // All 9 canonical health indicators (matching web ThreeBodyMap + shared/mock/astronaut-packets.json)
+    @Published var crewId: String = Constants.defaultCrewId
+    @Published var astronautPacket: AstronautHealthPacket?
+    @Published var aiGuidance: AiGuidance?
+    @Published var activeAlerts: [AiAlert] = []
+    @Published var lastWatchSyncAt: Date?
+    @Published var isSyncingBackend: Bool = false
+    @Published var lastSampleSyncMessage: String?
+
     @Published var indicatorValues: [HealthIndicatorType: Double] = [:]
     @Published var indicatorStatuses: [HealthIndicatorType: HealthStatus] = [:]
     @Published var radiationBudgetMsv: Double = 100.0
@@ -50,6 +59,8 @@ class DashboardViewModel: ObservableObject {
     // MARK: - Servisler ve Hafıza Yönetimi
     private let telemetryService: TelemetryServiceProtocol
     private var cancellables = Set<AnyCancellable>()
+    private var aiStreamTask: Task<Void, Never>?
+    private var notifiedAlertIds = Set<String>()
 
     // MARK: - Computed Helpers
     var completedMissionsCount: Int {
@@ -147,17 +158,91 @@ class DashboardViewModel: ObservableObject {
         self.telemetryService = telemetryService
         seedMockPacketAndInitialTelemetry()
         setupBindings()
+        setupWatchConnectivity()
         self.telemetryService.startMonitoring()
     }
 
     deinit {
         telemetryService.stopMonitoring()
+        aiStreamTask?.cancel()
     }
 
     // MARK: - Actions
     func refreshTelemetry() {
         telemetryService.stopMonitoring()
         telemetryService.startMonitoring()
+    }
+
+    @MainActor
+    func startAiAlertStream() {
+        guard aiStreamTask == nil else { return }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+
+        let targetCrewId = crewId
+        let deviceId = Constants.deviceId
+
+        aiStreamTask = Task { [weak self] in
+            for await event in NetworkManager.shared.streamAiEvents(deviceId: deviceId, crewId: targetCrewId) {
+                guard let self, !Task.isCancelled else { break }
+                self.handleAiStreamEvent(event, deviceId: deviceId)
+            }
+        }
+    }
+
+    @MainActor
+    func acknowledgeAlert(_ alert: AiAlert) async {
+        activeAlerts.removeAll { $0.id == alert.id }
+        try? await NetworkManager.shared.acknowledgeAlert(alertId: alert.id, deviceId: Constants.deviceId)
+    }
+
+    @MainActor
+    func syncFromBackend() async {
+        guard !isSyncingBackend else { return }
+        isSyncingBackend = true
+        defer { isSyncingBackend = false }
+
+        do {
+            let packet = try await NetworkManager.shared.fetchPacket(crewId: crewId)
+            applyPacket(packet)
+        } catch {
+            // Silent fallback to bundled/mock data per ADR-0002 (no offline badge or error banner).
+        }
+    }
+
+    @MainActor
+    func sendCurrentVitalsToBackend() async {
+        let now = Date()
+        var samples: [HealthSample] = [
+            HealthSample(crewId: crewId, type: .heartRate, value: heartRateValue.rounded(), timestamp: now, source: .iphone),
+            HealthSample(crewId: crewId, type: .spo2, value: spo2Value.rounded(), timestamp: now, source: .iphone),
+            HealthSample(crewId: crewId, type: .bodyTemp, value: (bodyTempValue * 10).rounded() / 10, timestamp: now, source: .iphone)
+        ]
+
+        if let sys = indicatorValues[.bloodPressureSys] {
+            samples.append(HealthSample(crewId: crewId, type: .bloodPressureSys, value: sys.rounded(), timestamp: now, source: .iphone))
+        }
+        if let dia = indicatorValues[.bloodPressureDia] {
+            samples.append(HealthSample(crewId: crewId, type: .bloodPressureDia, value: dia.rounded(), timestamp: now, source: .iphone))
+        }
+
+        await sendSamplesToBackend(samples)
+    }
+
+    @MainActor
+    func sendSamplesToBackend(_ samples: [HealthSample]) async {
+        guard !samples.isEmpty else { return }
+        isSyncingBackend = true
+        defer { isSyncingBackend = false }
+
+        do {
+            let updatedPackets = try await NetworkManager.shared.sendSamples(samples)
+            if let matching = updatedPackets.first(where: { $0.astronautId == crewId }) ?? updatedPackets.first {
+                applyPacket(matching)
+            }
+            lastSampleSyncMessage = "Ölçümler sunucuya iletildi."
+        } catch {
+            lastSampleSyncMessage = "Yerel veri korundu (sunucuya ulaşılamadı)."
+        }
     }
 
     func toggleMission(_ task: MissionTask) {
@@ -192,16 +277,11 @@ class DashboardViewModel: ObservableObject {
         ]
 
         if let bundled = loadBundledNominalPacket() {
-            radiationBudgetMsv = bundled.mission.radiationBudgetMsv
-            for type in HealthIndicatorType.allCases {
-                if let snap = bundled.measurements[type.rawValue] {
-                    indicatorValues[type] = snap.value
-                }
-            }
+            applyPacket(bundled)
         }
 
         let initial = WatchTelemetryData(
-            userId: "crew-2",
+            userId: crewId,
             syncTimestamp: Date(),
             deviceModel: "Apple Watch Ultra 2",
             activitySummary: ActivitySummary(
@@ -226,22 +306,119 @@ class DashboardViewModel: ObservableObject {
         applyTelemetry(initial)
     }
 
+    private func applyPacket(_ packet: AstronautHealthPacket) {
+        astronautPacket = packet
+        aiGuidance = packet.aiGuidance
+        radiationBudgetMsv = packet.mission.radiationBudgetMsv
+        for type in HealthIndicatorType.allCases {
+            if let snap = packet.measurements[type.rawValue] {
+                indicatorValues[type] = snap.value
+            }
+        }
+        if let watch = packet.watchTelemetry {
+            latestTelemetry = watch
+        }
+        evaluateStatuses()
+    }
+
     private func loadBundledNominalPacket() -> AstronautHealthPacket? {
         guard let url = Bundle.main.url(forResource: "astronaut-packets", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let bundle = try? HealthJSONCodec.decoder.decode(AstronautPacketBundle.self, from: data) else {
             return nil
         }
-        return bundle.astronauts.first(where: { $0.astronautId == "crew-2" }) ?? bundle.astronauts.first
+        return bundle.astronauts.first(where: { $0.astronautId == crewId }) ?? bundle.astronauts.first
     }
 
     private func setupBindings() {
         telemetryService.telemetryPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] data in
-                self?.applyTelemetry(data)
+                guard let self else { return }
+                // Preserve real WatchConnectivity or backend updates without letting local mock overwrite them.
+                if let lastWatch = self.lastWatchSyncAt, Date().timeIntervalSince(lastWatch) < 30 {
+                    return
+                }
+                self.applyTelemetry(data)
             }
             .store(in: &cancellables)
+    }
+
+    private func setupWatchConnectivity() {
+        ConnectivityManager.shared.onSamplesReceived = { [weak self] samples in
+            Task { @MainActor [weak self] in
+                await self?.handleWatchSamples(samples)
+            }
+        }
+        ConnectivityManager.shared.activate()
+    }
+
+    @MainActor
+    private func handleWatchSamples(_ samples: [HealthSample]) async {
+        guard !samples.isEmpty else { return }
+        lastWatchSyncAt = Date()
+
+        for sample in samples {
+            indicatorValues[sample.type] = sample.value
+        }
+        evaluateStatuses()
+
+        let normalized = samples.map { sample in
+            HealthSample(
+                id: sample.id,
+                crewId: crewId,
+                type: sample.type,
+                value: sample.value,
+                unit: sample.unit,
+                timestamp: sample.timestamp,
+                source: sample.source
+            )
+        }
+        await sendSamplesToBackend(normalized)
+    }
+
+    @MainActor
+    private func handleAiStreamEvent(_ event: AiStreamEvent, deviceId: String) {
+        switch event {
+        case .hello(let alerts):
+            activeAlerts = alerts.filter { $0.state == "active" }
+        case .alert(let alert):
+            upsertAlert(alert)
+            notifyLocalAlertIfNeeded(alert)
+            Task {
+                try? await NetworkManager.shared.markAlertDelivered(alertId: alert.id, deviceId: deviceId)
+            }
+        case .alertUpdate(let alert):
+            upsertAlert(alert)
+        }
+    }
+
+    @MainActor
+    private func upsertAlert(_ alert: AiAlert) {
+        if alert.state == "resolved" {
+            activeAlerts.removeAll { $0.id == alert.id }
+            return
+        }
+        if let index = activeAlerts.firstIndex(where: { $0.id == alert.id }) {
+            activeAlerts[index] = alert
+        } else {
+            activeAlerts.insert(alert, at: 0)
+        }
+    }
+
+    private func notifyLocalAlertIfNeeded(_ alert: AiAlert) {
+        guard notifiedAlertIds.insert(alert.id).inserted else { return }
+        let content = UNMutableNotificationContent()
+        content.title = alert.title
+        content.body = alert.spokenText
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "antigravity.ai.alert.\(alert.id)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
     }
 
     private func applyTelemetry(_ data: WatchTelemetryData) {

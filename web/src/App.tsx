@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import './App.css'
 import { ThreeBodyMap } from './components/ThreeBodyMap'
+import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi } from './ai'
 import { astronautProfiles, latestSampleFor, useHealthData } from './data/useHealthData'
 import { guidanceByType } from './domain/guidance'
 import {
@@ -103,31 +104,12 @@ function readCrewMessages(): CrewMessage[] {
   }
 }
 
-const missionEnvironments: Record<
-  MissionEnvironment,
-  { label: string; short: string; latency: string; detail: string; icon: string }
-> = {
-  iss: {
-    label: 'ISS · Alçak Dünya yörüngesi',
-    short: 'ISS',
-    latency: '1.3 sn',
-    detail: 'Dünya ile yakın gerçek zamanlı iletişim',
-    icon: 'LEO',
-  },
-  lunar: {
-    label: 'Artemis · Ay yüzeyi',
-    short: 'AY',
-    latency: '2.6 sn',
-    detail: 'Ay yüzey operasyonları',
-    icon: 'LUNAR',
-  },
-  mars: {
-    label: 'Mars · Derin uzay geçişi',
-    short: 'MARS',
-    latency: '14 dk',
-    detail: 'Gecikme nedeniyle otonom öz değerlendirme',
-    icon: 'DEEP SPACE',
-  },
+const issEnvironment = {
+  label: 'ISS Alçak Uzay Ortamı',
+  short: 'ISS',
+  latency: '1.3 sn',
+  detail: 'Dünya ile yakın gerçek zamanlı iletişim',
+  icon: 'LEO',
 }
 
 const metricOrder: HealthType[] = [
@@ -144,13 +126,6 @@ const metricOrder: HealthType[] = [
 
 function getStatusTone(status: HealthStatus) {
   return `status-${status}`
-}
-
-function getMissionEnvironment(missionName: string): MissionEnvironment {
-  const mission = missionName.toLowerCase()
-  if (mission.includes('lunar')) return 'lunar'
-  if (mission.includes('mars')) return 'mars'
-  return 'iss'
 }
 
 function getLatestByType(samples: ReturnType<typeof useHealthData>['samples']) {
@@ -255,7 +230,7 @@ function App() {
   const [alertMessage, setAlertMessage] = useState('')
   const [alertRecipient, setAlertRecipient] = useState<AlertRecipient>('all')
   const [alertSeverity, setAlertSeverity] = useState<AlertSeverity>('critical')
-  const [environment, setEnvironment] = useState<MissionEnvironment>('mars')
+  const environment: MissionEnvironment = 'iss'
   const [selectedCrewId, setSelectedCrewId] = useState<(typeof astronautProfiles)[number]['id']>('crew-1')
   const [selectedMetric, setSelectedMetric] = useState<HealthType>('heartRate')
   const [focusedMetric, setFocusedMetric] = useState<HealthType | null>(null)
@@ -316,7 +291,7 @@ function App() {
   const selectedSample = latest[selectedMetric]
   const selectedStatus = statuses[selectedMetric]
   const selectedGuidance = guidanceByType[selectedMetric]
-  const activeEnvironment = missionEnvironments[environment]
+  const activeEnvironment = issEnvironment
   const selectedTrendSamples = useMemo(
     () => crewSamples.filter((sample) => sample.type === selectedMetric),
     [crewSamples, selectedMetric],
@@ -481,6 +456,13 @@ function App() {
 
   return (
     <div className="app-shell">
+      <AlertCenter
+        onOpenAstronaut={(crewId) => {
+          setSelectedCrewId(crewId as typeof selectedCrewId)
+          setActiveWorkspace('astronauts')
+        }}
+        onAskAi={(alert) => askAi(`${alert.title}. Şimdi ne yapmalıyız?`)}
+      />
       <header className="topbar">
         <a className="brand-lockup" href="#dashboard" aria-label="ANTIGRAVITY ana panel">
           <span className="brand-mark" aria-hidden="true">
@@ -566,22 +548,15 @@ function App() {
         <section className="mission-strip" aria-label="Görev bilgileri">
           <div className="mission-select-wrap">
             <span className="mission-icon">{activeEnvironment.icon}</span>
-            <label htmlFor="mission-environment">
+            <div className="mission-environment-info">
               <span className="eyebrow">GÖREV ORTAMI</span>
-              <select
-                id="mission-environment"
-                data-testid="mission-environment"
-                value={environment}
-                onChange={(event) => setEnvironment(event.target.value as MissionEnvironment)}
-              >
-                {Object.entries(missionEnvironments).map(([key, mission]) => (
-                  <option key={key} value={key}>{mission.label}</option>
-                ))}
-              </select>
-            </label>
+              <strong className="mission-environment-value" data-testid="mission-environment">
+                {activeEnvironment.label}
+              </strong>
+            </div>
           </div>
           <div className="mission-context">{activeEnvironment.detail}</div>
-          <div className={`latency-block ${environment === 'mars' ? 'latency-delayed' : ''}`}>
+          <div className="latency-block">
             <span className="latency-icon" aria-hidden="true">↗</span>
             <span><small>DÜNYA İLETİŞİM GECİKMESİ</small><strong>{activeEnvironment.latency}</strong></span>
           </div>
@@ -592,14 +567,6 @@ function App() {
             <span><small>GÖREV HAZIRLIĞI</small><strong>DEMO SKORU</strong></span>
           </div>
         </section>
-
-        {environment === 'mars' && (
-          <div className="autonomy-note" role="status" data-testid="autonomy-note">
-            <span className="autonomy-icon">!</span>
-            <p><strong>Otonom öz değerlendirme modu</strong> · Dünya’dan yanıt gecikebilir. Önce mürettebat protokolünü izle; kritik durumda ekip sağlık sorumlusuna haber ver.</p>
-            <span className="autonomy-delay">14 DK GECİKME</span>
-          </div>
-        )}
 
         <section className="astronaut-selector" aria-label="Astronot seçimi">
           <div className="astronaut-selector-heading">
@@ -624,7 +591,6 @@ function App() {
                     return
                   }
                   setSelectedCrewId(astronaut.id)
-                  setEnvironment(getMissionEnvironment(astronaut.missionName))
                   setFocusedMetric(selectedMetric)
                 }}
               >
@@ -868,6 +834,10 @@ function App() {
           </details>
         </section>
 
+        <div className="ai-slot">
+          <AiChat crewId={selectedCrewId} crewName={selectedAstronaut.name} />
+        </div>
+
         <footer className="app-footer">
           <span className="footer-brand"><span className="brand-mark small"><span /><span /><span /></span> ANTIGRAVITY · MISSION HEALTH DEMO</span>
           <span className="medical-disclaimer">Demo yazılımıdır, tıbbi cihaz değildir. Değerler örnek/simüle edilmiştir; tıbbi karar yerine geçmez.</span>
@@ -937,7 +907,6 @@ function App() {
                       data-testid={`base-open-${astronaut.id}`}
                       onClick={() => {
                         setSelectedCrewId(astronaut.id)
-                        setEnvironment(getMissionEnvironment(astronaut.missionName))
                         setActiveWorkspace('astronauts')
                       }}
                       type="button"
@@ -1152,7 +1121,6 @@ function App() {
                             data-testid={`alert-open-${astronaut.id}`}
                             onClick={() => {
                               setSelectedCrewId(astronaut.id)
-                              setEnvironment(getMissionEnvironment(astronaut.missionName))
                               setSelectedMetric(type)
                               setFocusedMetric(type)
                               setActiveWorkspace('astronauts')
@@ -1212,6 +1180,14 @@ function App() {
                     </div>
                   )}
                 </section>
+              </div>
+            </section>
+
+            <section className="ai-base-grid" aria-label="AI asistanı ve bildirimler">
+              <AiChat />
+              <div className="ai-base-side">
+                <DevicesPanel crewNames={Object.fromEntries(astronautProfiles.map((astronaut) => [astronaut.id, astronaut.name]))} />
+                <AiDemoControls />
               </div>
             </section>
 

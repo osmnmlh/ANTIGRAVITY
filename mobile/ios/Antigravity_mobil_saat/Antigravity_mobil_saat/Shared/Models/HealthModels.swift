@@ -29,15 +29,15 @@ enum HealthIndicatorType: String, Codable, CaseIterable, Sendable {
 
     var displayName: String {
         switch self {
-        case .heartRate: return "Heart Rate"
-        case .bloodPressureSys: return "Blood Pressure (Sys)"
-        case .bloodPressureDia: return "Blood Pressure (Dia)"
-        case .spo2: return "Blood Oxygen (SpO2)"
-        case .bodyTemp: return "Body Temperature"
-        case .bloodGlucose: return "Blood Glucose"
-        case .sleepHours: return "Sleep Hours"
-        case .mood: return "Mood"
-        case .radiationDose: return "Cumulative Radiation"
+        case .heartRate: return "Nabız"
+        case .bloodPressureSys: return "Büyük Tansiyon (Sys)"
+        case .bloodPressureDia: return "Küçük Tansiyon (Dia)"
+        case .spo2: return "Kan Oksijeni (SpO2)"
+        case .bodyTemp: return "Vücut Isısı"
+        case .bloodGlucose: return "Kan Şekeri"
+        case .sleepHours: return "Uyku Süresi"
+        case .mood: return "Ruh Hâli"
+        case .radiationDose: return "Kümülatif Radyasyon"
         }
     }
 }
@@ -161,6 +161,49 @@ struct AiGuidance: Codable, Sendable {
     let actions: [String]
     let escalate: String
     let disclaimer: String
+    /// The four texts of the indicator guidance sheet, written by the backend (Gemini, or Turkish rules while it answers).
+    /// Keys are `HealthIndicatorType.rawValue`. Nil when the backend is old or unreachable: the app then uses its own Turkish table.
+    var indicators: [String: AiIndicatorGuidance]? = nil
+}
+
+/// Per-indicator recommendation inside `AiGuidance`: what it is, why it matters in space, what to do now, when to call the flight surgeon.
+struct AiIndicatorGuidance: Codable, Sendable {
+    let whatItIs: String
+    let whyInSpace: String
+    let doNow: [String]
+    let escalateWhen: String
+}
+
+// MARK: - Proactive AI Alerts (SSE /api/ai/stream)
+
+struct AiAlertAdvice: Codable, Sendable, Equatable {
+    let summary: String?
+    let why: String
+    let doNow: [String]
+    let escalate: String
+    let source: String
+    let model: String?
+    let generatedAt: Date
+}
+
+struct AiAlert: Codable, Identifiable, Sendable, Equatable {
+    let id: String
+    let scope: String
+    let crewIds: [String]
+    let severity: HealthStatus
+    let scenarioId: String
+    let hazardId: String
+    let title: String
+    let spokenText: String
+    let advice: AiAlertAdvice?
+    let state: String
+    let createdAt: Date
+    let updatedAt: Date
+    let disclaimer: String
+}
+
+struct AiHelloPayload: Codable, Sendable {
+    let alerts: [AiAlert]
 }
 
 // MARK: - Apple Watch Telemetry Package
@@ -298,9 +341,31 @@ struct NasaHazardReferenceMetrics: Codable, Sendable {
 // MARK: - Shared JSON Coding Helpers
 
 enum HealthJSONCodec {
+    private static let isoWithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let isoStandard: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
     static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+            if let date = isoWithFractionalSeconds.date(from: string) ?? isoStandard.date(from: string) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Invalid ISO-8601 date: \(string)"
+            )
+        }
         return decoder
     }()
 

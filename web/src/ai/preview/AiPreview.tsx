@@ -3,12 +3,12 @@
 
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import packets from '../../../../shared/mock/astronaut-packets.json'
+import allData from '../../../../shared/mock/all-data.json'
 import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi, useAiState } from '..'
 import '../../index.css'
 import '../../App.css'
 
-const crew = packets.astronauts.map((a) => ({ id: a.astronautId, name: a.fullName }))
+const crew = allData.astronauts.map((a) => ({ id: a.astronautId, name: a.fullName }))
 const crewNames = Object.fromEntries(crew.map((c) => [c.id, c.name]))
 
 function Preview() {

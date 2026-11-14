@@ -341,3 +341,39 @@
 .ai-base-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; margin: 18px 0; align-items: start; }
 .ai-base-side { display: grid; gap: 16px; }
 @media (max-width: 900px) { .ai-base-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.ai-phone-disclaimer { margin-top: 18px; font-size: 12px; }
+
+/* ---- voice settings ---- */
+.ai-voice-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 12px;
+  width: min(340px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--ai-border);
+  border-radius: 12px;
+  background: var(--ai-raised);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.ai-dock--bottom-right .ai-voice-panel { top: auto; bottom: calc(100% + 8px); }
+.ai-voice-panel .ai-list-title { margin: 0; }
+.ai-field { display: grid; gap: 6px; font-size: 13px; color: var(--ai-text); }
+.ai-field small { color: var(--ai-muted); }
+.ai-field select {
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--ai-border);
+  border-radius: 8px;
+  background: var(--ai-soft);
+  color: var(--ai-text);
+  font: inherit;
+  font-size: 13px;
+}
+.ai-field input[type='range'] { width: 100%; accent-color: var(--ai-cyan); }
+.ai-range-ends { display: flex; justify-content: space-between; }
+.ai-voice-note { font-size: 12px; }
+.ai-voice-gear { padding: 6px 10px; font-size: 16px; }
+@media (max-width: 640px) { .ai-dock .ai-voice-panel { top: auto; bottom: calc(100% + 8px); } }

@@ -92,7 +92,10 @@ enum BodyMapCallout: String, CaseIterable, Identifiable {
 struct AstronautBodyMapView: View {
     let values: [HealthIndicatorType: Double]
     let statuses: [HealthIndicatorType: HealthStatus]
+    /// The backend's AI recommendation. When it carries a text for the tapped indicator, that text is shown; otherwise the Turkish rule table.
+    var aiGuidance: AiGuidance? = nil
     @State private var selected: BodyMapCallout = .heartRate
+    @State private var inspectedCallout: BodyMapCallout?
 
     private let leftCallouts: [BodyMapCallout] = [.mood, .radiationDose, .bloodPressure, .bloodGlucose]
     private let rightCallouts: [BodyMapCallout] = [.sleepHours, .bodyTemp, .spo2, .heartRate]
@@ -142,6 +145,7 @@ struct AstronautBodyMapView: View {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     selected = callout
                                 }
+                                inspectedCallout = callout
                             } label: {
                                 Circle()
                                     .fill(status.themeColor)
@@ -177,6 +181,15 @@ struct AstronautBodyMapView: View {
 
                 selectedFooter
             }
+        }
+        .sheet(item: $inspectedCallout) { callout in
+            IndicatorGuidanceSheet(
+                callout: callout,
+                valueText: formattedValue(for: callout),
+                status: status(for: callout),
+                guidance: indicatorGuidance(for: callout),
+                sourceNote: guidanceSourceNote(for: callout)
+            )
         }
     }
 
@@ -236,6 +249,7 @@ struct AstronautBodyMapView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selected = callout
             }
+            inspectedCallout = callout
         } label: {
             VStack(alignment: alignTrailing ? .trailing : .leading, spacing: 2) {
                 HStack(spacing: 4) {
@@ -282,29 +296,75 @@ struct AstronautBodyMapView: View {
 
     private var selectedFooter: some View {
         let itemStatus = status(for: selected)
-        return HStack(spacing: 8) {
-            Circle()
-                .fill(itemStatus.themeColor)
-                .frame(width: 7, height: 7)
+        return Button {
+            inspectedCallout = selected
+        } label: {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(itemStatus.themeColor)
+                    .frame(width: 7, height: 7)
 
-            Text("\(selected.systemTitle) · \(selected.fullTitle):")
-                .font(.caption2)
-                .foregroundStyle(ColorTheme.textMuted)
-                .lineLimit(1)
+                Text("\(selected.systemTitle) · \(selected.fullTitle):")
+                    .font(.caption2)
+                    .foregroundStyle(ColorTheme.textMuted)
+                    .lineLimit(1)
 
-            Text(formattedValue(for: selected))
-                .font(.caption2.weight(.bold).monospacedDigit())
-                .foregroundStyle(ColorTheme.textPrimary)
+                Text(formattedValue(for: selected))
+                    .font(.caption2.weight(.bold).monospacedDigit())
+                    .foregroundStyle(ColorTheme.textPrimary)
 
-            Spacer(minLength: 4)
+                Spacer(minLength: 4)
 
-            Text(itemStatus.turkishLabel)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(itemStatus.themeColor)
+                Text(itemStatus.turkishLabel)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(itemStatus.themeColor)
+
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundStyle(ColorTheme.accent)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .buttonStyle(.plain)
+    }
+
+    /// AI text of the backend for this indicator, else the app's own Turkish rule table.
+    private func aiIndicator(for callout: BodyMapCallout) -> AiIndicatorGuidance? {
+        aiGuidance?.indicators?[primaryIndicator(for: callout).rawValue]
+    }
+
+    private func indicatorGuidance(for callout: BodyMapCallout) -> IndicatorGuidance {
+        if let ai = aiIndicator(for: callout) {
+            return IndicatorGuidance(
+                whatItIs: ai.whatItIs,
+                whyInSpace: ai.whyInSpace,
+                doNow: ai.doNow,
+                escalateWhen: ai.escalateWhen
+            )
+        }
+        return HealthThresholds.guidance(for: primaryIndicator(for: callout), status: status(for: callout))
+    }
+
+    private func guidanceSourceNote(for callout: BodyMapCallout) -> String {
+        guard aiIndicator(for: callout) != nil, let source = aiGuidance?.source else {
+            return "Kural tabanlı öneri (AI önerisi şu an alınamadı)"
+        }
+        return source == .gemini ? "AI önerisi · Gemini" : "AI önerisi · kural tabanlı"
+    }
+
+    private func primaryIndicator(for callout: BodyMapCallout) -> HealthIndicatorType {
+        switch callout {
+        case .mood: return .mood
+        case .radiationDose: return .radiationDose
+        case .bloodPressure: return .bloodPressureSys
+        case .bloodGlucose: return .bloodGlucose
+        case .sleepHours: return .sleepHours
+        case .bodyTemp: return .bodyTemp
+        case .spo2: return .spo2
+        case .heartRate: return .heartRate
+        }
     }
 
     // MARK: - Helpers
@@ -442,6 +502,107 @@ private struct Astronaut2DFigure: View {
                 context.fill(legPath, with: .color(suitFill))
                 context.stroke(legPath, with: .color(suitStroke), lineWidth: 1.2)
             }
+        }
+    }
+}
+
+/// Indicator guidance detail sheet showing What / Why / Do now / Escalate from `HealthThresholds`.
+private struct IndicatorGuidanceSheet: View {
+    let callout: BodyMapCallout
+    let valueText: String
+    let status: HealthStatus
+    let guidance: IndicatorGuidance
+    let sourceNote: String
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    GlassCardView(cornerRadius: 18, padding: 16) {
+                        HStack(spacing: 12) {
+                            Image(systemName: status.systemIconName)
+                                .font(.title2)
+                                .foregroundStyle(status.themeColor)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(callout.fullTitle)
+                                    .font(.headline)
+                                    .foregroundStyle(ColorTheme.textPrimary)
+                                Text("\(valueText) • \(status.turkishLabel)")
+                                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                                    .foregroundStyle(status.themeColor)
+                            }
+
+                            Spacer()
+                        }
+                    }
+
+                    guidanceSection(title: "Nedir?", icon: "info.circle.fill", text: guidance.whatItIs)
+                    guidanceSection(title: "Uzayda Neden Önemli?", icon: "sparkles", text: guidance.whyInSpace)
+
+                    GlassCardView(cornerRadius: 18, padding: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Şimdi Ne Yapmalı?", systemImage: "checkmark.shield.fill")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(ColorTheme.accent)
+
+                            ForEach(guidance.doNow, id: \.self) { step in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Text("•")
+                                        .foregroundStyle(ColorTheme.accent)
+                                    Text(step)
+                                        .font(.subheadline)
+                                        .foregroundStyle(ColorTheme.textPrimary)
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    guidanceSection(
+                        title: "Ne Zaman Uçuş Cerrahına Başvurmalı?",
+                        icon: "phone.badge.waveform.fill",
+                        text: guidance.escalateWhen,
+                        tint: status == .red ? ColorTheme.statusRed : ColorTheme.statusAmber
+                    )
+
+                    Text(sourceNote)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(ColorTheme.accent)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .padding(16)
+            }
+            .background(ColorTheme.spaceBackdropGradient.ignoresSafeArea())
+            .navigationTitle(callout.systemTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Kapat") { dismiss() }
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func guidanceSection(
+        title: String,
+        icon: String,
+        text: String,
+        tint: Color = ColorTheme.accent
+    ) -> some View {
+        GlassCardView(cornerRadius: 18, padding: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Label(title, systemImage: icon)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(tint)
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(ColorTheme.textPrimary.opacity(0.92))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

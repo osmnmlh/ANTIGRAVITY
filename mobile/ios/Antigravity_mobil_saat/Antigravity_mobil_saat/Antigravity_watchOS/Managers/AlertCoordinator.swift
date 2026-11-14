@@ -28,6 +28,8 @@ final class AlertCoordinator: ObservableObject {
     @Published private(set) var uppercaseWarningDetail: String?
     @Published private(set) var isMuted: Bool = false
     @Published private(set) var isSimulatingSpike: Bool = false
+    @Published private(set) var lastSyncDate: Date?
+    @Published private(set) var lastCheckInMessage: String?
 
     let hapticManager: HapticManager
     let notificationController: NotificationController
@@ -35,6 +37,7 @@ final class AlertCoordinator: ObservableObject {
     private let telemetryService: TelemetryServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private var lastAlertSignature: String?
+    private var lastVitalsPushDate: Date?
     private var isRunning = false
     private let sideEffectsEnabled: Bool
 
@@ -56,9 +59,13 @@ final class AlertCoordinator: ObservableObject {
         guard !isRunning else { return }
         isRunning = true
         if sideEffectsEnabled {
+            ConnectivityManager.shared.activate()
             notificationController.requestAuthorization()
         }
         telemetryService.startMonitoring()
+        if sideEffectsEnabled {
+            pushCurrentVitalsToPhone()
+        }
     }
 
     func stop() {
@@ -88,6 +95,77 @@ final class AlertCoordinator: ObservableObject {
         } else {
             applyReadings(heartRate: 74, spo2: 98, bodyTemp: 36.6)
         }
+        if sideEffectsEnabled {
+            pushCurrentVitalsToPhone()
+        }
+    }
+
+    /// Sends a 5-second mood (1-5) and optional symptom check-in to the paired iPhone as `HealthSample`s.
+    func sendQuickCheckIn(mood: Int, symptoms: [String]) {
+        let now = Date()
+        var samples = currentVitalSamples(at: now)
+        samples.append(
+            HealthSample(
+                crewId: Constants.defaultCrewId,
+                type: .mood,
+                value: Double(min(max(mood, 1), 5)),
+                timestamp: now,
+                source: .watch
+            )
+        )
+
+        if sideEffectsEnabled {
+            ConnectivityManager.shared.sendSamples(samples)
+        }
+        lastSyncDate = now
+        lastVitalsPushDate = now
+        if symptoms.isEmpty {
+            lastCheckInMessage = "Ruh hâli (\(mood)/5) iletildi ✓"
+        } else {
+            lastCheckInMessage = "\(mood)/5 • \(symptoms.count) belirti iletildi ✓"
+        }
+    }
+
+    private func pushCurrentVitalsToPhone() {
+        let now = Date()
+        lastVitalsPushDate = now
+        lastSyncDate = now
+        ConnectivityManager.shared.sendSamples(currentVitalSamples(at: now))
+    }
+
+    private func currentVitalSamples(at date: Date) -> [HealthSample] {
+        var samples: [HealthSample] = [
+            HealthSample(
+                crewId: Constants.defaultCrewId,
+                type: .heartRate,
+                value: Double(heartRate),
+                timestamp: date,
+                source: .watch
+            )
+        ]
+        if let spo2 {
+            samples.append(
+                HealthSample(
+                    crewId: Constants.defaultCrewId,
+                    type: .spo2,
+                    value: Double(spo2),
+                    timestamp: date,
+                    source: .watch
+                )
+            )
+        }
+        if let bodyTemp {
+            samples.append(
+                HealthSample(
+                    crewId: Constants.defaultCrewId,
+                    type: .bodyTemp,
+                    value: bodyTemp,
+                    timestamp: date,
+                    source: .watch
+                )
+            )
+        }
+        return samples
     }
 
     private func bindTelemetry() {
@@ -100,6 +178,12 @@ final class AlertCoordinator: ObservableObject {
                     spo2: data.vitals.bloodOxygenPercentage.map { Int($0) },
                     bodyTemp: data.vitals.bodyTemperature
                 )
+                if self.sideEffectsEnabled {
+                    let now = Date()
+                    if self.lastVitalsPushDate == nil || now.timeIntervalSince(self.lastVitalsPushDate!) >= 10 {
+                        self.pushCurrentVitalsToPhone()
+                    }
+                }
             }
             .store(in: &cancellables)
     }

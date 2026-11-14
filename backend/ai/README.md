@@ -15,6 +15,7 @@ API shapes: [`shared/contracts/ai.md`](../../shared/contracts/ai.md). Plan: [`do
 | `safety.mjs` | shared medication check |
 | `ntfy.mjs` | optional push for locked phones (`NTFY_TOPIC`), off by default |
 | `test-env.mjs` | one command: relay + web + printed phone links, see `docs/ai/TEST-ENV.md` |
+| `guidance.mjs` | `packet.aiGuidance` of every astronaut: summary, steps and, per indicator, the four texts of the iPhone guidance sheet. Turkish rules first, Gemini's version a moment later; regenerated only when a status or the active alerts change |
 | `alerts.mjs` | Alert store (transitions, 5 min cooldown, deliveries/acks), device registry, filtered SSE hub |
 | `dev-server.mjs` | Runs the module alone on `:8788` with `shared/mock`, also the reference adapter |
 | `ai.test.mjs` | `node:test` suite |

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import astronautPacketData from '../../../shared/mock/astronaut-packets.json'
-import sharedSamples from '../../../shared/mock/samples.json'
+import allData from '../../../shared/mock/all-data.json'
 import {
   healthTypes,
   isHealthSample,
@@ -19,6 +18,9 @@ export interface SimulationStatus {
   running: boolean
   crewId: string | null
 }
+// shared/mock/all-data.json is the master dataset (crew packets + sample history + hazards + incidents).
+const astronautPacketData = allData
+const sharedSamples = allData.samples
 const sharedSeedSamples = sharedSamples.filter(isHealthSample)
 const packetSamples = astronautPacketData.astronauts.flatMap((astronaut) =>
   healthTypes.flatMap((type) => {

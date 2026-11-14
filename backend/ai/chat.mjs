@@ -187,7 +187,9 @@ export function createChat({ context, activeAlerts, gemini = {}, disclaimer, log
     const scope = body?.scope ?? (crewId ? 'crew' : 'cabin');
     if (!['crew', 'cabin'].includes(scope)) throw new Error('scope must be "crew" or "cabin"');
     if (scope === 'crew' && !crewId) throw new Error('crewId is required for scope "crew"');
-    const messages = cleanMessages(body?.messages);
+    // `message: "text"` is the shorthand of one user turn (docs/rehearsal.md); `messages[]` is the full form.
+    const raw = body?.messages ?? (typeof body?.message === 'string' && body.message.trim() ? [{ role: 'user', text: body.message }] : undefined);
+    const messages = cleanMessages(raw);
     const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.text ?? '';
     const f = facts({ scope, crewId });
     const valid = new Set(f.items.map((i) => i.type));
