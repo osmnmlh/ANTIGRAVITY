@@ -196,17 +196,92 @@ function makeUtterance(text: string): SpeechSynthesisUtterance {
   return utter
 }
 
-export function speak(text: string, delayMs = 0) {
-  const synth = window.speechSynthesis
-  if (!synth || !text) return
-  const utter = makeUtterance(text)
-  window.setTimeout(() => synth.speak(utter), delayMs)
+// ---- Pre-rendered clips (ElevenLabs voice, backend/ai/make-voice-clips.mjs) ----
+// web/public/ai-voice/manifest.json maps a phrase to an mp3. A phrase with a clip is played through a soft low-pass and a touch
+// slower ("hafif donuk"); any other text, or a build without the clips, uses the browser voice.
+
+const CLIP_BASE = `${import.meta.env.BASE_URL}ai-voice/`
+/** The "dull" character added at playback: lower lowpassHz = more muffled, rate < 1 = slower and slightly deeper. */
+const DULL = { lowpassHz: 3400, rate: 0.97, gain: 1.15 }
+let clips: Record<string, string> = {}
+const clipBuffers = new Map<string, Promise<AudioBuffer>>()
+let clipSource: AudioBufferSourceNode | null = null
+
+if (typeof window !== 'undefined') {
+  fetch(`${CLIP_BASE}manifest.json`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((m: { clips?: Record<string, string> } | null) => {
+      if (m?.clips) clips = m.clips
+    })
+    .catch(() => {
+      /* no clips shipped: browser voice everywhere */
+    })
 }
 
-/** Plays a short alert phrase with the current settings (the "Dene" button). */
+function stopClip() {
+  try {
+    clipSource?.stop()
+  } catch {
+    /* already ended */
+  }
+  clipSource = null
+}
+
+/** True when the text has a clip and audio is unlocked; playback starts as soon as the clip is decoded. `onFail` = clip could not be loaded. */
+function playClip(text: string, onFail: () => void): boolean {
+  const file = clips[text]
+  const ctx = audio
+  if (!file || !ctx || ctx.state !== 'running') return false
+  let buffer = clipBuffers.get(file)
+  if (!buffer) {
+    buffer = fetch(CLIP_BASE + file)
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status))
+        return r.arrayBuffer()
+      })
+      .then((b) => ctx.decodeAudioData(b))
+    clipBuffers.set(file, buffer)
+  }
+  buffer
+    .then((decoded) => {
+      stopClip()
+      const source = ctx.createBufferSource()
+      source.buffer = decoded
+      source.playbackRate.value = DULL.rate
+      const filter = ctx.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.value = DULL.lowpassHz
+      const gain = ctx.createGain()
+      gain.gain.value = DULL.gain
+      source.connect(filter).connect(gain).connect(ctx.destination)
+      source.start()
+      clipSource = source
+    })
+    .catch(() => {
+      clipBuffers.delete(file)
+      onFail()
+    })
+  return true
+}
+
+function speakWithBrowser(text: string) {
+  window.speechSynthesis?.speak(makeUtterance(text))
+}
+
+/** Speaks a short phrase: the pre-rendered clip when there is one, else the browser voice. */
+export function speak(text: string, delayMs = 0) {
+  if (!text) return
+  const run = () => {
+    if (!playClip(text, () => speakWithBrowser(text))) speakWithBrowser(text)
+  }
+  if (delayMs > 0) window.setTimeout(run, delayMs)
+  else run()
+}
+
+/** Plays a short alert phrase with the current settings (the "Dene" button). The panel tunes the browser voice, so the sample is that voice. */
 export function sampleVoice(text: string) {
   window.speechSynthesis?.cancel()
-  speak(text)
+  speakWithBrowser(text)
 }
 
 /**
@@ -225,6 +300,7 @@ export function readAloud(text: string, onEnd: () => void): boolean {
   const synth = window.speechSynthesis
   if (!synth) return false
   synth.cancel() // drop the short alert phrase that may still be playing
+  stopClip()
   const utter = makeUtterance(text)
   utter.onend = onEnd
   utter.onerror = onEnd
