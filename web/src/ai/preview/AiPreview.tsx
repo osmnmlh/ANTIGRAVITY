@@ -4,11 +4,12 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import packets from '../../../../shared/mock/astronaut-packets.json'
-import { AiChat, AiDemoControls, AlertCenter, askAi, useAiState } from '..'
+import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi, useAiState } from '..'
 import '../../index.css'
 import '../../App.css'
 
 const crew = packets.astronauts.map((a) => ({ id: a.astronautId, name: a.fullName }))
+const crewNames = Object.fromEntries(crew.map((c) => [c.id, c.name]))
 
 function Preview() {
   const [selected, setSelected] = useState<string | null>(null)
@@ -42,6 +43,17 @@ function Preview() {
             </ul>
           )}
           <AiDemoControls />
+          <DevicesPanel crewNames={crewNames} />
+          <section className="ai-demo" aria-label="Test telefonları">
+            <p className="ai-list-title">📱 Test telefonları (yeni sekmede aç)</p>
+            <div className="ai-demo-grid">
+              {crew.map((c) => (
+                <a key={c.id} className="ai-chip" href={`/phone.html?crewId=${c.id}`} target="_blank" rel="noreferrer" data-testid={`ai-open-phone-${c.id}`}>
+                  {c.name}
+                </a>
+              ))}
+            </div>
+          </section>
         </section>
         <AiChat crewId={person?.id} crewName={person?.name} />
       </div>

@@ -10,6 +10,11 @@ API shapes: [`shared/contracts/ai.md`](../../shared/contracts/ai.md). Plan: [`do
 | `cabin.mjs` | Cabin state + demo cabin thresholds (status computed here, clients only render it) |
 | `rules.mjs` | Scenario rules: when an alert fires, how severe, deterministic fallback advice |
 | `chat.mjs` | `POST /api/ai/chat` (#12): facts from the rules engine → Gemini, or a deterministic Turkish answer |
+| `advice.mjs` | Gemini interprets a freshly detected alert (`advice.summary`, reworded why / doNow / escalate); rejects unsafe or malformed output |
+| `gemini.mjs` | the one shared Gemini call (retry on 503/429, one deadline); default model `gemini-flash-lite-latest` |
+| `safety.mjs` | shared medication check |
+| `ntfy.mjs` | optional push for locked phones (`NTFY_TOPIC`), off by default |
+| `test-env.mjs` | one command: relay + web + printed phone links, see `docs/ai/TEST-ENV.md` |
 | `alerts.mjs` | Alert store (transitions, 5 min cooldown, deliveries/acks), device registry, filtered SSE hub |
 | `dev-server.mjs` | Runs the module alone on `:8788` with `shared/mock`, also the reference adapter |
 | `ai.test.mjs` | `node:test` suite |
@@ -85,4 +90,11 @@ ai.onSamples();
 - Chat: the model gets the computed statuses as final facts; its `escalation` can never be lower than the deterministic one.
   Key in `backend/.env` (`GEMINI_API_KEY`), read by `dev-server.mjs` too. No key, timeout or bad JSON → `source: "fallback"`, HTTP 200.
 - All user-facing text is Turkish (team decision). Spoken text spells units out ("milyonda 14", "yüzde 89") for a `tr-TR` voice.
+- **Two steps per alert:** the rules announce it instantly (deterministic title, speech and advice); about 1.5 s later Gemini's
+  interpretation arrives as `alert-update` (`advice.source: "gemini"` + `summary`). Severity and the spoken text never change.
+  No key, error or rejected output → the rule-based advice simply stays.
+- **Phones:** every phone whose stream receives the alert is marked delivered at that moment; a `devices` event keeps the cockpit's
+  "who is online" live; adding a phone needs no code change.
+- **ntfy** (optional): `NTFY_TOPIC` in `backend/.env` also pushes to locked phones, one topic per astronaut (`<topic>-crew-1`).
+  The relay needs no change: the module reads the env var itself.
 - Every alert carries deterministic advice (`source: "fallback"`); Gemini rewording comes in phase 3.

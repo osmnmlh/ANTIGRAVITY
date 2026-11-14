@@ -20,6 +20,7 @@
     }
   ],
   "advice": {
+    "summary": "Tüm kabinde amonyak gazı seviyesi 14 ppm olarak ölçülmüştür; bu durum soğutma hattından bir sızıntı kaynaklı olabilir.",
     "why": "Soğutma hattından sızan amonyak gözleri ve akciğerleri tahriş eder; kapalı kabinde dağılacak yeri yoktur.",
     "doNow": [
       "Acil durum maskenizi hemen takın.",
@@ -27,8 +28,8 @@
       "Birbirinizi öksürük veya göz ağrısı açısından kontrol edin."
     ],
     "escalate": "Nefes darlığı, göğüs ağrısı veya göz ağrısı olan varsa uçuş cerrahına hemen başvurun. Dünya ile iletişim gecikmesi 20 dakikaya kadar çıkabilir; önce siz harekete geçin.",
-    "source": "fallback",
-    "model": null,
+    "source": "gemini",
+    "model": "gemini-flash-lite-latest",
     "generatedAt": "2026-11-14T08:02:10.000Z"
   },
   "deliveries": [

@@ -30,6 +30,8 @@ export interface AlertMetric {
 }
 
 export interface AlertAdvice {
+  /** Gemini's reading of the detected values together. Only present once Gemini has answered. */
+  summary?: string
   why: string
   doNow: string[]
   escalate: string
@@ -43,6 +45,15 @@ export interface AlertDelivery {
   crewId: string
   deliveredAt: string | null
   ackedAt: string | null
+}
+
+export interface DeviceInfo {
+  deviceId: string
+  crewId: string
+  platform: string
+  name: string | null
+  online: boolean
+  lastSeen: string
 }
 
 export interface Alert {
