@@ -26,7 +26,7 @@ try { process.loadEnvFile(here('./.env')); } catch { /* .env is optional */ }
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? '0.0.0.0'; // 0.0.0.0 so a phone on the same Wi-Fi can reach it
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-flash-lite-latest';
 const AI_DISCLAIMER = `AI-generated suggestion. ${DEMO_DISCLAIMER}`; // same string as shared/mock packets
 let geminiLastError = null; // shown in /api/health so a failing key is visible without the server logs
 const RANK = { green: 0, missing: 1, amber: 2, red: 3 };
@@ -155,8 +155,7 @@ async function geminiGuidance(packet, overallStatus) {
       headers: { 'content-type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        // thinkingBudget 0: 2.5-flash otherwise "thinks" first and can pass the timeout on a cold Render instance
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.3, thinkingConfig: { thinkingBudget: 0 } },
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
       }),
       signal: AbortSignal.timeout(20_000),
     },
@@ -199,6 +198,27 @@ async function createAiGuidance(crewId) {
   return packet.aiGuidance;
 }
 
+// ---- Rate limits: loose on purpose. On stage 2 iPhones + the web can share one venue IP. ----
+// AI routes cost Gemini quota (free tier is small and the key is shared), so they get a tighter bucket.
+const LIMITS = {
+  ai: { max: Number(process.env.RATE_AI_PER_MIN ?? 30), test: (r) => /^POST \/api\/ai\/(guidance|chat)$/.test(r) },
+  all: { max: Number(process.env.RATE_ALL_PER_MIN ?? 600), test: () => true },
+};
+const hits = new Map(); // "bucket:ip" → { count, resetAt }
+function rateLimited(ip, route) {
+  if (route === 'GET /api/health' || route === 'OPTIONS /api/health') return null; // Render's health check
+  const now = Date.now();
+  for (const [name, { max, test }] of Object.entries(LIMITS)) {
+    if (!test(route)) continue;
+    const key = `${name}:${ip}`;
+    let h = hits.get(key);
+    if (!h || h.resetAt <= now) hits.set(key, (h = { count: 0, resetAt: now + 60_000 }));
+    if (++h.count > max) return Math.ceil((h.resetAt - now) / 1000);
+  }
+  return null;
+}
+setInterval(() => { const now = Date.now(); for (const [k, h] of hits) if (h.resetAt <= now) hits.delete(k); }, 60_000).unref();
+
 // ---- HTTP plumbing ----
 function send(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -223,7 +243,15 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const route = `${req.method} ${url.pathname}`;
   const started = Date.now();
-  res.on('finish', () => console.log(`[http] ${route} ${res.statusCode} ${Date.now() - started}ms`));
+  res.on('finish', () => {
+    if (route !== 'GET /api/health') console.log(`[http] ${route} ${res.statusCode} ${Date.now() - started}ms`); // health is polled by Render
+  });
+  const ip = String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '').split(',')[0].trim();
+  const retryAfter = rateLimited(ip, route);
+  if (retryAfter) {
+    res.setHeader('retry-after', String(retryAfter));
+    return send(res, 429, { error: `Çok fazla istek, ${retryAfter} sn sonra tekrar deneyin.`, retryAfter });
+  }
   try {
     if (route === 'POST /api/demo/reset') {
       resetRelay();
@@ -267,6 +295,10 @@ const server = http.createServer(async (req, res) => {
     send(res, 400, { error: err.message });
   }
 });
+
+// Time limits for *receiving* a request (slow or stuck clients). SSE responses stay open; Gemini has its own 20 s timeout.
+server.headersTimeout = 10_000;
+server.requestTimeout = 15_000;
 
 server.listen(PORT, HOST, () => {
   console.log(`ANTIGRAVITY relay on http://localhost:${PORT}  (Gemini: ${GEMINI_API_KEY ? GEMINI_MODEL : 'off, using fallback'})`);

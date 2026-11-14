@@ -27,6 +27,10 @@ npm test                  # AI module tests
 
 Every request is logged as `[http] METHOD /path status ms`; alerts as `[ai] ALERT ...`.
 
+**Limits (loose, per IP per minute):** `POST /api/ai/guidance` + `/api/ai/chat` 30 (`RATE_AI_PER_MIN`), everything else 600
+(`RATE_ALL_PER_MIN`); over the limit = `429` with `retry-after`, clients fall back silently. `/api/health` is never limited
+or logged (Render polls it). A request must arrive within 15 s; SSE streams stay open.
+
 ## AI guidance flow
 
 Web button → `POST /api/ai/guidance` → server calls Gemini with the readings, their deterministic status and the
