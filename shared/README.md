@@ -4,6 +4,7 @@ The shared data files every client (`web/`, `mobile/ios/` iPhone + Watch) uses.
 
 ## Files
 
+- `mock/all-data.json`: Single combined master JSON file containing all 3 astronauts (with embedded `sampleHistory`), `nasaHazards`, `historicalIncidents`, and the flat `samples` array in one place.
 - `mock/samples.json`: Time-series `HealthSample[]` array matching the `AGENTS.md` contract (`id`, `crewId`, `type`, `value`, `unit`, `timestamp`, `source`). Contains 7-day daily + intraday baseline readings for all 3 crew members (`crew-1`, `crew-2`, `crew-3` — 243 samples total).
 - `mock/astronaut-packets.json`: Crew-level JSON packets (`astronautId`, `fullName`, `role`, `mission`, `activeHazardIds`, `measurements`, and Apple Watch `watchTelemetry`) designed to feed Web, iPhone, and watchOS seamlessly.
 - `mock/astronaut-packets.json` → `aiGuidance`: AI recommendation (`summary`, `actions[]`, `escalate`, `source`, `overallStatus`). Written only by `backend/` (`POST /api/ai/guidance`); mock values use `source: "fallback"`. The iPhone shows it as "AI recommendation".
