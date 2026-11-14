@@ -57,6 +57,13 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 - Use `sendMessageData` for live (both apps foreground), `transferUserInfo` for guaranteed queued delivery, `updateApplicationContext` for "latest status" phone → watch.
 - Call `activate()` in each app's `init`/`App` body at launch.
 
+## AI recommendation (from backend)
+
+- `AstronautHealthPacket.aiGuidance` (optional) is filled by `backend/` via Gemini. Decode it with `HealthJSONCodec.decoder` and show it as an **"AI recommendation"** card: `summary`, `actions` as bullets, `escalate`, and `disclaimer`. Hide the card when it is `nil`.
+- Get packets from the relay (`GET http://<mac-ip>:8787/api/packets/<crewId>`) or from the bundled `shared/mock/astronaut-packets.json`; always keep the bundled mock as fallback.
+- Plain HTTP to a LAN IP needs `NSAppTransportSecurity` → `NSAllowsLocalNetworking = YES` and a `NSLocalNetworkUsageDescription` in Info.plist. The simulator on the demo Mac can just use `http://localhost:8787`.
+- Never put the Gemini key in the app; color/status still comes from `HealthThresholds`, not from the AI text.
+
 ## Rules
 
 - `HealthSample` is `Codable` and matches the JSON contract in AGENTS.md exactly (camelCase keys, ISO-8601 dates via `.iso8601` strategy).
