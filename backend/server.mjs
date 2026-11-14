@@ -28,6 +28,7 @@ const HOST = process.env.HOST ?? '0.0.0.0'; // 0.0.0.0 so a phone on the same Wi
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 const AI_DISCLAIMER = `AI-generated suggestion. ${DEMO_DISCLAIMER}`; // same string as shared/mock packets
+let geminiLastError = null; // shown in /api/health so a failing key is visible without the server logs
 const RANK = { green: 0, missing: 1, amber: 2, red: 3 };
 
 // ---- In-memory state, loaded from shared mock data on every start ----
@@ -154,12 +155,13 @@ async function geminiGuidance(packet, overallStatus) {
       headers: { 'content-type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+        // thinkingBudget 0: 2.5-flash otherwise "thinks" first and can pass the timeout on a cold Render instance
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.3, thinkingConfig: { thinkingBudget: 0 } },
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(20_000),
     },
   );
-  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Gemini HTTP ${res.status}: ${(await res.text()).replace(/\s+/g, " ").slice(0, 300)}`);
   const data = await res.json();
   const out = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
   if (typeof out.summary !== 'string' || !Array.isArray(out.actions) || typeof out.escalate !== 'string') {
@@ -178,7 +180,9 @@ async function createAiGuidance(crewId) {
     try {
       text = await geminiGuidance(packet, overallStatus);
       source = 'gemini';
+      geminiLastError = null;
     } catch (err) {
+      geminiLastError = `${new Date().toISOString()} ${err.message}`;
       console.warn(`[ai] Gemini failed, using fallback: ${err.message}`);
     }
   }
@@ -228,7 +232,7 @@ const server = http.createServer(async (req, res) => {
     if (await ai.handle(req, res, url)) return; // /api/ai/* except /api/ai/guidance (handled below)
     if (route === 'GET /api/health') {
       return send(res, 200, {
-        ok: true, gemini: Boolean(GEMINI_API_KEY), model: GEMINI_API_KEY ? GEMINI_MODEL : null, clients: clients.size, ai: true,
+        ok: true, gemini: Boolean(GEMINI_API_KEY), model: GEMINI_API_KEY ? GEMINI_MODEL : null, geminiLastError, clients: clients.size, ai: true,
       });
     }
     if (route === 'GET /api/packets') {
