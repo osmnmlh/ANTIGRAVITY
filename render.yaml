@@ -14,6 +14,6 @@ services:
       - key: NODE_VERSION
         value: 22.12.0
       - key: GEMINI_MODEL
-        value: gemini-flash-latest
+        value: gemini-flash-lite-latest
       - key: GEMINI_API_KEY
         sync: false   # entered by hand in the Render dashboard, never committed

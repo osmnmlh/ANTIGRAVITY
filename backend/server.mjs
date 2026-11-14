@@ -26,7 +26,7 @@ try { process.loadEnvFile(here('./.env')); } catch { /* .env is optional */ }
 const PORT = Number(process.env.PORT ?? 8787);
 const HOST = process.env.HOST ?? '0.0.0.0'; // 0.0.0.0 so a phone on the same Wi-Fi can reach it
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-flash-latest';
+const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-flash-lite-latest';
 const AI_DISCLAIMER = `AI-generated suggestion. ${DEMO_DISCLAIMER}`; // same string as shared/mock packets
 let geminiLastError = null; // shown in /api/health so a failing key is visible without the server logs
 const RANK = { green: 0, missing: 1, amber: 2, red: 3 };
