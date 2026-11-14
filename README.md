@@ -56,12 +56,14 @@ NASA İnsan Araştırmaları Programı (HRP) tarafından tanımlanan beş temel 
 
 ## 🏗️ Çözüm Mimarisi ve Dinamik Akış
 
-**ANTIGRAVITY**, **Vercel** üzerinde canlıya alınan Web Dashboard, isteğe bağlı gerçek zamanlı Node.js SSE relay (`backend/`) ve **iPhone 16 Pro + Apple Watch** (`mobile/ios/` & `watch/`) istemcilerini **ortak JSON veri sözleşmesi** (`shared/`) üzerinde birleştirir:
+**ANTIGRAVITY**, **Vercel** üzerinde canlıya alınan Web Dashboard, isteğe bağlı gerçek zamanlı Node.js SSE relay (`backend/`) ve **iPhone 16 Pro + Apple Watch** (`mobile/ios/`) istemcilerini **ortak JSON veri sözleşmesi** (`shared/`) üzerinde birleştirir:
 
 - **Vercel Canlı Web Dashboard (`web/`):** Mürettebat durum kartları, 7 günlük zaman serisi grafikleri, etkileşimli insan vücudu haritası, çok günlük trend eskalasyonu, senaryo tetikleme ve AI bot veri girişi sunar (`VITE_API_URL` ile canlı backend'e bağlanır; backend olmadığında yerel mock sözleşmesiyle de çalışabilir).
 - **Gerçek Zamanlı Backend Relay & AI Modülü (`backend/`):** Sıfır bağımlılıklı Node.js sunucusu (`backend/server.mjs`, `:8787`) ve tak-çalıştır AI modülü (`backend/ai/`); Web üzerinden tetiklenen senaryoları (`POST /api/ai/demo/:scenarioId`), manuel/AI bot ölçümlerini (`POST /api/samples`) ve proaktif uyarıları yapay gecikme olmadan **SSE** (`/api/stream`, `/api/ai/stream`) üzerinden anında tüm bağlı cihazlara yayınlar.
-- **iPhone & Apple Watch (`mobile/ios/` & `watch/`):** Apple Watch üzerinden canlı nabız/telemetri ve hızlı duygu durum kontrolü `WatchConnectivity` ile iPhone'a aktarılır; iPhone aynı anda canlı backend SSE akışından gelen proaktif uyarıları ve **"AI recommendation"** kartlarını gösterir.
+- **iPhone & Apple Watch (`mobile/ios/`, tek Xcode projesi):** Apple Watch üzerinden canlı nabız/telemetri ve hızlı duygu durum kontrolü `WatchConnectivity` ile iPhone'a aktarılır; iPhone aynı anda canlı backend SSE akışından gelen proaktif uyarıları ve **"AI recommendation"** kartlarını gösterir.
 - **Deterministik Eşik & Trend Motoru:** **Yeşil / Amber / Kırmızı** sağlık durumlarını her zaman deterministik eşik ve çok günlük trend kuralları belirler — **yapay zekâ asla durum rengine karar vermez**; yalnızca düz dilde *neden önemli*, *ne yapmalı* ve *ne zaman uçuş cerrahına başvurmalı* rehberliği üretir (API yoksa `fallback` katmanı devreye girer).
+
+> 🚧 **Güncel durum (`main`, 14 Kasım):** Yukarıdaki akış hedef mimaridir. Bugün `main` üzerinde web dashboard yalnızca yerel mock veriyle çalışır (backend'e bağlanmaz, `VITE_API_URL` henüz yok); `backend/ai/` modülü `server.mjs`'e bağlanmadı ve şimdilik tek başına `backend/ai/dev-server.mjs` ile `:8788` üzerinde çalışır (`/api/ai/demo/:id`, `/api/ai/stream`); `POST /api/ai/chat` henüz yok (ADR-0003); iPhone/Watch uygulaması `features/ios_viewmodel` branch'inde geliştiriliyor. Barındırma (Vercel vb.) kararı [ADR-0006](./docs/adr/0006-demo-hosting.md)'da bekliyor.
 
 > ⚠️ **Tıbbi Uyarı (Disclaimer):** **Demo software, not a medical device.** — Bu yazılım yalnızca NASA Space Apps Challenge 2026 kapsamında hazırlanmış bir **demo uygulamasıdır; tıbbi cihaz değildir**, klinik tanı veya tedavi amacıyla kullanılamaz.
 
@@ -102,10 +104,10 @@ node --experimental-strip-types --test backend/ai/ai.test.mjs
 node shared/tests/check-trends.mjs
 ```
 
-### 4. iPhone & Apple Watch (`mobile/ios/` + `watch/`)
+### 4. iPhone & Apple Watch (`mobile/ios/`)
 
-- `mobile/ios/` altındaki `.xcodeproj` projesini **Xcode 16+** ile açın.
-- Hedef şemayı seçin (iPhone 16 Pro / iOS 18 + eşleştirilmiş Apple Watch hedefi `watch/`) ve **Run** ile çalıştırın.
+- `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj` projesini **Xcode 16+** ile açın (iOS ve watchOS hedefleri aynı projede).
+- Hedef şemayı seçin (iOS şeması: iPhone 16 Pro / iOS 18, watchOS şeması: eşleştirilmiş Apple Watch) ve **Run** ile çalıştırın.
 
 ---
 
@@ -132,7 +134,7 @@ ANTIGRAVITY/
 ├── .claude/skills/                  # .agent/skills'e işaret eden kısa dosyalar (Claude Code)
 ├── web/                             # Web dashboard (Vite + React + TS, Playwright, Vercel)
 ├── backend/                         # Sıfır bağımlılıklı Node SSE relay + backend/ai/ modülü
-├── watch/                           # watchOS (SwiftUI) kaynak dosyaları
+├── watch/                           # Sadece yönlendirme README'si (watch kodu mobile/ios/ içinde)
 ├── mobile/ios/                      # Xcode projesi: iPhone 16 Pro + Apple Watch eşleşmesi
 ├── shared/                          # Ortak JSON veri sözleşmesi, NASA tehlike mock verisi ve trend testleri
 ├── docs/
@@ -140,6 +142,7 @@ ANTIGRAVITY/
 │   ├── submission-checklist.md      # NASA Space Apps teslim kontrol listesi (TR)
 │   ├── TODO.md                      # Takım görev takip listesi
 │   ├── adr/                         # Mimari karar kayıtları (ADR)
+│   ├── ai/                          # AI yol haritası (ROADMAP.md)
 │   ├── Hackathon-Subject.md         # Orijinal yarışma metni (EN)
 │   └── Hackathon-Subject.pdf        # Orijinal yarışma metni PDF (EN)
 ├── Hackathon-Subject-TR.pdf         # Yarışma metninin Türkçe çevirisi
@@ -160,7 +163,7 @@ ANTIGRAVITY/
 
 ## 🔗 Kullanılan NASA / CSA Veri ve Resmi Kaynakları
 
-Projedeki beş temel uzay uçuşu tehlikesi açıklamaları, risk bağlantıları ve eğitim metinleri doğrudan NASA HRP verilerinden derlenerek [`shared/mock/nasa-hazards.json`](./shared/mock/nasa-hazards.json) içinde yapılandırılmıştır ([`https://www.nasa.gov/hrp/hazards/`](https://www.nasa.gov/hrp/hazards/)).
+Projedeki beş temel uzay uçuşu tehlikesi açıklamaları, risk bağlantıları ve eğitim metinleri doğrudan NASA HRP verilerinden derlenerek [`shared/mock/nasa-hazards.json`](./shared/mock/nasa-hazards.json) içinde yapılandırılmıştır (backend AI modülü bu dosyayı kullanır; web şu an tehlike metinlerini `web/src/domain/guidance.ts` içinde tutar) ([`https://www.nasa.gov/hrp/hazards/`](https://www.nasa.gov/hrp/hazards/)).
 
 - 🧬 **NASA HRP — İnsanlı Uzay Uçuşunun 5 Tehlikesi:** [nasa.gov/hrp/hazards](https://www.nasa.gov/hrp/hazards/) (`shared/mock/nasa-hazards.json`)
 - ⚠️ **NASA HRP — İnsanlı Uzay Uçuşunun Riskleri:** [nasa.gov/hrp/risks](https://www.nasa.gov/hrp/risks/)
