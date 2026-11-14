@@ -5,8 +5,12 @@
 ### 2026 NASA Space Apps Challenge — Astronot Sağlık İzleme Yazılımı
 
 [![Etkinlik](https://img.shields.io/badge/Etkinlik-2026_NASA_Space_Apps_Challenge-0B3D91?style=for-the-badge&logo=nasa&logoColor=white)](https://www.spaceappschallenge.org/2026/challenges/)
+[![Canlı Demo](https://img.shields.io/badge/Canlı_Web-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://antigravity-teal-eight.vercel.app/)
 [![Zorluk](https://img.shields.io/badge/Zorluk-Orta_Seviye-F59E0B?style=for-the-badge)](./Hackathon-Subject-TR.pdf)
 [![Odak](https://img.shields.io/badge/Odak_%C3%87al%C4%B1%C5%9Fmas%C4%B1-%C4%B0nsanl%C4%B1_Ke%C5%9Fif_%E2%80%A2_Yaz%C4%B1l%C4%B1m_%E2%80%A2_Uzay-6366F1?style=for-the-badge)](./docs/Hackathon-Subject.md)
+
+**🌐 Canlı Web Dashboard (Vercel):** https://antigravity-teal-eight.vercel.app/  
+**🛰️ Canlı Backend Relay (Render):** https://antigravity-backend-8lv8.onrender.com/api/health
 
 </div>
 
@@ -63,10 +67,10 @@ NASA İnsan Araştırmaları Programı (HRP) tarafından tanımlanan beş temel 
 - **iPhone & Apple Watch (`mobile/ios/`, tek Xcode projesi):** Apple Watch üzerinden canlı nabız/telemetri ve hızlı duygu durum kontrolü `WatchConnectivity` ile iPhone'a aktarılır; iPhone aynı anda canlı backend SSE akışından gelen proaktif uyarıları ve **"AI recommendation"** kartlarını gösterir.
 - **Deterministik Eşik & Trend Motoru:** **Yeşil / Amber / Kırmızı** sağlık durumlarını her zaman deterministik eşik ve çok günlük trend kuralları belirler — **yapay zekâ asla durum rengine karar vermez**; yalnızca düz dilde *neden önemli*, *ne yapmalı* ve *ne zaman uçuş cerrahına başvurmalı* rehberliği üretir (API yoksa `fallback` katmanı devreye girer).
 
-> 🚧 **Güncel durum (`main`, 14 Kasım akşamı):**
-> - ✅ Backend Render'da canlı: `https://antigravity-backend-8lv8.onrender.com` (`/api/health`). AI modülü `server.mjs`'e bağlı: proaktif uyarılar (`/api/ai/stream`), 11 demo senaryosu (`/api/ai/demo/:id`), sohbet (`POST /api/ai/chat`, model `gemini-flash-lite-latest`), canlı ve tarihî kaza simülasyonları (`/api/simulation/*`). Tüm mürettebat yeşil başlar.
-> - ⏳ Web şu an yalnızca yerel mock veriyle çalışıyor: Vercel'de `VITE_API_URL` ayarı ve `useHealthData` bağlantısı (#9), mürettebat seçici (#10), `AlertCenter`/`AiChat` bileşenlerinin `App.tsx`'e eklenmesi (#13), Playwright testi (#11) bekliyor.
-> - ⏳ iPhone ekranları `main`'de (#27) ama Xcode'da derlendiği henüz doğrulanmadı; backend adresi ve AI önerisi kartı (#16), watchOS hedefi ve WatchConnectivity (#17) bekliyor.
+> 🚧 **Güncel durum (`main`, 14 Kasım):**
+> - ✅ Web Vercel'de canlı: [`https://antigravity-teal-eight.vercel.app/`](https://antigravity-teal-eight.vercel.app/) (`VITE_API_URL=https://antigravity-backend-8lv8.onrender.com` bağlı, `AlertCenter`, `AiChat` ve ses ayarları yayında).
+> - ✅ Backend Render'da canlı: [`https://antigravity-backend-8lv8.onrender.com/api/health`](https://antigravity-backend-8lv8.onrender.com/api/health). AI modülü `server.mjs`'e bağlı: proaktif uyarılar (`/api/ai/stream`), 11 demo senaryosu (`/api/ai/demo/:id`), sohbet (`POST /api/ai/chat`, model `gemini-flash-lite-latest`), canlı ve tarihî kaza simülasyonları (`/api/simulation/*`). Tüm mürettebat yeşil başlar.
+> - ⏳ Devam eden işler: mürettebat seçici (#10), Playwright E2E testi (#11), iPhone/Watch son entegrasyon (#16, #17), Space Apps teslimi (#38).
 > - Kararlar: [ADR 0001–0007](./docs/adr/README.md), hepsi kabul edildi.
 
 > ⚠️ **Tıbbi Uyarı (Disclaimer):** **Demo software, not a medical device.** — Bu yazılım yalnızca NASA Space Apps Challenge 2026 kapsamında hazırlanmış bir **demo uygulamasıdır; tıbbi cihaz değildir**, klinik tanı veya tedavi amacıyla kullanılamaz.
