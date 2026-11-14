@@ -49,7 +49,7 @@ struct IndicatorGuidance: Sendable {
 
 enum HealthThresholds {
     static let demoDisclaimer = "Demo software, not a medical device."
-    static let defaultRadiationBudgetMsv: Double = 600.0
+    static let defaultRadiationBudgetMsv: Double = 200.0 // demo mission budget; same as web DEMO_MISSION_DOSE_BUDGET_MSV
 
     static func status(
         for type: HealthIndicatorType,

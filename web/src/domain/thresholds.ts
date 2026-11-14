@@ -8,7 +8,10 @@ import type {
 } from './types.ts';
 
 export const DEMO_DISCLAIMER = 'Demo software, not a medical device.';
-export const DEFAULT_RADIATION_BUDGET_MSV = 600;
+
+/** Demo mission dose budget used when a packet does not carry its own `mission.radiationBudgetMsv`. */
+export const DEMO_MISSION_DOSE_BUDGET_MSV = 200;
+export const DEFAULT_RADIATION_BUDGET_MSV = DEMO_MISSION_DOSE_BUDGET_MSV;
 
 export const INDICATOR_ORDER: HealthIndicatorType[] = [
   'heartRate',
@@ -327,3 +330,18 @@ export function getGuidance(
       };
   }
 }
+
+// Dashboard UI wording (Turkish, from the web dashboard). Keep English labels above for backend/AI text.
+export const statusLabels: Record<HealthStatus, string> = {
+  green: 'NORMAL',
+  amber: 'DİKKAT',
+  red: 'KRİTİK',
+  missing: 'VERİ YOK',
+};
+
+export const statusDescriptions: Record<HealthStatus, string> = {
+  green: 'Gösterge demo referans aralığında.',
+  amber: 'Tekrar ölç ve değişimi takip et.',
+  red: 'Mürettebat sağlık sorumlusuna haber ver.',
+  missing: 'Bu gösterge için ölçüm alınmadı.',
+};
