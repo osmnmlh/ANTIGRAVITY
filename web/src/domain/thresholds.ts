@@ -155,7 +155,7 @@ interface DriftRule {
   lowerNearLimit?: number;
 }
 
-// Mirrored identically in mobile/ios/Shared/Thresholds.swift.
+// Mirrored identically in mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/Thresholds.swift.
 const DRIFT_RULES: Partial<Record<HealthIndicatorType, DriftRule>> = {
   heartRate: {
     upperMinDelta: 8,

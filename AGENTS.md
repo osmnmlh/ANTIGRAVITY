@@ -24,14 +24,14 @@ docs/         Challenge brief, notes, demo script
 .claude/skills/  Thin pointers to .agent/skills/ for Claude Code
 ```
 
-Apple layout (one Xcode project, owned by the iOS/watchOS dev):
+Apple layout (one Xcode project, owned by the iOS/watchOS dev; for now it has one app target, the watchOS target is still to be created in Xcode):
 
 ```text
-mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj      the project (iOS + watchOS targets)
+mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj      the project
 mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_iOS/   iPhone app sources (App, Views, ViewModels, Components)
 mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_watchOS/   watchOS app sources (App, Managers, Notifications)
-mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/          code shared by both targets (services, protocols, extensions)
-mobile/ios/Shared/   HealthModels.swift + Thresholds.swift: the Swift data contract and status engine; add both to both targets
+mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/          code shared by iOS and Watch (models/thresholds, services, protocols, extensions)
+mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/   HealthModels.swift + Thresholds.swift: the Swift data contract and status engine (single source; do not redefine these types elsewhere)
 ```
 
 The Xcode project uses synchronized folders, so new files inside `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/` join the targets automatically.
@@ -65,7 +65,7 @@ Two files in `shared/mock/` use this contract:
 
 - `samples.json` — `HealthSample[]` history (one record per reading, shape above). Feeds charts.
 - `astronaut-packets.json` — one **packet per astronaut**: profile + mission + latest `measurements` + Apple Watch `watchTelemetry` + `aiGuidance`.
-  `astronautId` in a packet equals `crewId` in samples. Types: `web/src/domain/types.ts`, `mobile/ios/Shared/HealthModels.swift`.
+  `astronautId` in a packet equals `crewId` in samples. Types: `web/src/domain/types.ts`, `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/HealthModels.swift`.
 - `aiGuidance` = `{ generatedAt, source: "gemini"|"fallback", model, overallStatus, summary, actions[], escalate, disclaimer }`.
   Only the backend writes it (Gemini key stays server-side). iPhone parses it and shows it as **"AI recommendation"**.
   `overallStatus` comes from the threshold engine — **the AI never decides green/amber/red**.

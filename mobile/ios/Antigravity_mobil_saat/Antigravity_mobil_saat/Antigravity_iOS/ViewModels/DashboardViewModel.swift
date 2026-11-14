@@ -49,15 +49,10 @@ class DashboardViewModel: ObservableObject {
             .store(in: &cancellables) // Bu aboneliği hafıza torbamıza ekle
     }
     
-    // Nabız veya Oksijen kritik seviyedeyse alarmı tetikleyen iş mantığı
+    // Alarm rengi tek kaynaktan gelir: HealthThresholds (Thresholds.swift). Burada kendi eşiğimiz yok.
     private func checkCriticalAlerts(vitals: VitalsData) {
-        let oxygen = vitals.bloodOxygenPercentage ?? 100.0
-        
-        // Eğer nabız 120'den büyükse VEYA oksijen 90'dan küçükse
-        if vitals.currentHeartRate > Constants.criticalHeartRate || oxygen < Constants.criticalLowOxygen {
-            isCriticalAlert = true // Alarmı yak
-        } else {
-            isCriticalAlert = false // Alarmı söndür
-        }
+        let hrStatus = HealthThresholds.status(for: .heartRate, value: vitals.currentHeartRate)
+        let spo2Status = HealthThresholds.status(for: .spo2, value: vitals.bloodOxygenPercentage)
+        isCriticalAlert = (hrStatus == .red || spo2Status == .red)
     }
 }

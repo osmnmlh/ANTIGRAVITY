@@ -15,9 +15,7 @@ struct Constants {
     ///Not: Eğer şu an hazırda bir web backend'in yoksa sorun değil. Kod çökmez, sadece Xcode konsoluna "Veri Web'e JSON olarak fırlatılıyor..." yazar ve işine devam eder.
     static let apiEndpoint = "https://api.uzayuygulaman.com/v1/telemetry"
     
-    // Sağlık ve Uyarı Eşikleri
-    static let criticalHeartRate: Double = 120.0
-    static let criticalLowOxygen: Double = 90.0
+    // Sağlık eşikleri burada TUTULMAZ: HealthThresholds (Shared/Models/Thresholds.swift) tek kaynaktır.
     
     // UI Metinleri
     static let welcomeMessage = "Sistemler Normal, Kaptan."
