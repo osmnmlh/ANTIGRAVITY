@@ -10,10 +10,10 @@ enum HealthStatus: String, Codable, Comparable, Sendable {
 
     var label: String {
         switch self {
-        case .green: return "Nominal"
-        case .amber: return "Caution"
-        case .red: return "Alert"
-        case .missing: return "Missing"
+        case .green: return "Normal"
+        case .amber: return "Dikkat"
+        case .red: return "Acil Uyarı"
+        case .missing: return "Veri Yok"
         }
     }
 
@@ -63,7 +63,7 @@ struct TrendAssessment: Sendable {
 }
 
 enum HealthThresholds {
-    static let demoDisclaimer = "Demo software, not a medical device."
+    static let demoDisclaimer = "Demo yazılımıdır, tıbbi cihaz değildir."
     static let defaultRadiationBudgetMsv: Double = 200.0 // demo mission budget; same as web DEMO_MISSION_DOSE_BUDGET_MSV
 
     private struct DriftRule {
@@ -265,7 +265,7 @@ enum HealthThresholds {
                 let prev = daily[daily.count - 2]
                 let curr = daily[daily.count - 1]
                 if utcDayDiff(prev.dayStart, curr.dayStart) == 1 && prev.value <= 3 && curr.value <= 3 {
-                    return (.red, direction, "Mood has remained 3 or lower for 2 consecutive days.")
+                    return (.red, direction, "Ruh hâli art arda 2 gün 3 veya daha düşük seviyede kaldı.")
                 }
             }
             return (.green, direction, nil)
@@ -282,7 +282,7 @@ enum HealthThresholds {
                 let rate1 = (d1.value - d0.value) / gap1
                 let rate2 = (d2.value - d1.value) / gap2
                 if rate2 >= 3.0 || (rate1 > 0 && rate2 >= rate1 * 2.0 && rate2 >= 2.0) {
-                    return (.amber, .rising, "Daily radiation dose rate spiked above normal mission baseline.")
+                    return (.amber, .rising, "Günlük radyasyon dozu hızı normal görev tabanının üzerine çıktı.")
                 }
             }
             return (.green, direction, nil)
@@ -294,12 +294,12 @@ enum HealthThresholds {
             if let upperMinDelta = rule.upperMinDelta,
                let upperNearLimit = rule.upperNearLimit,
                v0 < v1 && v1 < v2 && (v2 - v0) >= upperMinDelta && v2 >= upperNearLimit {
-                return (.amber, .rising, "3 consecutive readings rising toward the upper safety limit.")
+                return (.amber, .rising, "Art arda 3 ölçüm üst güvenlik sınırına doğru yükseliyor.")
             }
             if let lowerMinDelta = rule.lowerMinDelta,
                let lowerNearLimit = rule.lowerNearLimit,
                v0 > v1 && v1 > v2 && (v0 - v2) >= lowerMinDelta && v2 <= lowerNearLimit {
-                return (.amber, .falling, "3 consecutive readings drifting toward the lower safety limit.")
+                return (.amber, .falling, "Art arda 3 ölçüm alt güvenlik sınırına doğru düşüyor.")
             }
         }
 
@@ -312,75 +312,75 @@ enum HealthThresholds {
         switch type {
         case .heartRate:
             return IndicatorGuidance(
-                whatItIs: "Nabız, kalbinin dinlenirken dakikada kaç kez attığını gösterir.",
-                whyInSpace: "Değişen yerçekimi sıvıların vücutta kaymasına ve kalp-damar sisteminin zayıflamasına yol açar; bu da dinlenik nabzı yükseltebilir.",
+                whatItIs: "Nabız, dinlenme hâlinde kalbinizin dakikada kaç kez attığını ölçer.",
+                whyInSpace: "Mikro-yerçekimi vücut sıvılarının yer değiştirmesine ve kardiyovasküler kondisyon kaybına yol açarak dinlenme nabzını yükseltebilir.",
                 doNow: status == .green
-                    ? ["Günlük egzersiz ve sıvı alımı düzenini sürdür."]
-                    : ["Yorucu aktiviteyi bırak, 5 dakika sakin otur veya kendini sabitle.", "250 mL su iç ve Apple Watch ölçümünü 15 dakika sonra tekrarla."],
-                escalateWhen: "Dinlenik nabız 120'nin üzerinde ya da 40'ın altında kalıyorsa veya baş dönmesi ya da göğüste rahatsızlık varsa mürettebat sağlık sorumlusuna ve uçuş cerrahına haber ver."
+                    ? ["Günlük egzersiz önlemlerine ve sıvı tüketim rutinine devam edin."]
+                    : ["Yorucu aktiviteyi durdurun ve 5 dakika sakin şekilde dinlenin veya sabitlenin.", "250 mL su için ve 15 dakika sonra Apple Watch ölçümünü tekrarlayın."],
+                escalateWhen: "Dinlenme nabzı 120 bpm üzerinde veya 40 bpm altında kalırsa ya da baş dönmesi ve göğüs rahatsızlığı eşlik ederse ekip sağlık sorumlusu ve uçuş cerrahıyla iletişime geçin."
             )
         case .bloodPressureSys, .bloodPressureDia:
             return IndicatorGuidance(
-                whatItIs: "Kan basıncı, kanın damar duvarlarına uyguladığı kuvveti gösterir.",
-                whyInSpace: "Mikro yerçekimi sıvıları baş ve göğüs bölgesine kaydırır; uzun görevlerde damar tonusunu değiştirir.",
+                whatItIs: "Tansiyon, kanın atardamar duvarlarına uyguladığı basıncı ölçer.",
+                whyInSpace: "Mikro-yerçekimi sıvıları baş ve göğüs bölgesine doğru kaydırarak uzun görevlerde damar tonusunu değiştirir.",
                 doNow: status == .green
-                    ? ["Düzenli aerobik ve direnç egzersizi programını sürdür."]
-                    : ["Manşet kalp hizasındayken 5 dakika sakin dinlen ve yeniden ölç.", "Sıvı alımını kontrol et ve tekrar ölçmeden önce kafein alma."],
-                escalateWhen: "Büyük tansiyon 140 mmHg ve üzerinde ya da 90 mmHg'nin altındaysa veya küçük tansiyon 90 mmHg ve üzerine çıkarsa uçuş cerrahına haber ver."
+                    ? ["Düzenli aerobik ve direnç egzersizi protokollerini sürdürün."]
+                    : ["Manşon kalp hizasında olacak şekilde 5 dakika sessizce dinlenip yeniden ölçün.", "Sıvı durumunu kontrol edin ve tekrar testten önce kafeinden kaçının."],
+                escalateWhen: "Büyük tansiyon 140 mmHg ve üzerine çıkar, 90 mmHg altına düşer veya küçük tansiyon 90 mmHg ve üzerine ulaşırsa uçuş cerrahıyla iletişime geçin."
             )
         case .spo2:
             return IndicatorGuidance(
-                whatItIs: "Kandaki oksijen doygunluğu (SpO2), alyuvarlarının ne kadar oksijen taşıdığını gösterir.",
-                whyInSpace: "Kapalı ve zorlu bir kabinde SpO2 düşüşü, hava kalitesi veya CO2 sorununa ya da solunum hastalığına işaret edebilir.",
+                whatItIs: "Kan oksijen satürasyonu (SpO2), kırmızı kan hücrelerinizin taşıdığı oksijen oranını gösterir.",
+                whyInSpace: "Kapalı bir uzay kabininde SpO2 düşüşü hava kalitesi veya CO2 sorunlarına ya da solunum rahatsızlığına işaret edebilir.",
                 doNow: status == .green
-                    ? ["Kabin oksijeni ve akciğerlerin oksijen alımı normal görünüyor."]
-                    : ["Eforu hemen bırak, dik otur ve kabin CO2/O2 göstergelerini kontrol et.", "Bileğini veya parmağını ısıt ve ölçümü 5 dakika sonra tekrarla."],
-                escalateWhen: "SpO2 %90'ın altında kalırsa mürettebat sağlık sorumlusunu uyar ve uçuş cerrahına hemen haber ver."
+                    ? ["Kabin oksijen iletimi ve akciğer alımı sağlıklı görünüyor."]
+                    : ["Eforu hemen durdurun, dik oturun ve kabin CO2/O2 değerlerini kontrol edin.", "Bileğinizi/parmağınızı ısıtın ve 5 dakika içinde ölçümü tekrarlayın."],
+                escalateWhen: "SpO2 değeri %90'ın altında kalmaya devam ederse ekip sağlık sorumlusunu uyarın ve derhâl uçuş cerrahıyla iletişime geçin."
             )
         case .bodyTemp:
             return IndicatorGuidance(
-                whatItIs: "Vücut ısısı, çekirdek ısı dengeni ve bağışıklık yanıtını yansıtır.",
-                whyInSpace: "Kapalı yaşam alanlarında enfeksiyonlar daha kolay yayılır; doğal hava dolaşımı olmadığı için ısı düzenlemesi de farklıdır.",
+                whatItIs: "Vücut ısısı, çekirdek ısıl dengenizi ve bağışıklık yanıtınızı yansıtır.",
+                whyInSpace: "Kapalı yaşam alanlarında enfeksiyonlar daha kolay yayılır ve doğal hava konveksiyonu olmadığı için ısı düzenlemesi farklılaşır.",
                 doNow: status == .green
-                    ? ["Normal kabin ısısı ve sıvı alışkanlıklarını sürdür."]
-                    : ["Dinlen, sıvı al ve vücut ısını 30 dakika sonra tekrar ölç.", "Kabin sıcaklığını ve soğutma devresinin durumunu kontrol et."],
-                escalateWhen: "Isı 38,5 °C ve üzerine çıkarsa, 35,0 °C'nin altına düşerse veya titremeyle birlikte sürerse uçuş cerrahına haber ver."
+                    ? ["Normal kabin termal ve sıvı tüketimi alışkanlıklarını sürdürün."]
+                    : ["Dinlenin, sıvı alın ve 30 dakika sonra ağız/cilt sıcaklığını yeniden ölçün.", "Uzay aracı kabin sıcaklığını ve soğutma döngüsü durumunu doğrulayın."],
+                escalateWhen: "Vücut ısısı 38,5 °C ve üzerine çıkarsa, 35,0 °C altına düşerse veya üşüme/titreme ile devam ederse uçuş cerrahıyla iletişime geçin."
             )
         case .bloodGlucose:
             return IndicatorGuidance(
-                whatItIs: "Kan şekeri, hücrelerin enerji için kullandığı kandaki şeker miktarını gösterir.",
-                whyInSpace: "Beslenme değişiklikleri, uçuş stresi ve kapalı ortamda değişen metabolizma kan şekeri kontrolünü etkiler.",
+                whatItIs: "Kan şekeri, hücresel enerji için kanınızdaki glukoz yoğunluğunu ölçer.",
+                whyInSpace: "Beslenme değişiklikleri, uzay uçuşu stresi ve kapalı ortamdaki metabolizma farklılıkları glukoz dengesini etkiler.",
                 doNow: status == .green
-                    ? ["Planlanan görev öğünlerine ve sıvı alımına uy."]
-                    : ["70 mg/dL'nin altındaysa 15 g hızlı etkili karbonhidrat al ve 15 dakika sonra tekrar ölç. Yüksekse sıvı al ve açken yeniden ölç."],
-                escalateWhen: "Kan şekeri 54 mg/dL'nin altına düşer ya da 180 mg/dL'yi aşarsa uçuş cerrahına hemen haber ver."
+                    ? ["Planlanan görev öğünlerine ve sıvı düzenine bağlı kalın."]
+                    : ["70 mg/dL altındaysa 15 g hızlı etkili karbonhidrat alın ve 15 dakika sonra yeniden ölçün. Yüksekse su için ve açlık ölçümünü tekrarlayın."],
+                escalateWhen: "Kan şekeri 54 mg/dL altına düşerse veya 180 mg/dL üzerine çıkarsa derhâl uçuş cerrahıyla iletişime geçin."
             )
         case .sleepHours:
             return IndicatorGuidance(
-                whatItIs: "Uyku süresi, son 24 saatte aldığın toplam dinlendirici uykuyu gösterir.",
-                whyInSpace: "İzolasyon, kapalı alan, gürültü ve değişen ışık döngüleri gece-gündüz ritmini bozar.",
+                whatItIs: "Uyku süresi, son 24 saatteki toplam yenileyici uyku miktarını takip eder.",
+                whyInSpace: "İzolasyon, kapalı alan, gürültü ve değişen ışık döngüleri sirkadiyen ritmi bozar.",
                 doNow: status == .green
-                    ? ["Uyku saatini ve kabin ışık düzenini sabit tut."]
-                    : ["Uyumadan 60 dakika önce mavi ışıklı ekranları kıs ve uyku istasyonunun havalandırmasını ayarla.", "Görev takvimi uygunsa kısa bir toparlanma molası planla."],
-                escalateWhen: "Uyku birkaç gece üst üste 5 saatin altında kalırsa veya dikkatini etkilerse mürettebat sağlık sorumlusu ve uçuş cerrahıyla görüş."
+                    ? ["Tutarlı bir uyku penceresi ve kabin ışık programını koruyun."]
+                    : ["Uykudan 60 dakika önce mavi ışık yayan ekranları kısın ve uyku bölmesi havalandırmasını ayarlayın.", "Görev takvimi elveriyorsa kısa bir toparlanma dinlenmesi planlayın."],
+                escalateWhen: "Uyku birden fazla gece üst üste 5 saatin altında kalırsa veya dikkati olumsuz etkilerse ekip sağlık sorumlusu ve uçuş cerrahına danışın."
             )
         case .mood:
             return IndicatorGuidance(
-                whatItIs: "Ruh hali kontrolü; stres, odak ve duygusal dayanıklılığına dair kendi değerlendirmeni (1–5) kaydeder.",
-                whyInSpace: "Uzun süreli izolasyon, kapalı alan ve Dünya'dan uzaklık davranışsal sağlığı zorlar.",
+                whatItIs: "Ruh hâli kontrolü, öznel stres, odaklanma ve duygusal dayanıklılığınızı (1–5) kaydeder.",
+                whyInSpace: "Uzun süreli izolasyon, kapalı ortam ve Dünya'dan uzaklık davranışsal sağlık yükünü artırır.",
                 doNow: status == .green
-                    ? ["Mürettebatla görüşmeleri ve planlı aile veya yer istasyonu ses mesajlarını sürdür."]
-                    : ["15 dakika mola ver, bir mürettebat arkadaşınla konuş veya yönlendirmeli bir nefes egzersizi yap.", "Süren belirtileri Apple Watch kontrolüne kaydet."],
-                escalateWhen: "Ruh halin 1–2 ise ya da iki veya daha fazla gün üst üste 3'te kalıyorsa mürettebat sağlık sorumlusuna ve davranışsal sağlık ekibine ulaş."
+                    ? ["Ekip kontrollerine ve planlı aile/yer sesli mesajlarına devam edin."]
+                    : ["15 dakikalık bir mola verin, bir ekip arkadaşınızla konuşun veya rehberli nefes egzersizi yapın.", "Süregelen belirtileri Apple Watch hızlı kontrolünden kaydedin."],
+                escalateWhen: "Ruh hâli 1–2 seviyesindeyse veya art arda iki ya da daha fazla gün 3'te kalırsa ekip sağlık sorumlusu ve uçuş davranışsal sağlık ekibine ulaşın."
             )
         case .radiationDose:
             return IndicatorGuidance(
-                whatItIs: "Kümülatif radyasyon dozu, görev boyunca aldığın toplam iyonlaştırıcı radyasyonu gösterir.",
-                whyInSpace: "Dünya'nın manyetosferi dışında uzay radyasyonu uzun vadeli kanser, bağışıklık ve merkezi sinir sistemi risklerini artırır.",
+                whatItIs: "Kümülatif radyasyon dozu, görev boyunca emilen toplam iyonlaştırıcı radyasyonu takip eder.",
+                whyInSpace: "Dünya manyetosferinin dışındaki uzay radyasyonu uzun vadede kanser, bağışıklık ve merkezi sinir sistemi risklerini artırır.",
                 doNow: status == .green
-                    ? ["Standart uzay aracı korumasıyla maruziyet planın içinde kalıyor."]
-                    : ["Güneş parçacık olayı uyarılarını kontrol et; önerilirse daha iyi korunan yaşam bölümüne geç."],
-                escalateWhen: "Kümülatif maruziyet görev bütçesinin %80'ini aşarsa veya herhangi bir güneş olayından sonra görev kontrolünü ve uçuş cerrahını bilgilendir."
+                    ? ["Standart uzay aracı kalkanlaması maruziyeti plan dâhilinde tutuyor."]
+                    : ["Güneş parçacığı olayı uyarılarını kontrol edin ve öneriliyorsa daha yüksek kalkanlı yaşam bölmelerine geçin."],
+                escalateWhen: "Kümülatif maruziyet görev bütçesinin %80'ini aştığında veya herhangi bir güneş olayı sonrasında görev kontrolü ve uçuş cerrahını uyarın."
             )
         }
     }

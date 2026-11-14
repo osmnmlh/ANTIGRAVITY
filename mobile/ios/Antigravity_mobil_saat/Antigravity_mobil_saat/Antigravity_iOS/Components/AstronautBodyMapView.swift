@@ -572,11 +572,6 @@ private struct IndicatorGuidanceSheet: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(ColorTheme.accent)
                         .frame(maxWidth: .infinity, alignment: .center)
-
-                    Text(Constants.turkishDemoDisclaimer)
-                        .font(.caption2)
-                        .foregroundStyle(ColorTheme.textMuted)
-                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .padding(16)
             }

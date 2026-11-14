@@ -29,15 +29,15 @@ enum HealthIndicatorType: String, Codable, CaseIterable, Sendable {
 
     var displayName: String {
         switch self {
-        case .heartRate: return "Heart Rate"
-        case .bloodPressureSys: return "Blood Pressure (Sys)"
-        case .bloodPressureDia: return "Blood Pressure (Dia)"
-        case .spo2: return "Blood Oxygen (SpO2)"
-        case .bodyTemp: return "Body Temperature"
-        case .bloodGlucose: return "Blood Glucose"
-        case .sleepHours: return "Sleep Hours"
-        case .mood: return "Mood"
-        case .radiationDose: return "Cumulative Radiation"
+        case .heartRate: return "Nabız"
+        case .bloodPressureSys: return "Büyük Tansiyon (Sys)"
+        case .bloodPressureDia: return "Küçük Tansiyon (Dia)"
+        case .spo2: return "Kan Oksijeni (SpO2)"
+        case .bodyTemp: return "Vücut Isısı"
+        case .bloodGlucose: return "Kan Şekeri"
+        case .sleepHours: return "Uyku Süresi"
+        case .mood: return "Ruh Hâli"
+        case .radiationDose: return "Kümülatif Radyasyon"
         }
     }
 }

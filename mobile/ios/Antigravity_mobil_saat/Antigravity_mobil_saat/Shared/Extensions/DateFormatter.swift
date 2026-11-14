@@ -11,6 +11,6 @@ extension Date {
     func toStardateString() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy.MM.dd - HH:mm:ss"
-        return "Stardate: \(formatter.string(from: self))"
+        return "Görev Zamanı: \(formatter.string(from: self))"
     }
 }
