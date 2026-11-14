@@ -35,16 +35,6 @@
 			path = Antigravity_mobil_saat;
 			sourceTree = "<group>";
 		};
-		6BAC232B30A853E5006AEECE /* Antigravity_mobil_saatTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Antigravity_mobil_saatTests;
-			sourceTree = "<group>";
-		};
-		6BAC233530A853E5006AEECE /* Antigravity_mobil_saatUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Antigravity_mobil_saatUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,8 +66,6 @@
 			isa = PBXGroup;
 			children = (
 				6BAC231D30A853E3006AEECE /* Antigravity_mobil_saat */,
-				6BAC232B30A853E5006AEECE /* Antigravity_mobil_saatTests */,
-				6BAC233530A853E5006AEECE /* Antigravity_mobil_saatUITests */,
 				6BAC231C30A853E3006AEECE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -130,9 +118,6 @@
 			dependencies = (
 				6BAC232A30A853E5006AEECE /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				6BAC232B30A853E5006AEECE /* Antigravity_mobil_saatTests */,
-			);
 			name = Antigravity_mobil_saatTests;
 			packageProductDependencies = (
 			);
@@ -152,9 +137,6 @@
 			);
 			dependencies = (
 				6BAC233430A853E5006AEECE /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				6BAC233530A853E5006AEECE /* Antigravity_mobil_saatUITests */,
 			);
 			name = Antigravity_mobil_saatUITests;
 			packageProductDependencies = (
