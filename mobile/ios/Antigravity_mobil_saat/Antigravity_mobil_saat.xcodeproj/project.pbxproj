@@ -29,9 +29,26 @@
 		6BAC233230A853E5006AEECE /* Antigravity_mobil_saatUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Antigravity_mobil_saatUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6BAC235030A853E5006AEECE /* Exceptions for "Antigravity_mobil_saat" folder in "Antigravity_mobil_saat" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Antigravity_watchOS/App/AntigravityWatchApp.swift,
+				Antigravity_watchOS/Managers/AlertCoordinator.swift,
+				Antigravity_watchOS/Managers/HapticManager.swift,
+				Antigravity_watchOS/Notifications/NotificationController.swift,
+				Antigravity_watchOS/Resources/Assets.xcassets,
+			);
+			target = 6BAC231A30A853E3006AEECE /* Antigravity_mobil_saat */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6BAC231D30A853E3006AEECE /* Antigravity_mobil_saat */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6BAC235030A853E5006AEECE /* Exceptions for "Antigravity_mobil_saat" folder in "Antigravity_mobil_saat" target */,
+			);
 			path = Antigravity_mobil_saat;
 			sourceTree = "<group>";
 		};
