@@ -1,6 +1,6 @@
 # 0003. AI chatbot: where it lives and its guardrails
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-14
 - Affects: AI/chat (GoktugFerdi), web (Ahmetzkn, Omerozcan71), backend (osmnmlh)
 
@@ -29,4 +29,6 @@ a key (canned fallback answer built from the rule-based guidance). Branch from `
 (or from `feat/web-body-hologram` until then) and agree with the web devs on the mount point.
 
 ## Decision
-_To be filled by the team._
+Accepted (2026-11-14, osmnmlh): **1 + a + i**, as built. `POST /api/ai/chat` lives in `backend/ai/chat.mjs` and is served by
+`backend/server.mjs` (#24, #26) on the Render URL; context = the selected astronaut's computed statuses + last turns;
+the web panel is a self-contained component (#13). Fallback is silent (ADR-0002): no "AI offline" banner.
