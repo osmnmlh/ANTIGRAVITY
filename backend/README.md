@@ -36,8 +36,8 @@ text from the rule-based guidance (`source: "fallback"`). The AI never changes t
 
 ## Gemini key (team decision)
 
-One key, only in `backend/.env` on the **demo Mac** (git-ignored, never in a commit, chat or the frontend).
-Check it once after `npm start`:
+One key, server-side only: Render's Environment tab, plus `backend/.env` on the Plan B laptop (git-ignored, never in a commit, chat or the frontend).
+Check it (locally or with the Render URL instead of `localhost:8787`):
 
 ```bash
 curl -s localhost:8787/api/health                       # "gemini": true
@@ -45,6 +45,17 @@ curl -s -X POST localhost:8787/api/ai/guidance -d '{"crewId":"crew-1"}' | grep -
 ```
 
 `"source":"fallback"` means the key is missing or Gemini failed; the terminal shows `[ai] Gemini failed ...` with the reason.
+
+## Hosting (ADR-0006: web on Vercel, relay on Render)
+
+1. Render → **New → Blueprint** → this repo. `render.yaml` creates `antigravity-backend` (free, Node 22, deploys `main`).
+2. In the service's **Environment** tab set `GEMINI_API_KEY`. The key lives only there (and in a local `backend/.env` for Plan B).
+3. Use the service URL (`https://antigravity-backend-xxxx.onrender.com`) everywhere:
+   - Vercel: env var `VITE_API_URL=<url>`, then redeploy the web.
+   - iPhones: the base URL constant in the app (HTTPS, so no ATS exception needed).
+4. Before the demo: open `<url>/api/health` (free Render sleeps after 15 min idle, first request ~50 s), then `POST <url>/api/demo/reset`.
+
+Plan B (no internet or Render down): `npm start` on one laptop (Windows or Mac) on a phone hotspot, clients use `http://<laptop-ip>:8787`.
 
 ## Demo tips
 

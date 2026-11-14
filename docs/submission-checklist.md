@@ -28,7 +28,7 @@ Bu liste, proje tesliminden önce tamamlanması gereken tüm çıktıları takip
 | Karar | Durum (14 Kasım) | Etkilediği yer |
 | --- | --- | --- |
 | Sunum ve arayüz dili ([ADR-0005](./adr/0005-ui-language.md)) | ✅ **Türkçe** (ADR-0005 kabul edildi) | Demo videosu, `demo-script.md`, web/iOS metinleri |
-| Barındırma ve teslim linki ([ADR-0006](./adr/0006-demo-hosting.md)) | ✅ Demoda web dashboard kullanılacak. ⏳ Barındırma ayrıntısı (Vercel + barındırılan backend mi, backend demo Mac'inde mi) açık | `demo-script.md` hazırlık adımları, madde 5 |
+| Barındırma ve teslim linki ([ADR-0006](./adr/0006-demo-hosting.md)) | ✅ Web Vercel'de, backend Render'da (HTTPS); iki iPhone ve web aynı adrese bağlanır. B planı: tek laptop + hotspot | `demo-script.md` hazırlık adımları, madde 5 |
 | Canlı demoda telefon/saat adımı | ✅ **Canlı**: iOS uygulamasının demodan önce `main`'e girmesi gerekiyor | `demo-script.md` adım 3–4 |
 | Video süresi ve formatı | ✅ Sunum **10 dakika**; 3 dakikalık akış bunun canlı demo bölümü. Teslim videosunun süresi resmi kurallardan doğrulanacak | Madde 3 |
 | Sahne rolleri ve sorumlular | ⏳ Sunum kişileri ve konu dağılımı henüz belli değil (şimdilik `[Belirlenecek]`) | Tüm `[Belirlenecek]` alanları |
