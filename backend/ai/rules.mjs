@@ -142,7 +142,8 @@ function crewRules(ctx, c, cabinHypoxiaFired) {
   if (v('bloodPressureSys') < 90 && v('heartRate') > 100) {
     out.push(crewFiring(ctx, c, {
       scenarioId: 'orthostatic', hazardId: 'gravityFields', severity: 'red',
-      types: ['bloodPressureSys', 'heartRate'],
+      // the abnormal diastolic value belongs to the same event, so it must not raise a second "vital red" alert
+      types: ['bloodPressureSys', ...(c.vitals.bloodPressureDia && c.vitals.bloodPressureDia.status !== 'green' ? ['bloodPressureDia'] : []), 'heartRate'],
       title: 'düşük tansiyon ve hızlı nabız',
       spokenText: `${name} için tansiyon düşük, büyük tansiyon ${say(v('bloodPressureSys'), 'mmHg')}, nabız ${say(v('heartRate'), 'bpm')}.`,
       why: 'Ağırlıksızlıkta vücut sıvıları yer değiştirir ve kalp zayıflar; tansiyon düşebilir ve kalp bunu telafi etmek için hızlanır.',

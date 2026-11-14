@@ -43,6 +43,7 @@ function setup(extra = {}) {
     applySamples,
     now: () => new Date(clock.t),
     log: {},
+    ntfy: { topic: '' }, // never read NTFY_TOPIC from the developer's shell in tests
     ...extra,
   });
   return { ai, packets, clock, applySamples };
@@ -310,4 +311,183 @@ test('chat with Gemini retries once on 503 and keeps the answer from the retry',
   const bad = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => (hard++, { ok: false, status: 404 }) });
   assert.equal((await bad.ai.chat({ crewId: 'crew-2', messages: [{ role: 'user', text: 'durum?' }] })).source, 'fallback');
   assert.equal(hard, 1, 'a 404 is not retried');
+});
+
+// ---- Gemini interpretation of alerts, simultaneous phones, ntfy ----
+
+const geminiReply = (obj) => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(obj) }] } }] }) });
+const GOOD_ADVICE = {
+  summary: 'Tansiyon düşük ve nabız yüksek; birlikte bu, sıvı kayması olabileceğini düşündürüyor.',
+  why: 'Ağırlıksızlıkta sıvılar yukarı kayar, kalp bunu telafi etmek için hızlanır.',
+  doNow: ['Uzanın ve bacaklarınızı yükseltin.', 'Sıvı için.', '5 dakika sonra tekrar ölçün.'],
+  escalate: 'Düzelmezse uçuş cerrahına başvurun.',
+};
+
+function openStream(base, query) {
+  const events = [];
+  const ctrl = new AbortController();
+  const ready = fetch(`${base}/api/ai/stream?${query}`, { signal: ctrl.signal }).then(async (res) => {
+    const reader = res.body.getReader();
+    let buf = '';
+    (async () => {
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += new TextDecoder().decode(value);
+          let i;
+          while ((i = buf.indexOf('\n\n')) >= 0) {
+            const chunk = buf.slice(0, i);
+            buf = buf.slice(i + 2);
+            const ev = chunk.match(/^event: (.+)$/m)?.[1];
+            const data = chunk.match(/^data: (.+)$/m)?.[1];
+            if (ev) events.push({ ev, data: JSON.parse(data) });
+          }
+        }
+      } catch { /* aborted */ }
+    })();
+  });
+  return { events, ready, close: () => ctrl.abort() };
+}
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test('Gemini interprets a detected alert; severity and the rule-based facts do not change', async () => {
+  // Gemini answers a moment later than the rules: that gap is when the crew already has the deterministic alert.
+  const { ai } = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => { await wait(80); return geminiReply(GOOD_ADVICE); } });
+  const { json } = await call(ai, 'POST', '/api/ai/demo/orthostatic');
+  const before = ai.alerts().find((a) => a.id === json.created[0]);
+  assert.equal(before.advice.source, 'fallback', 'the deterministic advice is there immediately');
+  const severity = before.severity;
+  const spoken = before.spokenText;
+  await ai.idle();
+  const after = ai.alerts().find((a) => a.id === json.created[0]);
+  assert.equal(after.advice.source, 'gemini');
+  assert.equal(after.advice.model, 'gemini-flash-lite-latest');
+  assert.match(after.advice.summary, /sıvı kayması/);
+  assert.equal(after.severity, severity);
+  assert.equal(after.spokenText, spoken, 'the spoken text stays deterministic');
+});
+
+test('Gemini prompt carries the detected readings, the other abnormal values and the safe baseline', async () => {
+  let system = '';
+  const fetchImpl = async (_url, init) => { system = JSON.parse(init.body).systemInstruction.parts[0].text; return geminiReply(GOOD_ADVICE); };
+  const { ai } = setup({ gemini: { apiKey: 'k' }, fetchImpl });
+  await call(ai, 'POST', '/api/ai/demo/cabin-hypoxia');
+  await ai.idle();
+  assert.match(system, /Scenario: cabin-hypoxia\. Severity: red/);
+  assert.match(system, /Kabin: Cabin oxygen \(ppO2\) = 18\.6 kPa/);
+  assert.match(system, /Dr\. Elena Vance: .* = 91 % \(amber\)/);
+  assert.match(system, /FINAL/);
+  assert.match(system, /Safe baseline advice/);
+});
+
+test('Gemini advice is rejected when it prescribes, is malformed or Gemini fails; red keeps the surgeon sentence', async () => {
+  const cases = [
+    { ...GOOD_ADVICE, doNow: ['500 mg parasetamol alın.'] },
+    { ...GOOD_ADVICE, summary: '' },
+    { ...GOOD_ADVICE, doNow: [] },
+  ];
+  for (const bad of cases) {
+    const { ai } = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => geminiReply(bad) });
+    const { json } = await call(ai, 'POST', '/api/ai/demo/orthostatic');
+    await ai.idle();
+    assert.equal(ai.alerts().find((a) => a.id === json.created[0]).advice.source, 'fallback');
+  }
+  const down = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => ({ ok: false, status: 404 }) });
+  const r = await call(down.ai, 'POST', '/api/ai/demo/cabin-gas-leak');
+  await down.ai.idle();
+  const stays = down.ai.alerts().find((a) => a.id === r.json.created[0]);
+  assert.equal(stays.advice.source, 'fallback');
+  assert.ok(stays.advice.doNow.length > 0, 'the alert is still fully usable');
+
+  const lax = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => geminiReply({ ...GOOD_ADVICE, escalate: 'Takibe devam edin.' }) });
+  const red = await call(lax.ai, 'POST', '/api/ai/demo/orthostatic');
+  await lax.ai.idle();
+  assert.match(lax.ai.alerts().find((a) => a.id === red.json.created[0]).advice.escalate, /uçuş cerrahına/i);
+});
+
+test('no Gemini key: alerts work exactly as before and no request is made', async () => {
+  let calls = 0;
+  const { ai } = setup({ fetchImpl: async () => { calls++; return geminiReply(GOOD_ADVICE); } });
+  const { json } = await call(ai, 'POST', '/api/ai/demo/cabin-gas-leak');
+  await ai.idle();
+  assert.equal(calls, 0);
+  assert.equal(ai.alerts().find((a) => a.id === json.created[0]).advice.source, 'fallback');
+});
+
+test('two phones are notified at the same moment: both get the alert, both count as delivered, acks reach everyone', async () => {
+  const { ai } = setup();
+  const server = http.createServer(async (req, res) => {
+    if (!(await ai.handle(req, res, new URL(req.url, 'http://x')))) res.writeHead(404).end();
+  });
+  await new Promise((r) => server.listen(0, r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  const cockpit = openStream(base, '');
+  const a = openStream(base, 'deviceId=phone-a&crewId=crew-1');
+  const b = openStream(base, 'deviceId=phone-b&crewId=crew-2');
+  const c = openStream(base, 'deviceId=phone-c&crewId=crew-3'); // other mission
+  await Promise.all([cockpit.ready, a.ready, b.ready, c.ready]);
+  await wait(60);
+
+  const lastDevices = (l) => [...l.events].reverse().find((e) => e.ev === 'devices')?.data ?? [];
+  assert.deepEqual(lastDevices(cockpit).filter((d) => d.online).map((d) => d.deviceId).sort(), ['phone-a', 'phone-b', 'phone-c']);
+
+  await fetch(`${base}/api/ai/demo/cabin-gas-leak`, { method: 'POST' });
+  await wait(100);
+  const alertFor = (l) => l.events.find((e) => e.ev === 'alert')?.data;
+  assert.equal(alertFor(a)?.scenarioId, 'cabin-gas-leak');
+  assert.equal(alertFor(b)?.scenarioId, 'cabin-gas-leak');
+  assert.equal(alertFor(c), undefined, 'crew-3 is on the lunar base');
+
+  const id = alertFor(a).id;
+  const latest = ai.alerts().find((x) => x.id === id);
+  assert.deepEqual(
+    latest.deliveries.map((d) => [d.deviceId, Boolean(d.deliveredAt), d.ackedAt]),
+    [['phone-a', true, null], ['phone-b', true, null]],
+    'delivered by the server the moment it was written to both streams, without the apps posting anything',
+  );
+
+  await fetch(`${base}/api/ai/alerts/${id}/ack`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ deviceId: 'phone-a' }) });
+  await wait(80);
+  const seenByB = [...b.events].reverse().find((e) => e.ev === 'alert-update' && e.data.id === id).data;
+  assert.ok(seenByB.deliveries.find((d) => d.deviceId === 'phone-a').ackedAt, 'phone B and the cockpit see the ack of phone A');
+  assert.equal(seenByB.deliveries.find((d) => d.deviceId === 'phone-b').ackedAt, null);
+
+  a.close();
+  await wait(80);
+  assert.equal(lastDevices(cockpit).find((d) => d.deviceId === 'phone-a').online, false, 'a dropped phone shows offline');
+  for (const l of [cockpit, b, c]) l.close();
+  server.close();
+});
+
+test('ntfy: one notification per affected astronaut topic, only for announced alerts, off by default', async () => {
+  const sent = [];
+  const fetchImpl = async (url, init) => { sent.push({ url, body: JSON.parse(init.body) }); return { ok: true }; };
+  const off = setup({ fetchImpl });
+  await call(off.ai, 'POST', '/api/ai/demo/cabin-gas-leak');
+  await off.ai.idle();
+  assert.equal(sent.length, 0);
+
+  const on = setup({ fetchImpl, ntfy: { topic: 'demo-secret' } });
+  assert.equal(sent.length, 0, 'baseline alerts at startup are never pushed');
+  await call(on.ai, 'POST', '/api/ai/demo/cabin-gas-leak');
+  await on.ai.idle();
+  assert.deepEqual(sent.map((s) => s.body.topic).sort(), ['demo-secret-crew-1', 'demo-secret-crew-2']);
+  assert.equal(sent[0].url, 'https://ntfy.sh');
+  assert.equal(sent[0].body.priority, 5);
+  assert.match(sent[0].body.title, /KRİTİK/);
+  assert.match(sent[0].body.message, /Maskenizi takın/);
+
+  await call(on.ai, 'POST', '/api/ai/demo/orthostatic');
+  await on.ai.idle();
+  assert.deepEqual(sent.slice(2).map((s) => s.body.topic), ['demo-secret-crew-2'], 'a crew alert only goes to that astronaut');
+});
+
+test('one event is one alert: the orthostatic demo (low systolic AND diastolic, fast pulse) raises a single alert', async () => {
+  const { ai } = setup();
+  const { json } = await call(ai, 'POST', '/api/ai/demo/orthostatic');
+  assert.equal(json.created.length, 1);
+  const alert = ai.alerts().find((a) => a.id === json.created[0]);
+  assert.deepEqual(alert.metrics.map((m) => m.type).sort(), ['bloodPressureDia', 'bloodPressureSys', 'heartRate']);
 });

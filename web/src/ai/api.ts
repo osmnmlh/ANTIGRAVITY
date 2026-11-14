@@ -1,11 +1,11 @@
 // Talks to the AI routes of the relay (/api/ai/*). Gemini is never called from the browser.
-// Base URL: VITE_AI_URL, else VITE_API_URL, else the local relay on :8787.
+// Base URL: VITE_AI_URL, else VITE_API_URL, else the relay on port 8787 of the SAME host as this page.
+// The last one is what lets a phone that opened http://<mac-ip>:5174/phone.html reach http://<mac-ip>:8787.
 
 import type { Alert, ChatContext, ChatMessage, ChatResponse } from './types'
 
-export const AI_BASE_URL = (
-  import.meta.env.VITE_AI_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:8787'
-).replace(/\/$/, '')
+const sameHostRelay = typeof window === 'undefined' ? 'http://localhost:8787' : `${window.location.protocol}//${window.location.hostname}:8787`
+export const AI_BASE_URL = (import.meta.env.VITE_AI_URL ?? import.meta.env.VITE_API_URL ?? sameHostRelay).replace(/\/$/, '')
 
 async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, timeoutMs = 15_000): Promise<T> {
   const init: RequestInit = { method, signal: AbortSignal.timeout(timeoutMs) }
@@ -28,8 +28,19 @@ export function sendChat(context: ChatContext, history: ChatMessage[]): Promise<
   return request<ChatResponse>('POST', '/api/ai/chat', { ...context, messages })
 }
 
-export const ackAlert = (id: string) => request<Alert>('POST', `/api/ai/alerts/${encodeURIComponent(id)}/ack`, { by: 'cockpit' })
+/** Cockpit ack by default; a phone passes its own deviceId. */
+export const ackAlert = (id: string, deviceId?: string) =>
+  request<Alert>('POST', `/api/ai/alerts/${encodeURIComponent(id)}/ack`, deviceId ? { deviceId } : { by: 'cockpit' })
 export const listScenarios = () => request<string[]>('GET', '/api/ai/demo', undefined, 3_000)
 export const runScenario = (id: string) => request<{ ok: boolean; created: string[] }>('POST', `/api/ai/demo/${encodeURIComponent(id)}`)
 export const resetDemo = () => request<{ ok: boolean }>('POST', '/api/ai/demo/reset')
-export const streamUrl = () => `${AI_BASE_URL}/api/ai/stream`
+
+export interface StreamIdentity { deviceId: string; crewId: string; name?: string; platform?: string }
+/** Without an identity the stream is the cockpit's (everything); with one it is that astronaut's phone. */
+export function streamUrl(identity?: StreamIdentity | null) {
+  if (!identity) return `${AI_BASE_URL}/api/ai/stream`
+  const q = new URLSearchParams({ deviceId: identity.deviceId, crewId: identity.crewId })
+  if (identity.name) q.set('name', identity.name)
+  if (identity.platform) q.set('platform', identity.platform)
+  return `${AI_BASE_URL}/api/ai/stream?${q}`
+}

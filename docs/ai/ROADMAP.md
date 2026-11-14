@@ -4,6 +4,17 @@ Covers issues #12 (backend AI chat) and #13 (web AI chat) plus the agreed extra 
 proactive alerts with voice + popup, cockpit (cabin) monitoring, and alert fan-out to every crew phone.
 Contract: [`shared/contracts/ai.md`](../../shared/contracts/ai.md). Decision record: [ADR-0007](../adr/0007-proactive-ai-alerts.md).
 
+## Status (2026-11-14)
+
+| Phase | State |
+| --- | --- |
+| 0 Contract | done (#20) |
+| 1 Backend monitor | done and wired into `server.mjs` (#21, #26) |
+| 2 Web alerting | done in `web/src/ai/`, **not yet mounted in `App.tsx`** (#31) |
+| 3 Gemini | done: chat (#12) and the alert interpretation (`advice.summary`); briefing = empty `messages` |
+| 4 Web chat | done in `web/src/ai/` (#13), same mount step |
+| 5 Polish | multi-phone delivery + devices panel + test phone page + ntfy + `test-env.mjs` done; `AiSummaryCard`, Playwright smoke test open |
+
 ## What the AI does
 
 | # | Job | Where it shows |

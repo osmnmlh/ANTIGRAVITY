@@ -3,7 +3,7 @@ import { ackAlert } from './api'
 import { aiStore, useAiState } from './aiStore'
 import { AI_LABELS as L } from './labels'
 import type { Alert } from './types'
-import { announce, toggleVoice, useVoiceEnabled } from './voice'
+import { announce, isVoiceEnabled, speak, toggleVoice, useVoiceEnabled } from './voice'
 import './ai.css'
 
 export interface AlertCenterProps {
@@ -11,6 +11,8 @@ export interface AlertCenterProps {
   onOpenAstronaut?: (crewId: string) => void
   /** Opens the chat about this alert. Hidden when not given. */
   onAskAi?: (alert: Alert) => void
+  /** Phone mode (phone.html): acknowledge as this device, vibrate, and raise a system notification when the page is hidden. */
+  deviceId?: string
 }
 
 const ICON = { red: '⚠', amber: '!' } as const
@@ -23,7 +25,7 @@ function DeliveryBadge({ alert }: { alert: Alert }) {
   return <p className="ai-delivery" data-testid="ai-alert-delivery">{L.delivery(delivered, total, acked)}</p>
 }
 
-function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi }: {
+function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi, deviceId }: {
   alert: Alert
   queued: number
   onClose: () => void
@@ -40,7 +42,7 @@ function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi }: {
   async function ack() {
     setAcking(true)
     try {
-      aiStore.replace(await ackAlert(alert.id))
+      aiStore.replace(await ackAlert(alert.id, deviceId))
     } catch {
       /* offline: still close locally */
     }
@@ -69,14 +71,20 @@ function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi }: {
 
         {alert.advice ? (
           <div className="ai-advice">
+            {alert.advice.summary && (
+              <div className="ai-summary" data-testid="ai-alert-summary">
+                <span className="ai-summary-label">✦ {L.summary}</span>
+                <p>{alert.advice.summary}</p>
+              </div>
+            )}
             <p><strong>{L.why}:</strong> {alert.advice.why}</p>
             <div>
               <strong>{L.doNow}:</strong>
               <ol>{alert.advice.doNow.map((step) => <li key={step}>{step}</li>)}</ol>
             </div>
             <p className="ai-escalate"><strong>{L.escalate}:</strong> {alert.advice.escalate}</p>
-            <p className="ai-source">
-              {alert.advice.source === 'gemini' ? L.sourceGemini : L.sourceFallback} · {alert.disclaimer}
+            <p className="ai-source" data-testid="ai-alert-source" data-source={alert.advice.source}>
+              {L.interpretedBy(alert.advice.source)} · {alert.disclaimer}
             </p>
           </div>
         ) : (
@@ -108,12 +116,25 @@ function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi }: {
   )
 }
 
+/** Phone only: vibrate, and raise a system notification when the page is in the background (needs the permission asked on start). */
+function notifyPhone(alert: Alert) {
+  try {
+    navigator.vibrate?.(alert.severity === 'red' ? [350, 150, 350, 150, 700] : [250, 150, 250])
+    if (document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification(alert.title, { body: alert.spokenText, tag: alert.id, requireInteraction: alert.severity === 'red' })
+    }
+  } catch {
+    /* unsupported on this device: sound and the popup still work */
+  }
+}
+
 /** Mount once at the top of the app. Listens to /api/ai/stream, speaks and pops up new alerts. */
-export function AlertCenter({ onOpenAstronaut, onAskAi }: AlertCenterProps) {
+export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId }: AlertCenterProps) {
   const { connection, alerts, incoming } = useAiState()
   const voice = useVoiceEnabled()
   const [listOpen, setListOpen] = useState(false)
   const announced = useRef(new Set<string>())
+  const summarySpoken = useRef(new Set<string>())
 
   // Announce each new alert once, oldest first so the newest is heard last.
   useEffect(() => {
@@ -123,8 +144,19 @@ export function AlertCenter({ onOpenAstronaut, onAskAi }: AlertCenterProps) {
       if (!alert) continue
       announced.current.add(id)
       announce(alert.severity, alert.spokenText)
+      if (deviceId) notifyPhone(alert)
     }
-  }, [incoming, alerts])
+  }, [incoming, alerts, deviceId])
+
+  // Gemini's reading arrives a few seconds later: say it once, but only while that alert is still on screen.
+  const shownId = incoming[0]
+  useEffect(() => {
+    if (!shownId || !isVoiceEnabled()) return
+    const summary = alerts.find((a) => a.id === shownId)?.advice?.summary
+    if (!summary || summarySpoken.current.has(shownId)) return
+    summarySpoken.current.add(shownId)
+    speak(summary, 400)
+  }, [shownId, alerts])
 
   const queue = incoming.map((id) => alerts.find((a) => a.id === id)).filter((a): a is Alert => Boolean(a))
   const current = queue[0]
@@ -178,6 +210,7 @@ export function AlertCenter({ onOpenAstronaut, onAskAi }: AlertCenterProps) {
           onClose={() => aiStore.dismiss(current.id)}
           onOpenAstronaut={onOpenAstronaut}
           onAskAi={onAskAi}
+          deviceId={deviceId}
         />
       )}
     </>

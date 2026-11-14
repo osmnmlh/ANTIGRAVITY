@@ -2,23 +2,31 @@
 // Connects on the first subscriber; EventSource reconnects by itself after a drop.
 
 import { useSyncExternalStore } from 'react'
-import { streamUrl } from './api'
-import type { Alert, CabinSnapshot } from './types'
+import { streamUrl, type StreamIdentity } from './api'
+import type { Alert, CabinSnapshot, DeviceInfo } from './types'
 
 export type Connection = 'connecting' | 'live' | 'offline'
 
 export interface AiState {
   connection: Connection
   cabin: CabinSnapshot | null
+  /** Phones registered on the server, with live online state. */
+  devices: DeviceInfo[]
   /** Active alerts, newest first. */
   alerts: Alert[]
   /** Alerts announced by the server (`alert` event) and not yet dismissed in this browser: popup queue. */
   incoming: string[]
 }
 
-let state: AiState = { connection: 'connecting', cabin: null, alerts: [], incoming: [] }
+let state: AiState = { connection: 'connecting', cabin: null, devices: [], alerts: [], incoming: [] }
 const listeners = new Set<() => void>()
 let source: EventSource | null = null
+let identity: StreamIdentity | null = null
+
+/** Call once, before the first component subscribes, to listen as a phone (phone.html) instead of the cockpit. */
+export function setStreamIdentity(next: StreamIdentity | null) {
+  identity = next
+}
 
 function set(patch: Partial<AiState>) {
   state = { ...state, ...patch }
@@ -43,19 +51,23 @@ function parse<T>(e: MessageEvent): T | null {
 function connect() {
   if (source || typeof EventSource === 'undefined') return
   set({ connection: 'connecting' })
-  source = new EventSource(streamUrl())
+  source = new EventSource(streamUrl(identity))
   source.onopen = () => set({ connection: 'live' })
   source.onerror = () => set({ connection: 'offline' })
   source.addEventListener('hello', (e) => {
-    const data = parse<{ cabin: CabinSnapshot; alerts: Alert[] }>(e)
+    const data = parse<{ cabin: CabinSnapshot; alerts: Alert[]; devices?: DeviceInfo[] }>(e)
     if (!data) return
     // Startup / reset: list what exists, but only keep popups that are still active.
     const ids = new Set(data.alerts.map((a) => a.id))
-    set({ connection: 'live', cabin: data.cabin, alerts: data.alerts, incoming: state.incoming.filter((id) => ids.has(id)) })
+    set({ connection: 'live', cabin: data.cabin, devices: data.devices ?? state.devices, alerts: data.alerts, incoming: state.incoming.filter((id) => ids.has(id)) })
   })
   source.addEventListener('cabin', (e) => {
     const cabin = parse<CabinSnapshot>(e)
     if (cabin) set({ cabin })
+  })
+  source.addEventListener('devices', (e) => {
+    const devices = parse<DeviceInfo[]>(e)
+    if (devices) set({ devices })
   })
   source.addEventListener('alert', (e) => {
     const alert = parse<Alert>(e)

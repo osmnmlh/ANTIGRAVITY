@@ -9,6 +9,8 @@ import { createCabin } from './cabin.mjs';
 import { evaluate } from './rules.mjs';
 import { createAlertStore, createDevices, createHub } from './alerts.mjs';
 import { createChat } from './chat.mjs';
+import { createAdviceWriter } from './advice.mjs';
+import { createNtfy } from './ntfy.mjs';
 
 const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir.';
 
@@ -23,6 +25,7 @@ const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz 
  * @param {object[]} [deps.hazards]  shared/mock/nasa-hazards.json `hazards`.
  * @param {(samples: object[]) => void} [deps.applySamples]  Stores HealthSamples in the host. Needed only for vital demo scenarios.
  * @param {{ apiKey?: string, model?: string }} [deps.gemini]  Server-side only. No key = deterministic answers.
+ * @param {{ topic?: string, server?: string }} [deps.ntfy]  Optional push for locked phones (ntfy.sh). Default: env NTFY_TOPIC / NTFY_SERVER, off when unset.
  * @param {string[]} [deps.cabinCrewIds]  Who is inside the monitored cabin. Default: crew sharing the first packet's mission.
  */
 export function createAi(deps) {
@@ -51,6 +54,14 @@ export function createAi(deps) {
   const devices = createDevices({ now });
   const hub = createHub();
   devices.setOnlineCheck(hub.isOnline);
+  const advice = createAdviceWriter({ gemini, hazards, fetchImpl, log, now });
+  const ntfy = createNtfy({ ...deps.ntfy, fetchImpl, log });
+  const pending = new Set(); // background work (Gemini advice, ntfy); idle() lets tests and shutdown wait for it
+  const track = (promise) => { pending.add(promise); promise.finally(() => pending.delete(promise)); return promise; };
+
+  // The cockpit and every phone page see which devices are connected, live.
+  const broadcastDevices = () => hub.all('devices', () => devices.list());
+  hub.setOnChange(broadcastDevices);
 
   const hazardFor = (type) =>
     hazards.find((h) => h.id !== 'distanceFromEarth' && h.relatedIndicators?.includes(type))?.id ?? 'distanceFromEarth';
@@ -86,15 +97,30 @@ export function createAi(deps) {
     const { created, updated } = store.reconcile(evaluate(context()), devices.forCrew);
     for (const a of updated) hub.alert('alert-update', a);
     for (const a of created) {
-      hub.alert(silent ? 'alert-update' : 'alert', a);
+      const reached = hub.alert(silent ? 'alert-update' : 'alert', a);
       log.info?.(`[ai] ${silent ? 'baseline' : 'ALERT'} ${a.severity} ${a.scenarioId} → ${a.crewIds.join(',')}: ${a.title}`);
+      if (silent) continue;
+      // Every phone whose stream just received the alert counts as delivered (all of them at the same moment).
+      const phones = reached.filter((deviceId) => a.deliveries.some((d) => d.deviceId === deviceId));
+      for (const deviceId of phones) store.delivered(a.id, { deviceId });
+      if (phones.length) hub.alert('alert-update', a);
+      track(ntfy.send(a));    // locked phones, only when NTFY_TOPIC is set
+      track(enrichAlert(a));  // Gemini interpretation arrives a moment later as `alert-update`
     }
     return { created, updated };
   }
 
+  /** Asks Gemini to interpret the detected values; the deterministic advice stays when it cannot. */
+  async function enrichAlert(alert) {
+    const next = await advice.write(alert, { ...context(), otherAlerts: store.active().filter((a) => a.id !== alert.id) });
+    if (!next) return;
+    const updated = store.setAdvice(alert.id, next);
+    if (updated) hub.alert('alert-update', updated);
+  }
+
   const chat = createChat({ context, activeAlerts: () => store.active(), gemini, disclaimer: DISCLAIMER, log, fetchImpl });
 
-  const hello = (c) => ({ cabin: cabin.snapshot(), alerts: hub.filterAlerts(c, store.active()) });
+  const hello = (c) => ({ cabin: cabin.snapshot(), alerts: hub.filterAlerts(c, store.active()), devices: devices.list() });
   const resync = () => hub.all('hello', hello);
 
   // ---- Demo triggers: readings that fire each scenario (rehearsal + stage) ----
@@ -167,7 +193,8 @@ export function createAi(deps) {
 
   const ROUTES = [
     ['GET', /^\/api\/ai\/health$/, () => ({
-      ok: true, gemini: Boolean(gemini.apiKey), cabin: cabin.snapshot().overallStatus, activeAlerts: store.active().length,
+      ok: true, gemini: Boolean(gemini.apiKey), model: advice.enabled ? advice.model : null, ntfy: ntfy.enabled,
+      cabin: cabin.snapshot().overallStatus, activeAlerts: store.active().length,
       devices: devices.list().length, streams: hub.size(),
     })],
     ['GET', /^\/api\/ai\/cabin$/, () => cabin.snapshot()],
@@ -193,6 +220,7 @@ export function createAi(deps) {
     ['POST', /^\/api\/ai\/devices$/, async (req) => {
       const device = devices.register(await readBody(req));
       for (const a of store.addRecipient(device)) hub.alert('alert-update', a);
+      broadcastDevices();
       return { ok: true };
     }],
     ['GET', /^\/api\/ai\/demo$/, () => Object.keys(DEMOS)],
@@ -209,7 +237,7 @@ export function createAi(deps) {
       const crewId = url.searchParams.get('crewId') || null;
       const deviceId = url.searchParams.get('deviceId') || null;
       if (deviceId && crewId && !devices.has(deviceId)) {
-        for (const a of store.addRecipient(devices.register({ deviceId, crewId }))) hub.alert('alert-update', a);
+        for (const a of store.addRecipient(devices.register({ deviceId, crewId, platform: url.searchParams.get('platform') || undefined, name: url.searchParams.get('name') || null }))) hub.alert('alert-update', a);
       }
       if (deviceId) devices.touch(deviceId);
       hub.add(req, res, { crewId, deviceId }, hello);
@@ -236,6 +264,8 @@ export function createAi(deps) {
     onSamples: () => run(),
     resetDemo, // same as POST /api/ai/demo/reset; the relay calls it from POST /api/demo/reset
     chat,
+    /** Resolves when background work (Gemini advice, ntfy) has finished. */
+    idle: async () => { while (pending.size) await Promise.allSettled([...pending]); },
     // read-only views for the host or tests
     cabin: () => cabin.snapshot(),
     alerts: (q) => store.list(q),

@@ -2,6 +2,7 @@
 export { AlertCenter, type AlertCenterProps } from './AlertCenter'
 export { AiChat, askAi, type AiChatProps } from './AiChat'
 export { AiDemoControls } from './AiDemoControls'
+export { DevicesPanel } from './DevicesPanel'
 export { useAiState } from './aiStore'
 export { AI_BASE_URL } from './api'
-export type { Alert, CabinSnapshot, CabinReading } from './types'
+export type { Alert, CabinSnapshot, CabinReading, DeviceInfo } from './types'

@@ -54,6 +54,7 @@ server), re-runs the scenario rules and returns the new snapshot.
 interface AlertMetric { kind: 'cabin' | 'vital'; crewId?: string; type: string; value: number | string; unit: string; status: Status }
 
 interface AlertAdvice {
+  summary?: string;         // Gemini's reading of the detected values together; absent until Gemini answered (or without a key)
   why: string;              // why it matters in space (links to a NASA HRP hazard)
   doNow: string[];          // 1–3 concrete actions
   escalate: string;         // when to call the crew medical officer / flight surgeon
@@ -84,6 +85,17 @@ interface Alert {
 }
 ```
 
+**Two steps, one alert.** The rule engine creates the alert (`title`, `spokenText`, deterministic `advice` with `source: "fallback"`)
+and it is announced immediately. A moment later Gemini interprets the detected values and the same alert is re-sent as
+`alert-update` with `advice.source: "gemini"`, a `summary` and reworded `why` / `doNow` / `escalate`. Gemini never changes
+`severity`, `title` or `spokenText`; its answer is dropped (the deterministic advice stays) when it is malformed, prescribes
+medication, or a red alert's `escalate` does not mention the flight surgeon (then our sentence is appended). Clients render
+`advice.summary` only when present and must not announce an `alert-update` again.
+
+**Delivery.** A phone counts as `delivered` the moment the server writes the alert to its `/api/ai/stream`, so every connected
+phone of an affected astronaut is marked at the same moment without the app posting anything; `POST .../delivered` stays
+available for clients that confirm explicitly. `ack` is the astronaut pressing "Anladım".
+
 Rules: alerts fire only on a **status transition** (green→amber, →red), one per scenario + scope + crew with a 5-minute
 cooldown; `resolved` when all its metrics are back to green. The AI never sets `severity`; the rules do.
 
@@ -104,12 +116,13 @@ cooldown; `resolved` when all its metrics are back to green. The AI never sets `
 
 ## 4. Stream
 
-`GET /api/ai/stream?deviceId=…&crewId=…` (Server-Sent Events). Without query params (web cockpit) it receives everything.
+`GET /api/ai/stream?deviceId=…&crewId=…[&name=…&platform=…]` (Server-Sent Events; unknown devices are registered from these params). Without query params (web cockpit) it receives everything.
 With `crewId` it receives that astronaut's alerts plus all cabin alerts. A connected `deviceId` counts as `online`.
 
 | event | data |
 | --- | --- |
-| `hello` | `{ cabin: CabinSnapshot, alerts: Alert[] }` (active ones). Sent on connect **and again after a demo reset**: replace all state |
+| `devices` | `Device[]` (same shape as `GET /api/ai/devices`). Sent to every stream whenever a phone connects, drops or registers: drives "📱 2/3 online" in the cockpit |
+| `hello` | `{ cabin: CabinSnapshot, alerts: Alert[], devices: Device[] }` (active ones). Sent on connect **and again after a demo reset**: replace all state |
 | `cabin` | `CabinSnapshot` |
 | `alert` | `Alert` (new: notify, beep, speak, popup) |
 | `alert-update` | `Alert` (advice arrived, delivery/ack changed, resolved: replace by `id`, do **not** re-notify) |
@@ -144,11 +157,19 @@ last ≤ 6 turns, each `text` ≤ 500 chars. Empty `messages` = **briefing** (sh
 
 Problems already present at start or after a reset are sent as `alert-update` (listed, not announced).
 
-## 7. Health
+## 7. Optional push for locked phones (ntfy.sh)
 
-`GET /api/ai/health` → `{ ok, cabin: Status, activeAlerts, devices, streams }`. The web uses it to show "AI live / AI offline".
+Off unless the backend has `NTFY_TOPIC` (and optionally `NTFY_SERVER`). For every announced alert (never for the silent startup
+baseline) the backend publishes one JSON message per affected astronaut to the topic `<NTFY_TOPIC>-<crewId>`
+(`priority` 5 for red, 4 for amber; title and message are the Turkish `title` / `spokenText`). The phone installs the free ntfy
+app and subscribes to its own topic. ntfy.sh topics are readable by anyone who knows the name: use a long random topic and demo
+data only. Apps that are open keep using `/api/ai/stream`; this channel only covers locked screens.
 
-## 8. Fit with the existing contract (read before coding)
+## 8. Health
+
+`GET /api/ai/health` → `{ ok, gemini, model, ntfy, cabin: Status, activeAlerts, devices, streams }`. The web uses it to show "AI live / AI offline".
+
+## 9. Fit with the existing contract (read before coding)
 
 - **Crew rules reuse the one status engine** (ADR-0001): vital status and multi-day trends come from
   `web/src/domain/thresholds.ts` (`getStatus`, `getTrendStatus`), which `backend/server.mjs` already imports.

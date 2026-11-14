@@ -2,13 +2,14 @@
 // The threshold engine's statuses are given to the model as facts; the model only words the answer.
 // Without a key, on timeout or on a bad reply, a deterministic Turkish answer is built from the same facts.
 
+import { DEFAULT_MODEL, callGemini } from './gemini.mjs';
+import { MEDICATION } from './safety.mjs';
+
 const ESCALATION = ['none', 'cmo', 'flightSurgeon'];
 const MAX_TURNS = 6;
 const MAX_CHARS = 500;
 const SHOWN = 4;
-// gemini-2.5-flash is closed to new API keys; the lite alias stayed fast and stable when the big flash models returned 503.
-export const DEFAULT_MODEL = 'gemini-flash-lite-latest';
-const GEMINI_DEADLINE_MS = 8_000; // whole chat call incl. one retry; then the deterministic answer takes over
+export { DEFAULT_MODEL };
 const RANK = { red: 0, amber: 1, green: 2 };
 
 /** Conversational Turkish names, used in answers. */
@@ -45,7 +46,6 @@ const TOPICS = [
 ];
 
 // Offline safety: the model is told to refuse these, the deterministic path must do the same.
-const MEDICATION = /ilaç|ilac|hap|tablet|parasetamol|ibuprofen|aspirin|antibiyotik|re[cç]ete|\d\s?(mg|mcg|ml)|doz[a-zığüşöç]*\s+(söyle|yaz|ver|ne kadar|kaç)/i;
 // Anything about crew health, the cabin or what to do; a question with none of these (and no known topic) is off-topic.
 const ON_TOPIC = /durum|nas[ıi]l|iyi mi|[oö]zet|brifing|rapor|sorun|risk|kim|uyar[ıi]|ne yap|ne zaman|cerrah|tavsiye|[oö]neri|tehlike|g[uü]venli|kabin|astronot|m[uü]rettebat|elena|marcus|aria|kritik|dikkat|neden|sebep|belirti|a[gğ]r[ıi]|semptom|status|how is|help|yard[ıi]m/i;
 
@@ -128,41 +128,19 @@ export function createChat({ context, activeAlerts, gemini = {}, disclaimer, log
     const contents = messages.length
       ? messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }))
       : [{ role: 'user', parts: [{ text: 'Kısa bir durum brifingi ver.' }] }];
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-    const signal = AbortSignal.timeout(GEMINI_DEADLINE_MS);
-    const request = JSON.stringify({
-        systemInstruction: { parts: [{ text: prompt(f) }] },
-        contents,
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'OBJECT',
-            properties: {
-              reply: { type: 'STRING' },
-              escalation: { type: 'STRING', enum: ESCALATION },
-              indicators: { type: 'ARRAY', items: { type: 'STRING' } },
-              suggestions: { type: 'ARRAY', items: { type: 'STRING' } },
-            },
-            required: ['reply', 'escalation'],
-          },
+    const out = await callGemini({
+      apiKey: gemini.apiKey, model, system: prompt(f), contents, fetchImpl,
+      schema: {
+        type: 'OBJECT',
+        properties: {
+          reply: { type: 'STRING' },
+          escalation: { type: 'STRING', enum: ESCALATION },
+          indicators: { type: 'ARRAY', items: { type: 'STRING' } },
+          suggestions: { type: 'ARRAY', items: { type: 'STRING' } },
         },
+        required: ['reply', 'escalation'],
+      },
     });
-    let res;
-    for (let attempt = 1; ; attempt++) {
-      res = await fetchImpl(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': gemini.apiKey },
-        body: request,
-        signal,
-      });
-      // 503/429 = "high demand": usually answered by the next try, and it returns within about a second.
-      if (res.ok || attempt >= 2 || ![429, 503].includes(res.status)) break;
-      await new Promise((r) => setTimeout(r, 300));
-    }
-    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
-    const data = await res.json();
-    const out = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
     if (typeof out.reply !== 'string' || !out.reply.trim()) throw new Error('Gemini returned no reply');
     return out;
   }
