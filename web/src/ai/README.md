@@ -15,7 +15,7 @@ Everything is Turkish (ADR-0005); strings live in `labels.ts`. API shapes: `shar
 
 ## Mounting
 
-Ready-made for the web team's `feat/web-body-hologram` App: `docs/ai/web-app-mount.patch` (20 added lines, see `docs/ai/INTEGRATION.md`). Generic version:
+Already mounted in `web/src/App.tsx` (see `docs/ai/INTEGRATION.md`). Generic version:
 
 ```tsx
 import { AiChat, AiDemoControls, AlertCenter, askAi } from './ai'

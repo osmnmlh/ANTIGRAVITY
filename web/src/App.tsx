@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import './App.css'
 import { ThreeBodyMap } from './components/ThreeBodyMap'
+import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi } from './ai'
 import { astronautProfiles, latestSampleFor, useHealthData } from './data/useHealthData'
 import { guidanceByType } from './domain/guidance'
 import {
@@ -481,6 +482,13 @@ function App() {
 
   return (
     <div className="app-shell">
+      <AlertCenter
+        onOpenAstronaut={(crewId) => {
+          setSelectedCrewId(crewId as typeof selectedCrewId)
+          setActiveWorkspace('astronauts')
+        }}
+        onAskAi={(alert) => askAi(`${alert.title}. Şimdi ne yapmalıyız?`)}
+      />
       <header className="topbar">
         <a className="brand-lockup" href="#dashboard" aria-label="ANTIGRAVITY ana panel">
           <span className="brand-mark" aria-hidden="true">
@@ -868,6 +876,10 @@ function App() {
           </details>
         </section>
 
+        <div className="ai-slot">
+          <AiChat crewId={selectedCrewId} crewName={selectedAstronaut.name} />
+        </div>
+
         <footer className="app-footer">
           <span className="footer-brand"><span className="brand-mark small"><span /><span /><span /></span> ANTIGRAVITY · MISSION HEALTH DEMO</span>
           <span className="medical-disclaimer">Demo yazılımıdır, tıbbi cihaz değildir. Değerler örnek/simüle edilmiştir; tıbbi karar yerine geçmez.</span>
@@ -1212,6 +1224,14 @@ function App() {
                     </div>
                   )}
                 </section>
+              </div>
+            </section>
+
+            <section className="ai-base-grid" aria-label="AI asistanı ve bildirimler">
+              <AiChat />
+              <div className="ai-base-side">
+                <DevicesPanel crewNames={Object.fromEntries(astronautProfiles.map((astronaut) => [astronaut.id, astronaut.name]))} />
+                <AiDemoControls />
               </div>
             </section>
 

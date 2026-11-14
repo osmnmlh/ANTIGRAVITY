@@ -1,4 +1,4 @@
-// Turns the cabin text of a historical incident phase (shared/mock/historical-incidents.json `cabinHint`) into cabin readings,
+// Turns the cabin text of a historical incident phase (shared/mock/all-data.json `historicalIncidents[].phases[].cabinHint`) into cabin readings,
 // so an incident replay raises cabin alerts too:
 //
 //   "ppCO2: 8.2 mmHg · Kabin Sıcaklığı: 3.8 °C"  →  [{ metric: 'ppCO2', value: 8.2 }, { metric: 'temperature', value: 3.8 }]

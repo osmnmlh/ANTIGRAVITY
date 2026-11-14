@@ -4,7 +4,7 @@
 
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import packets from '../../../../shared/mock/astronaut-packets.json'
+import allData from '../../../../shared/mock/all-data.json'
 import { AlertCenter } from '..'
 import { setStreamIdentity, useAiState } from '../aiStore'
 import { AI_LABELS as L } from '../labels'
@@ -13,7 +13,7 @@ import '../../index.css'
 import '../../App.css'
 import '../ai.css'
 
-const crew = packets.astronauts.map((a) => ({ id: a.astronautId, name: a.fullName }))
+const crew = allData.astronauts.map((a) => ({ id: a.astronautId, name: a.fullName }))
 const params = new URLSearchParams(window.location.search)
 const crewId = params.get('crewId')
 const person = crew.find((c) => c.id === crewId)
@@ -104,6 +104,7 @@ function Phone({ name }: { name: string }) {
           </ul>
         </>
       )}
+      <p className="ai-muted ai-phone-disclaimer" data-testid="ai-phone-disclaimer">{L.phone.disclaimer}</p>
       {/* The same popup, voice and delivery logic as the cockpit, acknowledging as this device. */}
       <AlertCenter deviceId={id} />
     </main>
