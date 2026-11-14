@@ -15,14 +15,20 @@ npm test                  # AI module tests
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| GET | `/api/health` | `{ ok, gemini, model, clients, ai }` |
+| GET | `/api/health` | `{ ok, gemini, model, geminiLastError, clients, ai, simulation }` |
 | GET | `/api/packets` | Packet bundle; each astronaut gets a computed `overallStatus` |
 | GET | `/api/packets/:crewId` | One packet (the iPhone reads `aiGuidance` from here) |
 | GET | `/api/samples?crewId=crew-1` | `HealthSample[]` history |
-| POST | `/api/samples` | `HealthSample` or `HealthSample[]` → stored, packet `measurements` updated, pushed over SSE |
+| POST | `/api/samples` | `HealthSample` or `HealthSample[]` → stored, packet `measurements` & `watchTelemetry.vitals` updated, pushed over SSE |
+| GET | `/api/incidents` | 3 calibrated historical spaceflight incident simulations (`shared/mock/historical-incidents.json`) |
+| GET | `/api/simulation` | Current simulation status + summary + available incidents |
+| POST | `/api/simulation/live/start` | `{ crewId?, intervalMs? }` → starts periodic physiological telemetry simulation pushed over SSE |
+| POST | `/api/simulation/incident/start` | `{ incidentId, crewId?, stepIntervalMs? }` → replays a historical accident phase-by-phase over SSE; each phase runs the AI rules, so alerts reach the web and phones |
+| POST | `/api/simulation/stop` | `{ reset? }` → stops active simulation and returns summary (`reset: true` restores pre-simulation baseline) |
+| POST | `/api/simulation/reset` | Same as `/api/demo/reset` |
 | POST | `/api/ai/guidance` | `{ "crewId": "crew-1" }` → Gemini (or fallback) → saved as `packet.aiGuidance`, pushed over SSE |
-| GET | `/api/stream` | SSE: `hello` (all packets) then `packet` on every change |
-| POST | `/api/demo/reset` | Rehearsal reset: reload `shared/mock/*.json` (like a restart) and reset AI alerts/cabin; SSE sends `hello` |
+| GET | `/api/stream` | SSE: `hello` (`astronauts`, `simulation`), then `sample`, `packet`, and `simulation` on every change |
+| POST | `/api/demo/reset` | Rehearsal reset: stop any simulation, reload `shared/mock/*.json` (like a restart), reset AI alerts/cabin; SSE sends `hello` |
 | * | `/api/ai/*` | AI module (`backend/ai/`, ADR-0007): alerts, cabin, devices, `/api/ai/chat`, `/api/ai/stream`, `/api/ai/demo/:id`. See [`ai/README.md`](ai/README.md) |
 
 Every request is logged as `[http] METHOD /path status ms`; alerts as `[ai] ALERT ...`.
