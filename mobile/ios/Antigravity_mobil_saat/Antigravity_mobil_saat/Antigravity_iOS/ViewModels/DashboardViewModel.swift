@@ -46,6 +46,10 @@ class DashboardViewModel: ObservableObject {
 
     @Published var indicatorValues: [HealthIndicatorType: Double] = [:]
     @Published var indicatorStatuses: [HealthIndicatorType: HealthStatus] = [:]
+    @Published var indicatorTrends: [HealthIndicatorType: TrendAssessment] = [:]
+    @Published var moodAssessment: AlgorithmicMoodAssessment?
+    @Published private(set) var latestWatchSymptoms: [String] = []
+    @Published private(set) var hasSyncedFromBackend: Bool = false
     @Published var radiationBudgetMsv: Double = 100.0
 
     // Interactive TODO missions shared between MissionListView and DashboardView
@@ -60,7 +64,13 @@ class DashboardViewModel: ObservableObject {
     private let telemetryService: TelemetryServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private var aiStreamTask: Task<Void, Never>?
+    private var relayStreamTask: Task<Void, Never>?
+    private var journalAnalysisTask: Task<Void, Never>?
     private var notifiedAlertIds = Set<String>()
+    private var sampleHistory: [HealthSample] = []
+    private var latestJournalInputs: [JournalNoteInput] = []
+    private var cachedJournalSentiment: JournalSentimentResult = JournalSentimentAnalyzer.evaluateLocally([])
+    private var lastAnalyzedJournalDigest: String = ""
 
     // MARK: - Computed Helpers
     var completedMissionsCount: Int {
@@ -140,6 +150,19 @@ class DashboardViewModel: ObservableObject {
         return String(format: "%.2f km", meters / 1000.0)
     }
 
+    var heroGreeting: String {
+        guard let fullName = astronautPacket?.fullName.trimmingCharacters(in: .whitespacesAndNewlines),
+              !fullName.isEmpty else {
+            return "Hoşgeldiniz,"
+        }
+        return "Hoşgeldiniz, \(fullName)"
+    }
+
+    var heroSubtitle: String? {
+        guard let mission = astronautPacket?.mission else { return nil }
+        return "\(mission.name) • Gün \(mission.missionDay)"
+    }
+
     var heroStatusTitle: String {
         switch overallStatus {
         case .green:
@@ -165,6 +188,8 @@ class DashboardViewModel: ObservableObject {
     deinit {
         telemetryService.stopMonitoring()
         aiStreamTask?.cancel()
+        relayStreamTask?.cancel()
+        journalAnalysisTask?.cancel()
     }
 
     // MARK: - Actions
@@ -190,6 +215,28 @@ class DashboardViewModel: ObservableObject {
     }
 
     @MainActor
+    func startRelayStream() {
+        guard relayStreamTask == nil else { return }
+
+        let targetCrewId = crewId
+        relayStreamTask = Task { [weak self] in
+            for await event in NetworkManager.shared.streamRelayEvents() {
+                guard let self, !Task.isCancelled else { break }
+                switch event {
+                case .hello(let packets):
+                    if let mine = packets.first(where: { $0.astronautId == targetCrewId }) {
+                        self.applyPacket(mine, fromBackend: true)
+                    }
+                case .packet(let packet):
+                    if packet.astronautId == targetCrewId {
+                        self.applyPacket(packet, fromBackend: true)
+                    }
+                }
+            }
+        }
+    }
+
+    @MainActor
     func acknowledgeAlert(_ alert: AiAlert) async {
         activeAlerts.removeAll { $0.id == alert.id }
         try? await NetworkManager.shared.acknowledgeAlert(alertId: alert.id, deviceId: Constants.deviceId)
@@ -201,9 +248,15 @@ class DashboardViewModel: ObservableObject {
         isSyncingBackend = true
         defer { isSyncingBackend = false }
 
+        let targetCrewId = crewId
         do {
-            let packet = try await NetworkManager.shared.fetchPacket(crewId: crewId)
-            applyPacket(packet)
+            async let packetTask = NetworkManager.shared.fetchPacket(crewId: targetCrewId)
+            async let samplesTask = try? NetworkManager.shared.fetchSamples(crewId: targetCrewId)
+            let packet = try await packetTask
+            if let fetchedSamples = await samplesTask, !fetchedSamples.isEmpty {
+                sampleHistory = Array(fetchedSamples.filter { $0.crewId == targetCrewId }.suffix(500))
+            }
+            applyPacket(packet, fromBackend: true)
         } catch {
             // Silent fallback to bundled/mock data per ADR-0002 (no offline badge or error banner).
         }
@@ -224,8 +277,68 @@ class DashboardViewModel: ObservableObject {
         if let dia = indicatorValues[.bloodPressureDia] {
             samples.append(HealthSample(crewId: crewId, type: .bloodPressureDia, value: dia.rounded(), timestamp: now, source: .iphone))
         }
+        if let mood = indicatorValues[.mood] {
+            samples.append(HealthSample(crewId: crewId, type: .mood, value: mood.rounded(), timestamp: now, source: .iphone))
+        }
 
         await sendSamplesToBackend(samples)
+    }
+
+    @MainActor
+    func updateJournalEntries(_ entries: [JournalEntry], syncToBackend: Bool = false) {
+        let inputs = entries.map {
+            JournalNoteInput(title: $0.title, body: $0.body, createdAt: $0.createdAt)
+        }
+        latestJournalInputs = inputs
+
+        let localResult = JournalSentimentAnalyzer.evaluateLocally(inputs)
+        cachedJournalSentiment = localResult
+        let previousScore = moodAssessment?.score
+        recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
+
+        if syncToBackend && previousScore != moodAssessment?.score {
+            syncComputedMoodSampleToBackend()
+        }
+
+        guard !inputs.isEmpty else {
+            journalAnalysisTask?.cancel()
+            lastAnalyzedJournalDigest = ""
+            return
+        }
+
+        let digest = localResult.digest
+        guard digest != lastAnalyzedJournalDigest else { return }
+
+        journalAnalysisTask?.cancel()
+        guard let promptMessage = JournalSentimentAnalyzer.buildPromptMessage(for: inputs) else {
+            lastAnalyzedJournalDigest = ""
+            return
+        }
+        let targetCrewId = crewId
+
+        journalAnalysisTask = Task { [weak self] in
+            do {
+                let response = try await NetworkManager.shared.analyzeJournalSentiment(
+                    crewId: targetCrewId,
+                    excerpt: promptMessage
+                )
+                guard let self, !Task.isCancelled else { return }
+                guard self.cachedJournalSentiment.digest == digest else { return }
+
+                if response.source == "gemini",
+                   let aiResult = JournalSentimentAnalyzer.parseGeminiReply(response.reply, digest: digest) {
+                    self.lastAnalyzedJournalDigest = digest
+                    self.cachedJournalSentiment = aiResult
+                    let scoreBeforeAi = self.moodAssessment?.score
+                    self.recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
+                    if syncToBackend && scoreBeforeAi != self.moodAssessment?.score {
+                        self.syncComputedMoodSampleToBackend()
+                    }
+                }
+            } catch {
+                // Offline or backend unavailable: keep local deterministic NLP sentiment result.
+            }
+        }
     }
 
     @MainActor
@@ -237,7 +350,7 @@ class DashboardViewModel: ObservableObject {
         do {
             let updatedPackets = try await NetworkManager.shared.sendSamples(samples)
             if let matching = updatedPackets.first(where: { $0.astronautId == crewId }) ?? updatedPackets.first {
-                applyPacket(matching)
+                applyPacket(matching, fromBackend: true)
             }
             lastSampleSyncMessage = "Ölçümler sunucuya iletildi."
         } catch {
@@ -262,22 +375,22 @@ class DashboardViewModel: ObservableObject {
 
     // MARK: - Private
     private func seedMockPacketAndInitialTelemetry() {
-        // Mirrors crew-2 nominal mock values from shared/mock/astronaut-packets.json
+        // Mirrors crew-1 nominal mock values from shared/mock/astronaut-packets.json
         radiationBudgetMsv = 100.0
         indicatorValues = [
-            .heartRate: 64,
-            .bloodPressureSys: 116,
-            .bloodPressureDia: 74,
-            .spo2: 98,
-            .bodyTemp: 36.6,
-            .bloodGlucose: 92,
-            .sleepHours: 7.8,
-            .mood: 5,
-            .radiationDose: 19.4
+            .heartRate: 72,
+            .bloodPressureSys: 118,
+            .bloodPressureDia: 70,
+            .spo2: 97,
+            .bodyTemp: 36.5,
+            .bloodGlucose: 96,
+            .sleepHours: 7.5,
+            .mood: 4,
+            .radiationDose: 21.0
         ]
 
         if let bundled = loadBundledNominalPacket() {
-            applyPacket(bundled)
+            applyPacket(bundled, fromBackend: false)
         }
 
         let initial = WatchTelemetryData(
@@ -306,11 +419,14 @@ class DashboardViewModel: ObservableObject {
         applyTelemetry(initial)
     }
 
-    private func applyPacket(_ packet: AstronautHealthPacket) {
+    private func applyPacket(_ packet: AstronautHealthPacket, fromBackend: Bool = false) {
+        if fromBackend {
+            hasSyncedFromBackend = true
+        }
         astronautPacket = packet
         aiGuidance = packet.aiGuidance
         radiationBudgetMsv = packet.mission.radiationBudgetMsv
-        for type in HealthIndicatorType.allCases {
+        for type in HealthIndicatorType.allCases where type != .mood {
             if let snap = packet.measurements[type.rawValue] {
                 indicatorValues[type] = snap.value
             }
@@ -318,7 +434,7 @@ class DashboardViewModel: ObservableObject {
         if let watch = packet.watchTelemetry {
             latestTelemetry = watch
         }
-        evaluateStatuses()
+        recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
     }
 
     private func loadBundledNominalPacket() -> AstronautHealthPacket? {
@@ -335,7 +451,10 @@ class DashboardViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] data in
                 guard let self else { return }
-                // Preserve real WatchConnectivity or backend updates without letting local mock overwrite them.
+                // Preserve real backend web telemetry or recent WatchConnectivity updates without local mock overwriting them.
+                if self.hasSyncedFromBackend {
+                    return
+                }
                 if let lastWatch = self.lastWatchSyncAt, Date().timeIntervalSince(lastWatch) < 30 {
                     return
                 }
@@ -350,6 +469,17 @@ class DashboardViewModel: ObservableObject {
                 await self?.handleWatchSamples(samples)
             }
         }
+        ConnectivityManager.shared.onSymptomsReceived = { [weak self] symptoms in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let previousScore = self.moodAssessment?.score
+                self.latestWatchSymptoms = symptoms
+                self.recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
+                if previousScore != self.moodAssessment?.score {
+                    self.syncComputedMoodSampleToBackend()
+                }
+            }
+        }
         ConnectivityManager.shared.activate()
     }
 
@@ -358,12 +488,15 @@ class DashboardViewModel: ObservableObject {
         guard !samples.isEmpty else { return }
         lastWatchSyncAt = Date()
 
-        for sample in samples {
+        let physicalSamples = samples.filter { $0.type != .mood }
+        for sample in physicalSamples {
             indicatorValues[sample.type] = sample.value
         }
-        evaluateStatuses()
+        latestWatchSymptoms = ConnectivityManager.shared.latestSymptoms
+        recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
 
-        let normalized = samples.map { sample in
+        let now = Date()
+        var normalized = physicalSamples.map { sample in
             HealthSample(
                 id: sample.id,
                 crewId: crewId,
@@ -374,6 +507,18 @@ class DashboardViewModel: ObservableObject {
                 source: sample.source
             )
         }
+        if let computedMood = indicatorValues[.mood] {
+            normalized.append(
+                HealthSample(
+                    crewId: crewId,
+                    type: .mood,
+                    value: computedMood.rounded(),
+                    timestamp: now,
+                    source: .iphone
+                )
+            )
+        }
+        appendToSampleHistory(normalized)
         await sendSamplesToBackend(normalized)
     }
 
@@ -433,19 +578,97 @@ class DashboardViewModel: ObservableObject {
             indicatorValues[.bodyTemp] = temp
         }
 
-        evaluateStatuses()
+        recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
     }
 
-    // Alarm ve durum renkleri tek kaynaktan gelir: HealthThresholds (Thresholds.swift).
+    private func recomputeAlgorithmicMood(syncMoodSampleToBackend: Bool) {
+        let assessment = BehavioralMoodEngine.assess(
+            sleepHours: indicatorValues[.sleepHours],
+            bloodPressureSys: indicatorValues[.bloodPressureSys],
+            bloodPressureDia: indicatorValues[.bloodPressureDia],
+            radiationDose: indicatorValues[.radiationDose],
+            radiationBudgetMsv: radiationBudgetMsv,
+            heartRate: indicatorValues[.heartRate],
+            spo2: indicatorValues[.spo2],
+            exerciseMinutes: latestTelemetry?.activitySummary.exerciseMinutes,
+            symptoms: latestWatchSymptoms,
+            journal: cachedJournalSentiment
+        )
+        moodAssessment = assessment
+        indicatorValues[.mood] = Double(assessment.score)
+        evaluateStatuses()
+
+        if syncMoodSampleToBackend {
+            syncComputedMoodSampleToBackend()
+        }
+    }
+
+    @MainActor
+    private func syncComputedMoodSampleToBackend() {
+        let computed = Double(moodAssessment?.score ?? Int((indicatorValues[.mood] ?? 4).rounded()))
+        let moodSample = HealthSample(
+            crewId: crewId,
+            type: .mood,
+            value: computed,
+            timestamp: Date(),
+            source: .iphone
+        )
+        Task { [weak self] in
+            await self?.sendSamplesToBackend([moodSample])
+        }
+    }
+
+    private func appendToSampleHistory(_ newSamples: [HealthSample]) {
+        let matching = newSamples.filter { $0.crewId == crewId }
+        guard !matching.isEmpty else { return }
+        sampleHistory.append(contentsOf: matching)
+        if sampleHistory.count > 500 {
+            sampleHistory = Array(sampleHistory.suffix(500))
+        }
+    }
+
+    // Alarm, çok günlük eğilim ve durum renkleri tek kaynaktan gelir: HealthThresholds (Thresholds.swift).
     private func evaluateStatuses() {
+        let now = Date()
+        let grouped = Dictionary(grouping: sampleHistory, by: \.type)
+        var trends: [HealthIndicatorType: TrendAssessment] = [:]
         var computed: [HealthIndicatorType: HealthStatus] = [:]
+
         for type in HealthIndicatorType.allCases {
-            computed[type] = HealthThresholds.status(
+            var series = (grouped[type] ?? []).sorted { $0.timestamp < $1.timestamp }
+            if let current = indicatorValues[type] {
+                if let last = series.last, abs(last.timestamp.timeIntervalSince(now)) < 60 {
+                    series[series.count - 1] = HealthSample(
+                        id: last.id,
+                        crewId: crewId,
+                        type: type,
+                        value: current,
+                        timestamp: now,
+                        source: last.source
+                    )
+                } else {
+                    series.append(
+                        HealthSample(
+                            crewId: crewId,
+                            type: type,
+                            value: current,
+                            timestamp: now,
+                            source: .iphone
+                        )
+                    )
+                }
+            }
+
+            let assessment = HealthThresholds.assessTrend(
                 for: type,
-                value: indicatorValues[type],
+                samples: series,
                 radiationBudgetMsv: radiationBudgetMsv
             )
+            trends[type] = assessment
+            computed[type] = assessment.effectiveStatus
         }
+
+        indicatorTrends = trends
         indicatorStatuses = computed
 
         heartRateStatus = computed[.heartRate] ?? .missing

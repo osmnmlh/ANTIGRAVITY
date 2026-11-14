@@ -22,7 +22,8 @@ struct DashboardView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 12) {
                 PlanetHeroHeader(
-                    greeting: "Hoşgeldiniz Kaptan,",
+                    greeting: viewModel.heroGreeting,
+                    subtitle: viewModel.heroSubtitle,
                     statusTitle: viewModel.heroStatusTitle,
                     status: viewModel.overallStatus
                 )
@@ -34,7 +35,9 @@ struct DashboardView: View {
                 AstronautBodyMapView(
                     values: viewModel.indicatorValues,
                     statuses: viewModel.indicatorStatuses,
-                    aiGuidance: viewModel.aiGuidance
+                    aiGuidance: viewModel.aiGuidance,
+                    trends: viewModel.indicatorTrends,
+                    moodAssessment: viewModel.moodAssessment
                 )
 
                 missionsCard

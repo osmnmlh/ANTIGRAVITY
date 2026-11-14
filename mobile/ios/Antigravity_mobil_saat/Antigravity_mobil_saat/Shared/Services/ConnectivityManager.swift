@@ -16,9 +16,33 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     @Published private(set) var isReachable: Bool = false
     @Published private(set) var lastSyncDate: Date?
     @Published private(set) var receivedSamples: [HealthSample] = []
+    @Published private(set) var latestSymptoms: [String] = []
 
     /// Callback triggered on the main queue whenever new Watch samples arrive.
     var onSamplesReceived: (([HealthSample]) -> Void)?
+    /// Callback triggered on the main queue whenever Watch symptom check-ins arrive.
+    var onSymptomsReceived: (([String]) -> Void)?
+
+    /// Sends Watch vital samples alongside reported symptoms to the paired iPhone.
+    func sendQuickCheckIn(samples: [HealthSample], symptoms: [String]) {
+        guard let data = try? HealthJSONCodec.encoder.encode(samples) else { return }
+        guard WCSession.isSupported() else { return }
+
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+
+        let payload: [String: Any] = [
+            "samples": data,
+            "symptoms": symptoms
+        ]
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil) { _ in
+                session.transferUserInfo(payload)
+            }
+        } else {
+            session.transferUserInfo(payload)
+        }
+    }
 
     private override init() {
         super.init()
@@ -81,15 +105,30 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        handleIncomingPayload(message)
+    }
+
     func session(_ session: WCSession, didReceiveMessageData messageData: Data) {
         handleIncomingData(messageData)
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
-        if let data = userInfo["samples"] as? Data {
+        handleIncomingPayload(userInfo)
+    }
+
+    private func handleIncomingPayload(_ payload: [String: Any]) {
+        if let data = payload["samples"] as? Data {
             handleIncomingData(data)
-        } else if let data = userInfo["sample"] as? Data {
+        } else if let data = payload["sample"] as? Data {
             handleIncomingData(data)
+        }
+
+        if let symptoms = payload["symptoms"] as? [String] {
+            Task { @MainActor [weak self] in
+                self?.latestSymptoms = symptoms
+                self?.onSymptomsReceived?(symptoms)
+            }
         }
     }
 

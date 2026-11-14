@@ -14,7 +14,6 @@ struct WatchDashboardView: View {
     @ObservedObject var coordinator: AlertCoordinator
     @ObservedObject var hapticManager: HapticManager
 
-    @State private var selectedMood: Int = 4
     @State private var selectedSymptoms: Set<String> = []
 
     private let availableSymptoms = ["Baş ağrısı", "Bulantı", "Yorgunluk", "Bel ağrısı"]
@@ -89,37 +88,19 @@ struct WatchDashboardView: View {
         .animation(.snappy(duration: 0.2), value: coordinator.overallStatus)
     }
 
-    // MARK: - Page 2: 5-Second Mood & Symptom Check-in
+    // MARK: - Page 2: Symptom Check-in
 
     private var quickCheckInPage: some View {
         ScrollView {
             VStack(spacing: 8) {
-                Text("Hızlı Kontrol")
+                Text("Belirti Kontrolü")
                     .font(.caption.bold())
                     .foregroundStyle(.cyan)
 
-                Text("Ruh Hâli (1–5)")
-                    .font(.caption2)
+                Text("Ruh hâli uyku, günlük, tansiyon ve vitallerden hesaplanır.")
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
-
-                HStack(spacing: 4) {
-                    ForEach(1...5, id: \.self) { value in
-                        Button {
-                            selectedMood = value
-                        } label: {
-                            Text("\(value)")
-                                .font(.caption.bold().monospacedDigit())
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 6)
-                                .background(
-                                    selectedMood == value ? moodColor(value) : Color.white.opacity(0.12),
-                                    in: RoundedRectangle(cornerRadius: 8)
-                                )
-                                .foregroundStyle(selectedMood == value ? .black : .white)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                    .multilineTextAlignment(.center)
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 4) {
                     ForEach(availableSymptoms, id: \.self) { symptom in
@@ -152,8 +133,7 @@ struct WatchDashboardView: View {
                 }
 
                 Button {
-                    coordinator.sendQuickCheckIn(
-                        mood: selectedMood,
+                    coordinator.sendSymptomCheckIn(
                         symptoms: Array(selectedSymptoms).sorted()
                     )
                 } label: {
@@ -284,14 +264,6 @@ struct WatchDashboardView: View {
             return Color.orange.opacity(0.16)
         case .green, .missing:
             return Color.black
-        }
-    }
-
-    private func moodColor(_ value: Int) -> Color {
-        switch value {
-        case 4, 5: return ColorTheme.statusGreen
-        case 3: return ColorTheme.statusAmber
-        default: return ColorTheme.statusRed
         }
     }
 }
