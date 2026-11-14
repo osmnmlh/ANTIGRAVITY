@@ -1,0 +1,53 @@
+{
+  "id": "alert-0007",
+  "scope": "cabin",
+  "crewIds": [
+    "crew-1",
+    "crew-2"
+  ],
+  "severity": "red",
+  "scenarioId": "cabin-gas-leak",
+  "hazardId": "hostileClosedEnvironments",
+  "title": "Gas release in the cabin: ammonia 14 ppm",
+  "spokenText": "Warning. Gas release in the crew cabin. Ammonia is at 14 parts per million. Put on your mask.",
+  "metrics": [
+    {
+      "kind": "cabin",
+      "type": "contaminant",
+      "value": 14,
+      "unit": "ppm",
+      "status": "red"
+    }
+  ],
+  "advice": {
+    "why": "Ammonia from the cooling loop irritates eyes and lungs, and in a closed cabin there is nowhere for it to go.",
+    "doNow": [
+      "Put on your emergency mask now.",
+      "Move to the designated safe module and close the hatch.",
+      "Check each other for coughing or eye pain."
+    ],
+    "escalate": "Contact the flight surgeon now if anyone has trouble breathing, chest pain or eye pain. Mars comms delay can be up to 20 minutes, so act first.",
+    "source": "fallback",
+    "model": null,
+    "generatedAt": "2026-11-14T08:02:11Z"
+  },
+  "deliveries": [
+    {
+      "deviceId": "9b1d2c4e-0000-4000-8000-000000000001",
+      "crewId": "crew-1",
+      "deliveredAt": "2026-11-14T08:02:10Z",
+      "ackedAt": "2026-11-14T08:02:18Z"
+    },
+    {
+      "deviceId": "9b1d2c4e-0000-4000-8000-000000000002",
+      "crewId": "crew-2",
+      "deliveredAt": "2026-11-14T08:02:10Z",
+      "ackedAt": null
+    }
+  ],
+  "cockpitAckedAt": null,
+  "state": "active",
+  "createdAt": "2026-11-14T08:02:10Z",
+  "updatedAt": "2026-11-14T08:02:18Z",
+  "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
+}

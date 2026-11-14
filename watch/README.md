@@ -1,5 +1,8 @@
-# watch/ — watchOS app
+# watch/ — moved
 
-SwiftUI Watch App: status glance, live heart rate, 5-second mood/symptom check-in, sends samples to the iPhone.
-These are the sources of the Watch App target inside `mobile/ios/Antigravity.xcodeproj` (added as a folder reference).
-Agents: see skills `watchos-app`, `ios-watch-connectivity`.
+The watchOS app lives inside the single Xcode project:
+
+- Project: `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj`
+- Watch sources: `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_watchOS/`
+
+Do not add watch code here. Agents: see skills `watchos-app`, `ios-watch-connectivity`.

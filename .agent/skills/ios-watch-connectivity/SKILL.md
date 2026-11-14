@@ -9,8 +9,8 @@ iPhone = **hub**: receives watch samples, stores history, shows trends/guidance,
 
 ## Setup
 
-- One Xcode project `mobile/ios/Antigravity.xcodeproj` with targets: iOS app (iOS 18, iPhone 16 Pro), Watch App (sources in `/watch`).
-- Shared files (target membership on both): `HealthSample.swift`, `Thresholds.swift`, `ConnectivityManager.swift`.
+- One Xcode project `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj` with targets: iOS app (iOS 18, iPhone 16 Pro, sources `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_iOS/`) and Watch App (sources `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_watchOS/`).
+- Shared files (target membership on both): `mobile/ios/Shared/HealthModels.swift`, `mobile/ios/Shared/Thresholds.swift`, plus `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/` (put `ConnectivityManager.swift` there).
 - Persistence: SwiftData or a JSON file in Documents. Pick the faster one for you; no CloudKit, no backend.
 
 ## WatchConnectivity (one manager, both sides)

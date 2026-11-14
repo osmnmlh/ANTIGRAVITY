@@ -1,15 +1,15 @@
 ---
 name: watchos-app
-description: Build the watchOS app in watch/ with SwiftUI and HealthKit - live heart rate, quick mood/symptom check-in, status glance, sending samples to the iPhone. Use for any Apple Watch work.
+description: Build the watchOS app (Antigravity_watchOS target in mobile/ios/) with SwiftUI and HealthKit - live heart rate, quick mood/symptom check-in, status glance, sending samples to the iPhone. Use for any Apple Watch work.
 ---
 
-# watchOS App (watch/)
+# watchOS App (`Antigravity_watchOS/`)
 
 The watch is the **sensor + 5-second check-in**. Keep it to 2-3 screens.
 
 ## Setup
 
-- Xcode 16+, watchOS 11 target, SwiftUI only. The Xcode project is in `mobile/ios/`; this folder holds the Watch App target's sources (add as folder reference).
+- Xcode 16+, watchOS 11 target, SwiftUI only. Project: `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj`. Watch sources: `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_watchOS/` (synchronized folder, new files join the target automatically).
 - Watch App target is a companion of the iOS app (same bundle id prefix: `<ios-bundle-id>.watchkitapp`).
 - Capabilities: **HealthKit** on both watch and iOS targets. Info.plist: `NSHealthShareUsageDescription`, `NSHealthUpdateUsageDescription`.
 
