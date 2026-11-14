@@ -17,13 +17,13 @@ const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz 
 
 /**
  * @param {object} deps
- * @param {() => object[]} deps.getPackets  Live astronaut packets (shared/mock/astronaut-packets.json shape).
+ * @param {() => object[]} deps.getPackets  Live astronaut packets (shape of shared/mock/all-data.json `astronauts`).
  * @param {(type: string, value: number, packet: object) => 'green'|'amber'|'red'|'missing'} deps.getVitalStatus
  * @param {(type: string, status: string) => { why: string, doNow: string[], escalate: string }} [deps.getVitalGuidance]
  *        Turkish guidance (web/src/domain/guidance.ts shape; thresholds.ts getGuidance shape also accepted).
  * @param {(crewId: string, type: string) => string} [deps.getTrendStatus]  Shared multi-day trend rule (getTrendStatus over that crew's samples).
  * @param {(type: string) => string} [deps.vitalLabel]
- * @param {object[]} [deps.hazards]  shared/mock/nasa-hazards.json `hazards`.
+ * @param {object[]} [deps.hazards]  shared/mock/all-data.json `nasaHazards`.
  * @param {(samples: object[]) => void} [deps.applySamples]  Stores HealthSamples in the host. Needed only for vital demo scenarios.
  * @param {{ apiKey?: string, model?: string }} [deps.gemini]  Server-side only. No key = deterministic answers.
  * @param {{ topic?: string, server?: string }} [deps.ntfy]  Optional push for locked phones (ntfy.sh). Default: env NTFY_TOPIC / NTFY_SERVER, off when unset.

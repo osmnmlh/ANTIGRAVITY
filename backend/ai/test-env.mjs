@@ -25,7 +25,7 @@ const lan = Object.entries(networkInterfaces())
   .sort((a, b) => a.rank - b.rank);
 const host = lan[0]?.address ?? 'localhost';
 
-const crew = JSON.parse(readFileSync(`${root}shared/mock/astronaut-packets.json`, 'utf8')).astronauts;
+const crew = JSON.parse(readFileSync(`${root}shared/mock/all-data.json`, 'utf8')).astronauts;
 const children = [];
 
 function start(name, command, args, options) {

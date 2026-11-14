@@ -10,7 +10,9 @@ import { CABIN_METRICS } from './cabin.mjs';
 import { looksUnsafe } from './safety.mjs';
 
 const CLIP = { summary: 300, why: 340, step: 180, escalate: 320 };
-const MAX_PARALLEL = 3;
+// An incident phase can raise 4+ alerts in the same second and some live only one 2.5 s phase: a third slot made the fourth
+// one wait for its turn and get resolved before Gemini answered.
+const MAX_PARALLEL = 5;
 
 const clip = (v, n) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, n) : '');
 
@@ -28,7 +30,7 @@ const SCHEMA = {
 /**
  * @param {object} o
  * @param {{ apiKey?: string, model?: string }} o.gemini
- * @param {object[]} [o.hazards]  nasa-hazards.json `hazards`
+ * @param {object[]} [o.hazards]  all-data.json `nasaHazards`
  */
 export function createAdviceWriter({ gemini = {}, hazards = [], fetchImpl = fetch, log = console, now = () => new Date() }) {
   const model = gemini.model || DEFAULT_MODEL;

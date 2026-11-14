@@ -11,9 +11,11 @@ import { createAi } from './index.mjs';
 import { cabinStatus } from './cabin.mjs';
 
 const readJson = (p) => JSON.parse(readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8'));
-const PACKETS = readJson('../../shared/mock/astronaut-packets.json').astronauts;
-const HAZARDS = readJson('../../shared/mock/nasa-hazards.json').hazards;
-const SAMPLES = readJson('../../shared/mock/samples.json');
+// shared/mock/all-data.json is the master dataset the relay and the web use too.
+const ALL = readJson('../../shared/mock/all-data.json');
+const PACKETS = ALL.astronauts.map(({ sampleHistory: _history, ...packet }) => packet);
+const HAZARDS = ALL.nasaHazards;
+const SAMPLES = ALL.samples;
 
 // The demo mock starts all-green (team decision). These tests need a crew-1 that already has problems,
 // so they overlay the earlier "bad morning" values: SpO2 89, HR 112, sleep 5.5, mood 3 two days in a row.
@@ -553,7 +555,7 @@ test('high systolic AND diastolic is one "kan basıncı" alert, not two popups',
 // ---- Incident replay: cabin hints become cabin readings ----
 import { parseCabinHint } from './cabin-hint.mjs';
 
-const INCIDENTS = readJson('../../shared/mock/historical-incidents.json').incidents;
+const INCIDENTS = ALL.historicalIncidents;
 
 test('cabin hints of the historical incidents are read into cabin readings', () => {
   const read = (hint) => parseCabinHint(hint).map((r) => `${r.metric}=${r.value}`);
@@ -593,4 +595,35 @@ test('the cabin-temperature demo scenario exists and fires', async () => {
   const { json } = await call(ai, 'POST', '/api/ai/demo/cabin-temperature');
   assert.equal(json.created.length, 1);
   assert.equal(ai.alerts().find((a) => a.id === json.created[0]).scenarioId, 'cabin-temperature');
+});
+
+test('chat accepts the one-string form of the rehearsal guide ({ crewId, message })', async () => {
+  const { ai } = setup();
+  const one = await call(ai, 'POST', '/api/ai/chat', { crewId: 'crew-1', message: 'Su an durumum nedir, uçuş cerrahına ne zaman başvurmalıyım?' });
+  assert.equal(one.status, 200);
+  assert.match(one.json.reply, /cerrah/i, 'the question was read, not replaced by a generic briefing');
+  assert.ok(one.json.disclaimer && ['fallback', 'gemini'].includes(one.json.source));
+  const nothing = await call(ai, 'POST', '/api/ai/chat', { crewId: 'crew-1' });
+  assert.equal(nothing.status, 200, 'no message at all = briefing, as before');
+});
+
+test('the AI runs on the master dataset: three crew start green, hazards and incidents are all there', () => {
+  // A fresh read: the fixtures above overlay a "bad morning" on crew-1 and that mutates the shared copy.
+  const fresh = readJson('../../shared/mock/all-data.json');
+  const packets = fresh.astronauts.map(({ sampleHistory: _history, ...packet }) => packet);
+  assert.equal(packets.length, 3);
+  assert.equal(fresh.nasaHazards.length, 5);
+  assert.equal(fresh.historicalIncidents.length, 3);
+  const ai = createAi({
+    getPackets: () => packets,
+    getVitalStatus: (type, value, p) => getStatus(type, value, p.mission?.radiationBudgetMsv),
+    getVitalGuidance: (type) => guidanceByType[type],
+    getTrendStatus: (crewId, type) => getTrendStatus(fresh.samples.filter((x) => x.crewId === crewId), type),
+    vitalLabel: (t) => metricDefinitions[t]?.label ?? t,
+    hazards: fresh.nasaHazards,
+    log: {},
+    ntfy: { topic: '' },
+  });
+  assert.equal(ai.alerts({ state: 'active' }).length, 0, 'a clean start raises no alert (demo script: everyone starts green)');
+  assert.equal(ai.cabin().overallStatus, 'green');
 });

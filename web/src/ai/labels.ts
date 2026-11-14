@@ -74,6 +74,7 @@ export const AI_LABELS = {
     notifDenied: 'kapalı',
     waiting: 'Şu an aktif uyarı yok. Kokpitten bir senaryo tetiklenince burada görünecek.',
     myAlerts: 'Uyarılarım',
+    disclaimer: 'Demo yazılımıdır, tıbbi cihaz değildir. Değerler örnek/simüle edilmiştir; tıbbi karar yerine geçmez.',
     deviceName: 'Cihaz',
   },
 
