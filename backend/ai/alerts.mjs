@@ -104,7 +104,19 @@ export function createAlertStore({ now, cooldownMs, disclaimer }) {
     lastCreated.clear();
   }
 
-  return { reconcile, delivered: (id, b) => mark(id, b, 'deliveredAt'), ack: (id, b) => mark(id, b, 'ackedAt'), addRecipient, list, active, clear };
+  /** Replaces the advice of a still-active alert (Gemini wording arrives after the deterministic one). */
+  function setAdvice(id, advice) {
+    const alert = alerts.get(id);
+    if (!alert || alert.state !== 'active') return null;
+    alert.advice = advice;
+    alert.updatedAt = stamp();
+    return alert;
+  }
+
+  return {
+    reconcile, delivered: (id, b) => mark(id, b, 'deliveredAt'), ack: (id, b) => mark(id, b, 'ackedAt'),
+    addRecipient, setAdvice, get: (id) => alerts.get(id), list, active, clear,
+  };
 }
 
 export function createDevices({ now }) {
@@ -132,6 +144,7 @@ export function createDevices({ now }) {
 /** SSE clients. A client with a crewId only gets alerts that include that crewId; the cockpit (no crewId) gets all. */
 export function createHub() {
   const clients = new Set();
+  let onChange = () => {};
   const ping = setInterval(() => { for (const c of clients) c.res.write(': ping\n\n'); }, 20_000);
   ping.unref?.();
 
@@ -143,11 +156,23 @@ export function createHub() {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
       const c = { res, crewId, deviceId };
       clients.add(c);
-      req.on('close', () => clients.delete(c));
+      req.on('close', () => { clients.delete(c); onChange(); });
       write(c, 'hello', hello(c));
+      onChange();
       return c;
     },
-    alert(event, alert) { for (const c of clients) if (wants(c, alert)) write(c, event, alert); },
+    /** Called whenever a stream connects or drops, so the cockpit can show which phones are online. */
+    setOnChange: (fn) => { onChange = fn; },
+    /** Writes to every stream that wants this alert. Returns the deviceIds that were written to (the phones reached). */
+    alert(event, alert) {
+      const reached = [];
+      for (const c of clients) {
+        if (!wants(c, alert)) continue;
+        write(c, event, alert);
+        if (c.deviceId) reached.push(c.deviceId);
+      }
+      return reached;
+    },
     all(event, dataFor) { for (const c of clients) write(c, event, dataFor(c)); },
     isOnline: (deviceId) => [...clients].some((c) => c.deviceId === deviceId),
     size: () => clients.size,
