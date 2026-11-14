@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listScenarios, resetDemo, runScenario } from './api'
 import { AI_LABELS as L } from './labels'
+import { Icon } from './Icon'
 import './ai.css'
 
 const STAR = ['cabin-gas-leak', 'cabin-hypoxia', 'solar-event', 'orthostatic'] // demo must-haves first
@@ -40,7 +41,7 @@ export function AiDemoControls() {
         ))}
         <button type="button" className="ai-chip ai-chip-reset" disabled={running !== null}
           onClick={() => void run('reset', resetDemo)} data-testid="ai-demo-reset">
-          ↺ {L.demoReset}
+          <Icon name="refresh" size={14} /> {L.demoReset}
         </button>
       </div>
       {error && <p className="ai-error" data-testid="ai-demo-error">{error}</p>}

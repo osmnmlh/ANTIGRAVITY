@@ -76,10 +76,10 @@ const metricSystem: Record<HealthType, string> = {
 }
 
 const statusColor: Record<HealthStatus, string> = {
-  green: '#10b981',
-  amber: '#f59e0b',
-  red: '#ef4444',
-  missing: '#64748b',
+  green: '#92b89b',
+  amber: '#e0aa55',
+  red: '#dd6b57',
+  missing: '#948b7e',
 }
 
 const statusText: Record<HealthStatus, string> = {
@@ -105,10 +105,10 @@ function drawAstronautNameplate(canvas: HTMLCanvasElement, name: string, code: s
   }
 
   context.clearRect(0, 0, canvas.width, canvas.height)
-  context.shadowColor = 'rgba(56, 189, 248, 0.3)'
+  context.shadowColor = 'rgba(207, 168, 106, 0.28)'
   context.shadowBlur = 18
-  context.fillStyle = 'rgba(7, 18, 30, 0.92)'
-  context.strokeStyle = 'rgba(91, 220, 232, 0.78)'
+  context.fillStyle = 'rgba(28, 27, 25, 0.94)'
+  context.strokeStyle = 'rgba(207, 168, 106, 0.72)'
   context.lineWidth = 2
   context.beginPath()
   context.roundRect(5, 5, canvas.width - 10, canvas.height - 10, 20)
@@ -116,14 +116,14 @@ function drawAstronautNameplate(canvas: HTMLCanvasElement, name: string, code: s
   context.shadowBlur = 0
   context.stroke()
 
-  context.fillStyle = '#5bdce8'
+  context.fillStyle = '#cfa86a'
   context.fillRect(22, 24, 4, 80)
   context.textBaseline = 'middle'
-  context.font = '600 19px monospace'
-  context.fillStyle = '#80a9bc'
+  context.font = '500 19px "IBM Plex Mono", monospace'
+  context.fillStyle = '#bdb4a6'
   context.fillText(code, 43, 42)
-  context.font = '600 32px sans-serif'
-  context.fillStyle = '#edf7fb'
+  context.font = '500 32px Fraunces, Georgia, serif'
+  context.fillStyle = '#f0eadf'
   context.fillText(name, 43, 82, canvas.width - 68)
 }
 
@@ -252,15 +252,15 @@ export function ThreeBodyMap({
     const focusGoal = new Vector3(0, 0.15, 0)
     const cameraFocus = focusGoal.clone()
     const projectedPosition = new Vector3()
-    scene.add(new AmbientLight('#e0f2fe', 1.25))
+    scene.add(new AmbientLight('#f4ead9', 1.2))
 
-    const keyLight = new DirectionalLight('#ffffff', 2)
+    const keyLight = new DirectionalLight('#fff3dc', 2.1)
     keyLight.position.set(-3, 5, 5)
     scene.add(keyLight)
-    const fillLight = new DirectionalLight('#93c5fd', 0.8)
+    const fillLight = new DirectionalLight('#d9a574', 0.75)
     fillLight.position.set(3, 2, 4)
     scene.add(fillLight)
-    const rimPointLight = new PointLight('#38bdf8', 3, 9)
+    const rimPointLight = new PointLight('#cfa86a', 3, 9)
     rimPointLight.position.set(2, 0.5, -2)
     scene.add(rimPointLight)
 
@@ -376,13 +376,52 @@ export function ThreeBodyMap({
     const scanlineGeometry = new BufferGeometry()
     scanlineGeometry.setFromPoints([new Vector3(-0.74, 0, 0.16), new Vector3(0.74, 0, 0.16)])
     const scanline = new Line(scanlineGeometry, new LineBasicMaterial({
-      color: '#38bdf8',
+      color: '#cfa86a',
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.8,
       depthTest: false,
     }))
     scanline.renderOrder = 4
     scene.add(scanline)
+
+    // Dust motes in the key light: soft round sprites that rise slowly and wrap around. Pure atmosphere, skipped for reduced motion.
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const DUST = 220
+    const dustPositions = new Float32Array(DUST * 3)
+    const dustSpeeds = new Float32Array(DUST)
+    for (let i = 0; i < DUST; i++) {
+      dustPositions[i * 3] = (Math.random() - 0.5) * 8
+      dustPositions[i * 3 + 1] = (Math.random() - 0.5) * 6.4
+      dustPositions[i * 3 + 2] = Math.random() * 5 - 3.2
+      dustSpeeds[i] = 0.025 + Math.random() * 0.07
+    }
+    const dotCanvas = document.createElement('canvas')
+    dotCanvas.width = 64
+    dotCanvas.height = 64
+    const dotContext = dotCanvas.getContext('2d')
+    if (dotContext) {
+      const glow = dotContext.createRadialGradient(32, 32, 0, 32, 32, 32)
+      glow.addColorStop(0, 'rgba(255, 244, 222, 1)')
+      glow.addColorStop(0.35, 'rgba(255, 236, 205, 0.45)')
+      glow.addColorStop(1, 'rgba(255, 230, 190, 0)')
+      dotContext.fillStyle = glow
+      dotContext.fillRect(0, 0, 64, 64)
+    }
+    const dotTexture = new CanvasTexture(dotCanvas)
+    const dustGeometry = new BufferGeometry()
+    dustGeometry.setAttribute('position', new BufferAttribute(dustPositions, 3))
+    const dustMaterial = new PointsMaterial({
+      map: dotTexture,
+      color: '#ead7b3',
+      size: 0.07,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+      sizeAttenuation: true,
+    })
+    const dust = new Points(dustGeometry, dustMaterial)
+    dust.renderOrder = 1
+    scene.add(dust)
 
     const hotspotMeshes = new Map<HealthType, Mesh>()
     for (const marker of markers) {
@@ -404,7 +443,7 @@ export function ThreeBodyMap({
       const halo = new Mesh(
         new TorusGeometry(0.105, 0.008, 6, 24),
         new MeshBasicMaterial({
-          color: '#38bdf8',
+          color: '#cfa86a',
           transparent: true,
           opacity: 0.6,
           depthTest: false,
@@ -497,6 +536,19 @@ export function ThreeBodyMap({
       previousFrameTime = now
       figure.rotation.y = MathUtils.damp(figure.rotation.y, targetRotation.y, 2.2, deltaSeconds)
       figure.rotation.x = MathUtils.damp(figure.rotation.x, targetRotation.x, 2.8, deltaSeconds)
+      if (!reduceMotion) {
+        // Weightlessness: the astronaut drifts a few centimetres up and down and rolls a hair; dust rises through the light.
+        figure.position.y = Math.sin(now * 0.00085) * 0.05
+        figure.rotation.z = Math.sin(now * 0.0006 + 1.2) * 0.016
+        for (let i = 0; i < DUST; i++) {
+          let y = dustPositions[i * 3 + 1] + dustSpeeds[i] * deltaSeconds
+          if (y > 3.2) y = -3.2
+          dustPositions[i * 3 + 1] = y
+          dustPositions[i * 3] += Math.sin(now * 0.0003 + i) * 0.0006
+        }
+        dustGeometry.attributes.position.needsUpdate = true
+        dustMaterial.opacity = 0.42 + Math.sin(now * 0.0007) * 0.08
+      }
       galaxy.rotation.y += (figure.rotation.y - galaxy.rotation.y) * 0.04 + 0.00012
       galaxy.rotation.x += (figure.rotation.x + 0.5 - galaxy.rotation.x) * 0.04
       scanline.position.y = 2.2 - ((now % 5600) / 5600) * 3.85
@@ -601,6 +653,9 @@ export function ThreeBodyMap({
       renderer.domElement.removeEventListener('pointercancel', handlePointerCancel)
       disposed = true
       figureRef.current = null
+      dustGeometry.dispose()
+      dustMaterial.dispose()
+      dotTexture.dispose()
       nameplateRef.current = null
       disposeModelResources(scene)
       renderer.dispose()
@@ -613,6 +668,16 @@ export function ThreeBodyMap({
     if (!nameplate) return
     drawAstronautNameplate(nameplate.canvas, astronautName, astronautCode)
     nameplate.texture.needsUpdate = true
+    // Canvas text uses the web fonts: draw again once they are loaded, or the first frame shows fallback fonts.
+    let cancelled = false
+    void Promise.all([document.fonts.load('500 32px Fraunces'), document.fonts.load('500 19px "IBM Plex Mono"')]).then(() => {
+      if (cancelled || nameplateRef.current !== nameplate) return
+      drawAstronautNameplate(nameplate.canvas, astronautName, astronautCode)
+      nameplate.texture.needsUpdate = true
+    })
+    return () => {
+      cancelled = true
+    }
   }, [astronautCode, astronautName])
 
   useEffect(() => {

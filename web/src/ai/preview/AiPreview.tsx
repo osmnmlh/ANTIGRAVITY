@@ -5,8 +5,10 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import allData from '../../../../shared/mock/all-data.json'
 import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi, useAiState } from '..'
+import '../../theme.css'
 import '../../index.css'
 import '../../App.css'
+import '../../cosmos-shell.css'
 
 const crew = allData.astronauts.map((a) => ({ id: a.astronautId, name: a.fullName }))
 const crewNames = Object.fromEntries(crew.map((c) => [c.id, c.name]))
@@ -45,7 +47,7 @@ function Preview() {
           <AiDemoControls />
           <DevicesPanel crewNames={crewNames} />
           <section className="ai-demo" aria-label="Test telefonları">
-            <p className="ai-list-title">📱 Test telefonları (yeni sekmede aç)</p>
+            <p className="ai-list-title">Test telefonları (yeni sekmede aç)</p>
             <div className="ai-demo-grid">
               {crew.map((c) => (
                 <a key={c.id} className="ai-chip" href={`/phone.html?crewId=${c.id}`} target="_blank" rel="noreferrer" data-testid={`ai-open-phone-${c.id}`}>

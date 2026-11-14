@@ -6,11 +6,14 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import allData from '../../../../shared/mock/all-data.json'
 import { AlertCenter } from '..'
+import { Icon } from '../Icon'
 import { setStreamIdentity, useAiState } from '../aiStore'
 import { AI_LABELS as L } from '../labels'
 import { setVoiceEnabled, speak } from '../voice'
+import '../../theme.css'
 import '../../index.css'
 import '../../App.css'
+import '../../cosmos-shell.css'
 import '../ai.css'
 
 const crew = allData.astronauts.map((a) => ({ id: a.astronautId, name: a.fullName }))
@@ -79,7 +82,7 @@ function Phone({ name }: { name: string }) {
         <section className="ai-phone-start">
           <p className="ai-muted">{L.phone.startHint}</p>
           <button type="button" className="ai-btn ai-btn-primary ai-phone-big" onClick={() => void start()} data-testid="ai-phone-start">
-            🔔 {L.phone.start}
+            <Icon name="bell" size={18} /> {L.phone.start}
           </button>
         </section>
       ) : (
@@ -97,7 +100,7 @@ function Phone({ name }: { name: string }) {
                   <span className="ai-sev-chip">{L.severity[a.severity]}</span>
                   <strong>{a.title}</strong>
                   {a.advice?.summary && <span className="ai-muted">{a.advice.summary}</span>}
-                  <span className="ai-muted">{mineDelivery?.ackedAt ? '✅ ' + L.ack : mineDelivery?.deliveredAt ? '📨' : ''}</span>
+                  <span className="ai-muted">{mineDelivery?.ackedAt ? <><Icon name="checkCircle" size={14} /> {L.ack}</> : mineDelivery?.deliveredAt ? <Icon name="inbox" size={14} /> : null}</span>
                 </li>
               )
             })}

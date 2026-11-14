@@ -1,46 +1,57 @@
-/* Warm Titanium & Matte Obsidian Shell Theme (functional green/amber/red status colors preserved) */
+/* ANTIGRAVITY design layer, "Sıcak Gözlemevi": warm anthracite, marble white, brass.
+   Tokens and fonts live in theme.css; this file is loaded after App.css and only restyles the page shell and surfaces,
+   so the layout stays exactly as the team built it. Status colors (sage / amber / terracotta) are never the only signal:
+   every status keeps its icon and its label. Motion uses opacity and transform only and is off for prefers-reduced-motion. */
 
 :root {
-  --bg-space-base: #0b0c0f;
-  --bg-space-base-rgb: 11, 12, 15;
-  --bg-card: #15171e;
-  --bg-card-rgb: 21, 23, 30;
-  --bg-elevated: #1c1f28;
-  --bg-elevated-rgb: 28, 31, 40;
-  --border-grid: #292d3a;
-  --border-grid-rgb: 41, 45, 58;
-  --text-primary: #f3f1ed;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --accent-telemetry: #d4b88c;
-  --accent-telemetry-rgb: 212, 184, 140;
-  --heading: 'Plus Jakarta Sans', 'Inter', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
-  --mono: 'Inter', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  --shell-hairline: rgba(236, 227, 211, 0.085);
-  --shell-hairline-hover: rgba(236, 227, 211, 0.17);
-  --shell-table-bg: #1a1d25;
-  --shell-table-row-hover: rgba(255, 255, 255, 0.035);
-  --shell-accent-bg: rgba(212, 184, 140, 0.12);
-  --shell-accent-border: rgba(212, 184, 140, 0.34);
-  --shell-accent-text: #efe1c6;
-  --shell-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --shell-hairline: rgba(var(--marble-rgb), 0.09);
+  --shell-hairline-hover: rgba(var(--marble-rgb), 0.22);
+  --shell-well: #1a1917;
+  --shell-well-hover: rgba(var(--marble-rgb), 0.05);
+  --shell-accent-bg: rgba(var(--accent-telemetry-rgb), 0.12);
+  --shell-accent-border: rgba(var(--accent-telemetry-rgb), 0.4);
+  --shell-accent-text: #f0dfbd;
+  --shell-ease: var(--ease-out);
   --shell-pad: max(clamp(20px, 4vw, 56px), calc((100% - 1220px) / 2));
+
+  /* Marble: the one light material. Text on it is anthracite, status text is a darker sage / amber / terracotta (AA on marble) */
+  --marble-surface:
+    radial-gradient(120% 90% at 6% -25%, rgba(255, 255, 255, 0.75), transparent 55%),
+    radial-gradient(70% 55% at 96% 125%, rgba(150, 138, 118, 0.26), transparent 62%),
+    linear-gradient(135deg, #f5f0e7 0%, #e9e1d2 58%, #f0e9dc 100%);
+  --on-marble: #201e1b;
+  --on-marble-muted: #5a544a;
+  --marble-sage: #35644a;
+  --marble-amber: #85560c;
+  --marble-terracotta: #9c3a29;
 }
 
 html {
-  font-family: 'Inter', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
   scroll-behavior: smooth;
 }
 
 body {
-  font-family: 'Inter', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
   background:
-    radial-gradient(ellipse 80% 480px at 50% -140px, rgba(212, 184, 140, 0.055), transparent 72%),
+    radial-gradient(ellipse 75% 460px at 50% -150px, rgba(var(--accent-telemetry-rgb), 0.1), transparent 72%),
+    radial-gradient(ellipse 60% 380px at 100% 100%, rgba(var(--accent-copper-rgb), 0.05), transparent 70%),
     var(--bg-space-base);
   color: var(--text-primary);
 }
 
+::selection {
+  background: rgba(var(--accent-telemetry-rgb), 0.38);
+  color: var(--marble);
+}
+
+* {
+  scrollbar-color: #4a453e #1c1b19;
+}
+
+/* Interactive surfaces share one transition vocabulary */
 .panel,
 .astronaut-selector,
 .dashboard-disclosure,
@@ -58,39 +69,44 @@ body {
 .ai-btn,
 .ai-chip {
   transition:
-    background-color 260ms var(--shell-ease),
-    border-color 260ms var(--shell-ease),
-    color 220ms var(--shell-ease),
-    box-shadow 260ms var(--shell-ease),
-    transform 220ms var(--shell-ease);
+    background-color var(--dur-base) var(--shell-ease),
+    border-color var(--dur-base) var(--shell-ease),
+    color var(--dur-fast) var(--shell-ease),
+    box-shadow var(--dur-base) var(--shell-ease),
+    transform var(--dur-fast) var(--shell-ease);
 }
 
-/* ---- Topbar & Workspace Navigation ---- */
+/* ---- Topbar and workspace navigation ---- */
 .topbar {
-  height: 64px;
+  height: 68px;
   padding: 0 var(--shell-pad);
   border-bottom: 1px solid var(--shell-hairline);
-  background: rgba(11, 12, 15, 0.88);
+  background: rgba(var(--bg-space-base-rgb), 0.82);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
 
 .brand-text strong {
-  font: 600 13.5px/1.1 var(--heading);
-  letter-spacing: 0.06em;
-  color: var(--text-primary);
+  font: 500 15px/1.1 var(--font-display);
+  letter-spacing: 0.24em;
+  color: var(--marble);
 }
 
 .brand-text small,
 .crew-profile small {
-  font: 500 10.5px/1.2 'Inter', sans-serif;
-  letter-spacing: 0.04em;
+  font: 400 11px/1.2 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
+.crew-profile strong {
+  font: 600 14px/1.2 var(--font-body);
+}
+
 .brand-mark span {
-  border-color: rgba(212, 184, 140, 0.55);
-  background: rgba(212, 184, 140, 0.14);
+  border-color: rgba(var(--accent-telemetry-rgb), 0.6);
+  background: rgba(var(--accent-telemetry-rgb), 0.16);
   box-shadow: none;
 }
 
@@ -98,38 +114,44 @@ body {
   background: var(--bg-elevated);
   border-color: var(--shell-hairline);
   color: var(--shell-accent-text);
+  font: 500 14px/1 var(--font-display);
 }
 
 .workspace-nav {
-  min-height: 52px;
+  min-height: 54px;
   gap: 8px;
   padding: 6px var(--shell-pad) 0;
   border-bottom: 1px solid var(--shell-hairline);
-  background: rgba(15, 16, 21, 0.72);
+  background: rgba(var(--bg-space-base-rgb), 0.6);
 }
 
 .workspace-tab {
-  min-width: 148px;
-  padding: 8px 14px 10px;
-  border-radius: 10px 10px 0 0;
+  min-width: 156px;
+  padding: 8px 16px 10px;
+  border-radius: 12px 12px 0 0;
   color: var(--text-secondary);
 }
 
 .workspace-tab > span:nth-child(2) {
-  font: 600 13px/1.2 var(--heading);
+  font: 600 14px/1.2 var(--font-body);
 }
 
 .workspace-tab small {
-  font: 500 10px/1.2 'Inter', sans-serif;
-  letter-spacing: 0.03em;
-  text-transform: none;
+  font: 400 11px/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.workspace-tab:hover:not(.is-active) {
+  color: var(--text-primary);
+  background: var(--shell-well-hover);
 }
 
 .workspace-tab.is-active {
   border-color: var(--shell-hairline);
-  background: var(--bg-card);
-  color: #ffffff;
+  background: linear-gradient(180deg, #2a2825, var(--bg-card));
+  color: var(--marble);
 }
 
 .workspace-tab.is-active::after {
@@ -150,17 +172,16 @@ body {
   font-weight: 500;
 }
 
-/* ---- Main Shell Layout ---- */
+/* ---- Page shell and header ---- */
 .dashboard {
   width: min(1332px, 100%);
-  padding: 28px clamp(20px, 4vw, 56px) 64px;
+  padding: 34px clamp(20px, 4vw, 56px) 72px;
 }
 
-/* ---- Clean Open Page Header ---- */
 .page-heading,
 .base-welcome {
-  margin: 0 0 22px;
-  padding: 4px 2px 18px;
+  margin: 0 0 26px;
+  padding: 6px 2px 22px;
   border: 0;
   border-bottom: 1px solid var(--shell-hairline);
   border-radius: 0;
@@ -171,21 +192,34 @@ body {
 .page-heading h1,
 .base-welcome h1 {
   margin: 0;
-  color: var(--text-primary);
-  font-family: var(--heading);
-  font-size: clamp(23px, 2.2vw, 30px);
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.22;
+  color: var(--marble);
+  font-family: var(--font-display);
+  font-size: clamp(32px, 3.6vw, 50px);
+  font-weight: 400;
+  letter-spacing: -0.022em;
+  line-height: 1.06;
+}
+
+.page-subtitle {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
 .heading-meta {
-  gap: 14px;
-  font: 500 11.5px/1.2 'Inter', sans-serif;
-  letter-spacing: 0.01em;
+  gap: 16px;
+  font: 500 12px/1.2 var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
 }
 
-/* ---- Distinct Warm-Titanium Foreground Cards ---- */
+.utc-clock,
+.mission-day b {
+  font-family: var(--font-mono);
+  color: var(--marble);
+}
+
+/* ---- Surfaces: anthracite cards with a marble hairline and a soft lit top edge ---- */
 .panel,
 .astronaut-selector,
 .dashboard-disclosure,
@@ -196,9 +230,11 @@ body {
 .ai-base-side .ai-devices,
 .ai-base-side .ai-demo {
   border: 1px solid var(--shell-hairline);
-  border-radius: 14px;
-  background: linear-gradient(180deg, #171921, #13151c);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #252321 0%, #1f1e1c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(var(--marble-rgb), 0.055),
+    0 18px 44px rgba(0, 0, 0, 0.3);
 }
 
 .dashboard-disclosure:hover,
@@ -206,57 +242,59 @@ body {
 .metrics-disclosure[open],
 .base-summary-card:hover {
   border-color: var(--shell-hairline-hover);
-  background: linear-gradient(180deg, #1a1d26, #14161e);
 }
 
 .astronaut-selector {
-  margin: 0 0 22px;
-  padding: 18px 22px;
+  margin: 0 0 24px;
+  padding: 20px 24px;
 }
 
 .astronaut-selector-heading {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .astronaut-selector-heading h2,
-.panel-heading h2 {
-  font-family: var(--heading);
+.panel-heading h2,
+.body-heading h2,
+.base-section-heading h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  color: var(--marble);
+}
+
+/* Serif is for real headings and big numbers only; everything else stays in the grotesk */
+.dashboard h3,
+.disclosure-title,
+.dashboard-disclosure summary strong {
+  font-family: var(--font-body);
   font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--text-primary);
 }
 
 .astronaut-selector-note,
 .eyebrow {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  font: 400 11px/1.3 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-telemetry);
 }
 
 .astronaut-select-box {
-  min-height: 52px;
-  padding: 6px 14px;
+  min-height: 54px;
+  padding: 6px 16px;
   border: 1px solid var(--shell-hairline);
-  border-radius: 11px;
-  background: var(--shell-table-bg);
+  border-radius: 12px;
+  background: var(--shell-well);
 }
 
 .astronaut-select-box:focus-within {
   border-color: var(--shell-accent-border);
-  background: #1f222c;
-}
-
-.overview-panel {
-  border: 1px solid var(--shell-hairline);
-  border-radius: 12px;
-  background: var(--shell-table-bg);
 }
 
 .dashboard-grid {
-  gap: 20px;
-  margin-top: 22px;
+  gap: 22px;
+  margin-top: 24px;
 }
 
 .body-panel,
@@ -264,7 +302,7 @@ body {
 .scenario-panel,
 .assigned-task-panel,
 .guidance-panel {
-  padding: 22px;
+  padding: 24px;
 }
 
 .disclosure-content > .panel {
@@ -278,21 +316,110 @@ body {
 .base-empty-state {
   border: 1px solid var(--shell-hairline);
   border-radius: 12px;
-  background: var(--shell-table-bg);
+  background: var(--shell-well);
 }
 
-/* ---- Elevated Pewter-Graphite Foreground Tables & Indicator Lists ---- */
+/* ---- The marble moment: overall status ---- */
+.overview-panel {
+  position: relative;
+  margin: 16px 0 18px;
+  padding: 18px 26px 18px 30px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  background: var(--marble-surface);
+  color: var(--on-marble);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  overflow: hidden;
+}
+
+.overview-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: var(--marble-sage);
+}
+
+.overview-panel.status-amber::before { background: var(--marble-amber); }
+.overview-panel.status-red::before { background: var(--marble-terracotta); }
+
+.overview-copy h2 {
+  margin: 0 0 4px;
+  font: 500 22px/1.2 var(--font-display);
+  letter-spacing: -0.012em;
+  color: var(--on-marble);
+}
+
+.overview-copy p {
+  color: var(--on-marble-muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.overview-counts {
+  gap: 18px;
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--on-marble-muted);
+}
+
+.overview-counts .status-green { color: var(--marble-sage); }
+.overview-counts .status-amber { color: var(--marble-amber); }
+.overview-counts .status-red { color: var(--marble-terracotta); }
+
+.overview-counts i {
+  width: 7px;
+  height: 7px;
+}
+
+.overview-panel .status-badge {
+  border: 1px solid currentColor;
+  background: rgba(32, 30, 27, 0.05);
+  font-weight: 600;
+}
+
+.overview-panel .status-badge.status-green { color: var(--marble-sage); }
+.overview-panel .status-badge.status-amber { color: var(--marble-amber); }
+.overview-panel .status-badge.status-red { color: var(--marble-terracotta); }
+
+/* ---- 3D stage: a gallery frame with brass corner marks ---- */
+.body-map-stage {
+  border-radius: 12px;
+  box-shadow:
+    inset 0 0 0 1px var(--shell-hairline),
+    inset 0 0 110px rgba(0, 0, 0, 0.5);
+}
+
+.body-map-stage::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0.7;
+  background:
+    linear-gradient(var(--accent-telemetry), var(--accent-telemetry)) top left / 14px 1px no-repeat,
+    linear-gradient(var(--accent-telemetry), var(--accent-telemetry)) top left / 1px 14px no-repeat,
+    linear-gradient(var(--accent-telemetry), var(--accent-telemetry)) top right / 14px 1px no-repeat,
+    linear-gradient(var(--accent-telemetry), var(--accent-telemetry)) top right / 1px 14px no-repeat,
+    linear-gradient(var(--accent-telemetry), var(--accent-telemetry)) bottom left / 14px 1px no-repeat,
+    linear-gradient(var(--accent-telemetry), var(--accent-telemetry)) bottom left / 1px 14px no-repeat,
+    linear-gradient(var(--accent-telemetry), var(--accent-telemetry)) bottom right / 14px 1px no-repeat,
+    linear-gradient(var(--accent-telemetry), var(--accent-telemetry)) bottom right / 1px 14px no-repeat;
+}
+
+/* ---- Indicator list ---- */
 .map-indicators {
   border: 1px solid var(--shell-hairline);
-  border-radius: 12px;
-  padding: 14px;
-  background: var(--shell-table-bg);
+  border-radius: 14px;
+  padding: 16px;
+  background: var(--shell-well);
 }
 
 .map-indicators-heading {
-  padding: 0 6px 10px;
+  padding: 0 6px 12px;
   border-bottom: 1px solid var(--shell-hairline);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .map-indicator-list {
@@ -305,11 +432,12 @@ body {
 }
 
 .map-indicator-card {
+  position: relative;
   border: 1px solid transparent;
-  border-bottom-color: rgba(255, 255, 255, 0.045);
-  border-radius: 9px;
+  border-bottom-color: rgba(var(--marble-rgb), 0.06);
+  border-radius: 10px;
   background: transparent;
-  padding: 10px 12px;
+  padding: 11px 14px;
   box-shadow: none;
 }
 
@@ -318,21 +446,21 @@ body {
 }
 
 .map-indicator-card:hover {
-  background: var(--shell-table-row-hover);
+  background: var(--shell-well-hover);
   border-color: transparent;
 }
 
 .map-indicator-card.is-selected {
   border-color: var(--shell-accent-border);
-  background: rgba(212, 184, 140, 0.09);
-  box-shadow: none;
+  background: rgba(var(--marble-rgb), 0.075);
+  box-shadow: inset 3px 0 0 var(--accent-telemetry);
 }
 
 .map-indicator-index,
 .map-indicator-copy small,
 .assigned-task-count,
 .assigned-task-progress {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -340,10 +468,11 @@ body {
 .status-card-value,
 .selected-value,
 .base-summary-card > strong,
-.utc-clock,
-.mission-day {
-  font-family: var(--heading);
-  font-variant-numeric: tabular-nums;
+.metric-value {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--marble);
 }
 
 .base-roster-list,
@@ -352,18 +481,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 6px;
+  padding: 8px;
   border: 1px solid var(--shell-hairline);
-  border-radius: 12px;
-  background: var(--shell-table-bg);
+  border-radius: 14px;
+  background: var(--shell-well);
 }
 
 .base-roster-row,
 .base-task-card,
 .base-message-card {
   border: 1px solid transparent;
-  border-bottom-color: rgba(255, 255, 255, 0.045);
-  border-radius: 9px;
+  border-bottom-color: rgba(var(--marble-rgb), 0.06);
+  border-radius: 10px;
   background: transparent;
   box-shadow: none;
 }
@@ -371,7 +500,7 @@ body {
 .base-roster-row:hover,
 .base-task-card:hover,
 .base-message-card:hover {
-  background: var(--shell-table-row-hover);
+  background: var(--shell-well-hover);
 }
 
 .base-roster-row:last-child,
@@ -380,31 +509,30 @@ body {
   border-bottom-color: transparent;
 }
 
-/* ---- Status Badges (Critical Green/Amber/Red Unchanged) & Warm Neutral Buttons ---- */
+/* ---- Status badges and buttons ---- */
 .status-badge,
 .base-health-state {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font: 600 11.5px/1 var(--font-body);
+  letter-spacing: 0.03em;
   border-radius: 999px;
 }
 
+/* Primary actions are marble: the lightest thing on the screen, so it is the first thing you press */
 .simulation-toggle,
 .base-open-astronaut,
 .assigned-task-link,
 .ai-btn-primary,
 .primary-button.base-submit {
-  min-height: 34px;
-  padding: 0 14px;
+  min-height: 38px;
+  padding: 0 16px;
   white-space: nowrap;
-  border: 1px solid var(--shell-accent-border);
-  border-radius: 9px;
-  background: var(--shell-accent-bg);
-  color: var(--shell-accent-text);
-  font: 500 12.5px/1 'Inter', sans-serif;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f5f0e7, #e6ddcc);
+  color: var(--on-marble);
+  font: 600 13px/1 var(--font-body);
   letter-spacing: 0.01em;
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 6px 16px rgba(0, 0, 0, 0.28);
 }
 
 .simulation-toggle:hover:not(:disabled),
@@ -412,27 +540,37 @@ body {
 .assigned-task-link:hover,
 .ai-btn-primary:hover:not(:disabled),
 .primary-button.base-submit:hover {
-  border-color: rgba(212, 184, 140, 0.58);
-  background: rgba(212, 184, 140, 0.22);
-  color: #ffffff;
-  box-shadow: none;
+  background: linear-gradient(180deg, #fbf7ee, #efe6d4);
+  color: #000;
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 #fff, 0 10px 22px rgba(0, 0, 0, 0.34);
+}
+
+.simulation-toggle:active:not(:disabled),
+.base-open-astronaut:active,
+.assigned-task-link:active,
+.ai-btn-primary:active:not(:disabled),
+.primary-button.base-submit:active {
+  transform: translateY(0);
 }
 
 .simulation-toggle:disabled {
   border-color: var(--shell-hairline);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--marble-rgb), 0.04);
   color: var(--text-muted);
+  box-shadow: none;
 }
 
 .simulation-toggle.is-running {
-  border-color: rgba(var(--status-critical-rgb), 0.48);
-  background: rgba(var(--status-critical-rgb), 0.14);
-  color: #fecaca;
+  border-color: rgba(var(--status-critical-rgb), 0.55);
+  background: rgba(var(--status-critical-rgb), 0.16);
+  color: #f5c9bf;
+  box-shadow: none;
 }
 
 .map-reset-button {
   border-color: var(--shell-hairline);
-  background: var(--shell-table-bg);
+  background: var(--shell-well);
   color: var(--text-secondary);
 }
 
@@ -441,15 +579,15 @@ body {
   color: var(--text-primary);
 }
 
-/* ---- AI Assistant & Dock Harmonized with Warm Graphite ---- */
+/* ---- AI assistant and dock ---- */
 .ai-slot {
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 .ai-slot .ai-chat {
   min-height: 260px;
   max-height: 480px;
-  padding: 22px;
+  padding: 24px;
 }
 
 .ai-slot .ai-chat-log {
@@ -457,15 +595,16 @@ body {
 }
 
 .ai-chat-title {
-  font-family: var(--heading);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 18px;
 }
 
 .ai-chat-form input,
 .base-form input,
 .base-form textarea,
 .base-form select {
-  background: var(--shell-table-bg);
+  background: var(--shell-well);
   border-color: var(--shell-hairline);
   color: var(--text-primary);
 }
@@ -479,50 +618,129 @@ body {
 
 .ai-chip {
   border-color: var(--shell-hairline);
-  background: var(--shell-table-bg);
+  background: var(--shell-well);
   color: var(--text-secondary);
 }
 
 .ai-chip:hover:not(:disabled) {
   border-color: var(--shell-hairline-hover);
-  background: #222530;
+  background: #2a2825;
   color: var(--text-primary);
 }
 
 .ai-dock {
   border-color: var(--shell-hairline);
-  border-radius: 12px;
-  background: rgba(21, 23, 30, 0.92);
+  border-radius: 14px;
+  background: rgba(31, 30, 28, 0.92);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
 }
 
-/* ---- Clean Footer ---- */
+/* ---- Mono is for telemetry labels and numbers only: short, uppercase, tracked ---- */
+.eyebrow,
+.astronaut-selector-note,
+.brand-text small,
+.crew-profile small,
+.workspace-tab small,
+.map-indicators-heading,
+.heading-meta,
+.overview-counts,
+.utc-clock,
+.mission-day,
+.topbar-center,
+.live-indicator,
+.sync-state,
+.map-indicator-index,
+.map-indicator-copy small,
+.base-summary-card > span:first-child,
+.base-summary-card small,
+.hud-label small,
+.body-map-caption,
+.guidance-hazard span {
+  font-family: var(--font-mono);
+}
+
+.topbar-center,
+.live-indicator,
+.sync-state {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* descriptive text under cards and rows: sentence case, readable size */
+.base-empty-state p,
+.panel-footnote,
+.base-form-note,
+.page-subtitle,
+.base-roster-row small,
+.base-task-card small,
+.base-message-card small {
+  font-family: var(--font-body);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ---- Footer ---- */
 .app-footer {
-  margin-top: 34px;
-  padding-top: 18px;
+  margin-top: 40px;
+  padding-top: 20px;
   border-top: 1px solid var(--shell-hairline);
-  font-family: 'Inter', sans-serif;
-  font-size: 11.5px;
+  font: 400 12px/1.5 var(--font-body);
   color: var(--text-muted);
 }
 
-@media (max-width: 800px) {
-  .page-heading,
-  .base-welcome {
-    padding: 4px 0 16px;
-  }
+/* ---- Entrance: sections rise in one after another (opacity and transform only) ---- */
+@keyframes shell-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
 
+.dashboard > * {
+  animation: shell-rise var(--dur-slow) var(--ease-out) both;
+}
+.dashboard > *:nth-child(2) { animation-delay: 70ms; }
+.dashboard > *:nth-child(3) { animation-delay: 140ms; }
+.dashboard > *:nth-child(4) { animation-delay: 210ms; }
+.dashboard > *:nth-child(5) { animation-delay: 280ms; }
+.dashboard > *:nth-child(n + 6) { animation-delay: 340ms; }
+
+@keyframes shell-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--status-critical-rgb), 0.35); }
+  50% { box-shadow: 0 0 0 7px rgba(var(--status-critical-rgb), 0); }
+}
+
+.map-indicator-card.status-red .status-badge {
+  animation: shell-breathe 2.4s ease-out infinite;
+}
+
+@media (max-width: 800px) {
+  .topbar { height: 60px; }
+  .page-heading,
+  .base-welcome { padding: 4px 0 18px; }
   .body-panel,
   .manual-panel,
   .scenario-panel,
   .assigned-task-panel,
-  .guidance-panel {
-    padding: 16px;
-  }
+  .guidance-panel { padding: 16px; }
+  .overview-panel { padding: 14px 16px 14px 22px; flex-wrap: wrap; }
+  .workspace-tab { min-width: 0; flex: 1; padding: 8px 10px 10px; }
+}
 
-  .overview-panel {
-    padding: 12px 14px;
-  }
+/* ---- Phones: keep the topbar and the astronaut picker usable ---- */
+@media (max-width: 640px) {
+  .brand-text strong { letter-spacing: 0.12em; font-size: 14px; }
+  .brand-text small { display: none; }
+  .topbar { gap: 10px; }
+  .crew-profile strong { font-size: 13px; }
+  /* App.css turns this into a 32px + 1fr grid for an avatar that no longer exists, which squeezed the select into 32px */
+  .astronaut-select-box { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .astronaut-select-field { flex: 1 1 100%; max-width: none; }
+  .astronaut-select-field select { width: 100%; }
+  .astronaut-selector-note { display: block; line-height: 1.5; letter-spacing: 0.08em; }
+  .page-heading h1, .base-welcome h1 { font-size: clamp(30px, 9vw, 40px); }
 }

@@ -49,7 +49,7 @@ export const AI_LABELS = {
   askAi: "AI'a sor",
   close: 'Kapat',
   moreAlerts: (n: number) => `+${n} uyarı daha`,
-  delivery: (delivered: number, total: number, acked: number) => `📱 ${delivered}/${total} cihaza ulaştı · ✅ ${acked} onay`,
+  delivery: (delivered: number, total: number, acked: number) => `${delivered}/${total} cihaza ulaştı · ${acked} onay`,
   activeAlerts: 'Aktif uyarılar',
   noAlerts: 'Aktif uyarı yok',
 
@@ -63,8 +63,8 @@ export const AI_LABELS = {
   clear: 'Sohbeti temizle',
   briefing: 'Durum brifingi',
   escalationBanner: {
-    flightSurgeon: '🔴 Uçuş cerrahına hemen başvurun',
-    cmo: '🟠 Mürettebat sağlık sorumlusunu bilgilendirin',
+    flightSurgeon: 'Uçuş cerrahına hemen başvurun',
+    cmo: 'Mürettebat sağlık sorumlusunu bilgilendirin',
     none: '',
   },
   quickCabin: ['Kokpitte durum nasıl?', 'Kim risk altında?', 'Kabin havası güvenli mi?'],
