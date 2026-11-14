@@ -279,6 +279,16 @@ select {
   box-shadow: 0 0 10px rgba(var(--status-optimal-rgb), 0.5);
 }
 
+.live-indicator.is-offline i {
+  background: var(--amber);
+  box-shadow: 0 0 10px rgba(var(--status-warning-rgb), 0.45);
+}
+
+.live-indicator.is-connecting i {
+  background: #8da6ba;
+  box-shadow: 0 0 8px rgba(141, 166, 186, 0.35);
+}
+
 .topbar-divider {
   width: 1px;
   height: 18px;
@@ -991,6 +1001,8 @@ h3 {
 }
 
 .heading-meta {
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 17px;
   margin-bottom: 4px;
   font: 9px var(--mono);
@@ -1012,6 +1024,40 @@ h3 {
 .utc-clock {
   padding-left: 17px;
   border-left: 1px solid var(--border);
+}
+
+.simulation-toggle {
+  min-height: 29px;
+  padding: 0 9px;
+  border: 1px solid rgba(var(--accent-telemetry-rgb), 0.34);
+  border-radius: 4px;
+  background: rgba(var(--accent-telemetry-rgb), 0.08);
+  color: #a7dce5;
+  font: 8px var(--mono);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.simulation-toggle:hover:not(:disabled) {
+  border-color: rgba(var(--accent-telemetry-rgb), 0.7);
+  background: rgba(var(--accent-telemetry-rgb), 0.16);
+}
+
+.simulation-toggle.is-running {
+  border-color: rgba(var(--status-critical-rgb), 0.34);
+  background: rgba(var(--status-critical-rgb), 0.08);
+  color: #e7a5a0;
+}
+
+.simulation-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.simulation-action-error {
+  max-width: 240px;
+  color: #e7a5a0;
+  font: 8px/1.4 var(--mono);
 }
 
 .mission-strip {

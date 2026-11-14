@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import astronautPacketData from '../../../shared/mock/astronaut-packets.json'
 import sharedSamples from '../../../shared/mock/samples.json'
 import {
@@ -12,6 +12,13 @@ import {
 
 const storageKey = 'antigravity.health-samples.v3'
 const legacyStorageKey = 'antigravity.health-samples.v2'
+const apiBaseUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:8787').replace(/\/$/, '')
+export type HealthDataConnection = 'connecting' | 'connected' | 'offline'
+export interface SimulationStatus {
+  mode: string
+  running: boolean
+  crewId: string | null
+}
 const sharedSeedSamples = sharedSamples.filter(isHealthSample)
 const packetSamples = astronautPacketData.astronauts.flatMap((astronaut) =>
   healthTypes.flatMap((type) => {
@@ -43,6 +50,16 @@ const initialSamples = [
   ),
   ...packetSamples,
 ]
+
+function mergeSamples(current: HealthSample[], incoming: HealthSample[]) {
+  const samplesByKey = new Map(
+    current.map((sample) => [`${sample.crewId}:${sample.type}:${sample.timestamp}`, sample]),
+  )
+  for (const sample of incoming) {
+    samplesByKey.set(`${sample.crewId}:${sample.type}:${sample.timestamp}`, sample)
+  }
+  return Array.from(samplesByKey.values())
+}
 
 export const astronautProfiles = astronautPacketData.astronauts.map((astronaut, index) => ({
   id: astronaut.astronautId,
@@ -98,6 +115,13 @@ export function createSample(
 
 export function useHealthData() {
   const [samples, setSamples] = useState<HealthSample[]>(readSamples)
+  const [connection, setConnection] = useState<HealthDataConnection>('connecting')
+  const [simulation, setSimulation] = useState<SimulationStatus>({
+    mode: 'idle',
+    running: false,
+    crewId: null,
+  })
+  const apiConnected = useRef(false)
 
   useEffect(() => {
     try {
@@ -107,8 +131,106 @@ export function useHealthData() {
     }
   }, [samples])
 
+  useEffect(() => {
+    let active = true
+    const controller = new AbortController()
+    const stream = new EventSource(`${apiBaseUrl}/api/stream`)
+    const updateSimulation = (payload: unknown) => {
+      if (!active) return
+      if (
+        !payload ||
+        typeof payload !== 'object' ||
+        typeof (payload as Record<string, unknown>).mode !== 'string' ||
+        typeof (payload as Record<string, unknown>).running !== 'boolean'
+      ) {
+        throw new Error('Telemetry stream returned an invalid simulation state.')
+      }
+      const status = payload as Record<string, unknown>
+      setSimulation({
+        mode: status.mode as string,
+        running: status.running as boolean,
+        crewId: typeof status.crewId === 'string' ? status.crewId : null,
+      })
+    }
+
+    fetch(`${apiBaseUrl}/api/samples`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Telemetry API returned HTTP ${response.status}.`)
+        const payload: unknown = await response.json()
+        if (!Array.isArray(payload) || !payload.every(isHealthSample)) {
+          throw new Error('Telemetry API returned an invalid health sample list.')
+        }
+        if (!active) return
+        setSamples((current) => mergeSamples(current, payload))
+        apiConnected.current = true
+        setConnection('connected')
+      })
+      .catch((error: unknown) => {
+        if (!active || (error instanceof DOMException && error.name === 'AbortError')) return
+        apiConnected.current = false
+        setConnection('offline')
+      })
+
+    stream.addEventListener('hello', (event) => {
+      if (!active) return
+      apiConnected.current = true
+      setConnection('connected')
+      try {
+        const payload: unknown = JSON.parse((event as MessageEvent<string>).data)
+        if (!payload || typeof payload !== 'object') throw new Error('Telemetry stream returned an invalid hello event.')
+        updateSimulation((payload as Record<string, unknown>).simulation)
+      } catch (error) {
+        console.error('Could not process the telemetry stream hello event.', error)
+      }
+    })
+    stream.addEventListener('sample', (event) => {
+      try {
+        const sample: unknown = JSON.parse((event as MessageEvent<string>).data)
+        if (!isHealthSample(sample)) throw new Error('Telemetry stream returned an invalid health sample.')
+        if (!active) return
+        apiConnected.current = true
+        setConnection('connected')
+        setSamples((current) => mergeSamples(current, [sample]))
+      } catch (error) {
+        console.error('Could not process a telemetry stream sample.', error)
+      }
+    })
+    stream.addEventListener('simulation', (event) => {
+      try {
+        const payload: unknown = JSON.parse((event as MessageEvent<string>).data)
+        updateSimulation(payload)
+      } catch (error) {
+        console.error('Could not process a telemetry stream simulation update.', error)
+      }
+    })
+    stream.addEventListener('error', () => {
+      if (!active) return
+      apiConnected.current = false
+      setConnection('offline')
+    })
+
+    return () => {
+      active = false
+      apiConnected.current = false
+      controller.abort()
+      stream.close()
+    }
+  }, [])
+
   function addSamples(nextSamples: HealthSample[]) {
-    setSamples((current) => [...current, ...nextSamples])
+    setSamples((current) => mergeSamples(current, nextSamples))
+    if (!apiConnected.current) return
+    fetch(`${apiBaseUrl}/api/samples`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(nextSamples),
+    }).then((response) => {
+      if (!response.ok) throw new Error(`Telemetry API returned HTTP ${response.status}.`)
+    }).catch((error: unknown) => {
+      console.error('Could not send health samples to the telemetry API.', error)
+      apiConnected.current = false
+      setConnection('offline')
+    })
   }
 
   function addSample(type: HealthType, value: number, source: HealthSource, crewId: string) {
@@ -117,9 +239,58 @@ export function useHealthData() {
 
   function resetSamples() {
     setSamples(initialSamples)
+    if (!apiConnected.current) return
+    fetch(`${apiBaseUrl}/api/simulation/reset`, { method: 'POST' }).then(async (response) => {
+      if (!response.ok) throw new Error(`Telemetry API returned HTTP ${response.status}.`)
+      const samplesResponse = await fetch(`${apiBaseUrl}/api/samples`)
+      if (!samplesResponse.ok) throw new Error(`Telemetry API returned HTTP ${samplesResponse.status}.`)
+      const payload: unknown = await samplesResponse.json()
+      if (!Array.isArray(payload) || !payload.every(isHealthSample)) {
+        throw new Error('Telemetry API returned an invalid health sample list.')
+      }
+      setSamples(payload)
+    }).catch((error: unknown) => {
+      console.error('Could not reset telemetry API samples.', error)
+      apiConnected.current = false
+      setConnection('offline')
+    })
   }
 
-  return { samples, addSample, addSamples, resetSamples }
+  async function startLiveSimulation(crewId: string) {
+    const response = await fetch(`${apiBaseUrl}/api/simulation/live/start`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ crewId }),
+    })
+    if (!response.ok) throw new Error(`Could not start live telemetry (HTTP ${response.status}).`)
+  }
+
+  async function stopLiveSimulation() {
+    const response = await fetch(`${apiBaseUrl}/api/simulation/stop`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ reset: true }),
+    })
+    if (!response.ok) throw new Error(`Could not stop live telemetry (HTTP ${response.status}).`)
+    const samplesResponse = await fetch(`${apiBaseUrl}/api/samples`)
+    if (!samplesResponse.ok) throw new Error(`Telemetry API returned HTTP ${samplesResponse.status}.`)
+    const payload: unknown = await samplesResponse.json()
+    if (!Array.isArray(payload) || !payload.every(isHealthSample)) {
+      throw new Error('Telemetry API returned an invalid health sample list.')
+    }
+    setSamples(payload)
+  }
+
+  return {
+    samples,
+    addSample,
+    addSamples,
+    resetSamples,
+    connection,
+    simulation,
+    startLiveSimulation,
+    stopLiveSimulation,
+  }
 }
 
 export function latestSampleFor(samples: HealthSample[], type: HealthType) {

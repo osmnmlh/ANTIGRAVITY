@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import './App.css'
 import { ThreeBodyMap } from './components/ThreeBodyMap'
 import { astronautProfiles, latestSampleFor, useHealthData } from './data/useHealthData'
@@ -242,7 +242,7 @@ function TrendChart({ type, samples }: { type: HealthType; samples: HealthSample
 }
 
 function App() {
-  const { samples } = useHealthData()
+  const { samples, connection, simulation, startLiveSimulation, stopLiveSimulation } = useHealthData()
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('astronauts')
   const [missionTasks, setMissionTasks] = useState<MissionTask[]>(readMissionTasks)
   const [crewMessages, setCrewMessages] = useState<CrewMessage[]>(readCrewMessages)
@@ -259,6 +259,9 @@ function App() {
   const [selectedCrewId, setSelectedCrewId] = useState<(typeof astronautProfiles)[number]['id']>('crew-1')
   const [selectedMetric, setSelectedMetric] = useState<HealthType>('heartRate')
   const [focusedMetric, setFocusedMetric] = useState<HealthType | null>(null)
+  const [simulationActionError, setSimulationActionError] = useState('')
+  const autoStartAttempted = useRef(false)
+  const pendingSimulationCrew = useRef<string | null>(null)
 
   const selectedAstronaut = astronautProfiles.find(({ id }) => id === selectedCrewId) ?? astronautProfiles[0]
   const crewSamples = useMemo(
@@ -323,6 +326,34 @@ function App() {
     [missionTasks, selectedCrewId],
   )
   const selectedOpenTaskCount = selectedAstronautTasks.filter((task) => !task.completed).length
+
+  useEffect(() => {
+    if (connection !== 'connected') return
+    if (simulation.running && simulation.crewId !== selectedCrewId) {
+      if (pendingSimulationCrew.current !== selectedCrewId) {
+        const targetCrewId = selectedCrewId
+        pendingSimulationCrew.current = targetCrewId
+        startLiveSimulation(targetCrewId).catch((error: unknown) => {
+          if (pendingSimulationCrew.current === targetCrewId) pendingSimulationCrew.current = null
+          console.error('Could not switch live telemetry to the selected astronaut.', error)
+          setSimulationActionError('Seçili astronot için canlı akış başlatılamadı.')
+        })
+      }
+      return
+    }
+    if (simulation.running) pendingSimulationCrew.current = null
+    if (simulation.running || simulation.mode !== 'idle') {
+      autoStartAttempted.current = true
+      return
+    }
+    if (autoStartAttempted.current) return
+
+    autoStartAttempted.current = true
+    startLiveSimulation(selectedCrewId).catch((error: unknown) => {
+      console.error('Could not automatically start live telemetry.', error)
+      setSimulationActionError('Canlı simülasyon başlatılamadı. Yeniden denemek için düğmeyi kullan.')
+    })
+  }, [connection, selectedCrewId, simulation.crewId, simulation.mode, simulation.running, startLiveSimulation])
   const crewOverview = useMemo(
     () =>
       astronautProfiles.map((astronaut) => {
@@ -373,6 +404,20 @@ function App() {
   function selectMetric(type: HealthType) {
     setSelectedMetric(type)
     setFocusedMetric(type)
+  }
+
+  async function toggleLiveSimulation() {
+    setSimulationActionError('')
+    try {
+      if (simulation.running) {
+        await stopLiveSimulation()
+      } else {
+        await startLiveSimulation(selectedCrewId)
+      }
+    } catch (error) {
+      console.error('Could not update the live telemetry simulation.', error)
+      setSimulationActionError('Canlı simülasyon başlatılamadı. Backend bağlantısını kontrol et.')
+    }
   }
 
   function handleCreateTask(event: FormEvent<HTMLFormElement>) {
@@ -449,7 +494,12 @@ function App() {
           </span>
         </a>
         <div className="topbar-center">
-          <span className="live-indicator"><i /> DEMO TELEMETRİSİ</span>
+          <span className={`live-indicator is-${connection}`} data-testid="data-connection">
+            <i />
+            {connection === 'connected'
+              ? simulation.running ? 'CANLI AKIŞ' : 'BACKEND BAĞLI'
+              : connection === 'connecting' ? 'BAĞLANIYOR' : 'JSON YEDEK VERİ'}
+          </span>
           <span className="topbar-divider" />
           <span className="mission-day">GÖREV GÜNÜ <b>120</b></span>
         </div>
@@ -498,7 +548,17 @@ function App() {
             <p className="page-subtitle">Göstergeyi gör · ne anlama geldiğini anla · sonraki adımı belirle.</p>
           </div>
           <div className="heading-meta">
-            <span className="sync-state"><i /> SİMÜLE EDİLMİŞ VERİ</span>
+            <span className="sync-state"><i /> {connection === 'connected' ? 'SSE AKTİF' : 'YEREL JSON VERİSİ'}</span>
+            <button
+              className={`simulation-toggle ${simulation.running ? 'is-running' : ''}`}
+              data-testid="live-simulation-toggle"
+              disabled={connection !== 'connected'}
+              onClick={() => void toggleLiveSimulation()}
+              type="button"
+            >
+              {simulation.running ? 'CANLI AKIŞI DURDUR' : 'CANLI SİMÜLASYONU BAŞLAT'}
+            </button>
+            {simulationActionError && <p className="simulation-action-error" role="alert">{simulationActionError}</p>}
             <span className="utc-clock">UTC {currentTime}</span>
           </div>
         </section>

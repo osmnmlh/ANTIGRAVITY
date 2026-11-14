@@ -1,0 +1,10 @@
+{
+  "name": "antigravity-backend",
+  "private": true,
+  "description": "Zero-dependency relay: mock data in RAM, SSE push, server-side Gemini guidance.",
+  "type": "module",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "start": "node --experimental-strip-types server.mjs"
+  }
+}
