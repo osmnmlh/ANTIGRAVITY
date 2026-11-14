@@ -6,6 +6,9 @@ const ESCALATION = ['none', 'cmo', 'flightSurgeon'];
 const MAX_TURNS = 6;
 const MAX_CHARS = 500;
 const SHOWN = 4;
+// gemini-2.5-flash is closed to new API keys; the lite alias stayed fast and stable when the big flash models returned 503.
+export const DEFAULT_MODEL = 'gemini-flash-lite-latest';
+const GEMINI_DEADLINE_MS = 8_000; // whole chat call incl. one retry; then the deterministic answer takes over
 const RANK = { red: 0, amber: 1, green: 2 };
 
 /** Conversational Turkish names, used in answers. */
@@ -33,13 +36,21 @@ const TOPICS = [
   [/[sş]eker|glikoz|glucose/i, ['bloodGlucose']],
   [/uyku|uyu|sleep/i, ['sleepHours']],
   [/ruh|stres|moral|mood/i, ['mood']],
-  [/radyasyon|doz|g[uü]ne[sş] f[ıi]rt|radiation/i, ['radiationDose', 'radiationRate']],
+  [/radyasyon|doz[ıi]metre|msv|g[uü]ne[sş] f[ıi]rt|radiation/i, ['radiationDose', 'radiationRate']],
   [/co2|karbon/i, ['ppCO2']],
   [/bas[ıi]n[cç]|s[ıi]z[ıi]nt|leak/i, ['pressure']],
   [/gaz|amonyak|zehir|gas/i, ['contaminant']],
   [/elektrik|g[uü][cç]|power/i, ['lifeSupportPower']],
   [/nem\b|humid/i, ['humidity']],
 ];
+
+// Offline safety: the model is told to refuse these, the deterministic path must do the same.
+const MEDICATION = /ilaç|ilac|hap|tablet|parasetamol|ibuprofen|aspirin|antibiyotik|re[cç]ete|\d\s?(mg|mcg|ml)|doz[a-zığüşöç]*\s+(söyle|yaz|ver|ne kadar|kaç)/i;
+// Anything about crew health, the cabin or what to do; a question with none of these (and no known topic) is off-topic.
+const ON_TOPIC = /durum|nas[ıi]l|iyi mi|[oö]zet|brifing|rapor|sorun|risk|kim|uyar[ıi]|ne yap|ne zaman|cerrah|tavsiye|[oö]neri|tehlike|g[uü]venli|kabin|astronot|m[uü]rettebat|elena|marcus|aria|kritik|dikkat|neden|sebep|belirti|a[gğ]r[ıi]|semptom|status|how is|help|yard[ıi]m/i;
+
+const MEDICATION_REPLY = 'İlaç önermem veya doz söyleyemem. Tıbbi kararlar için mürettebat sağlık sorumlusuna ve uçuş cerrahına danışın. İsterseniz mevcut ölçümleri açıklayabilirim.';
+const OFF_TOPIC_REPLY = 'Bu konuda yardımcı olamam; yalnızca mürettebat sağlığı ve kabin durumu hakkında bilgi verebilirim. İsterseniz mevcut ölçümleri açıklayabilirim.';
 
 function cleanMessages(messages) {
   if (messages !== undefined && !Array.isArray(messages)) throw new Error('messages must be an array');
@@ -69,7 +80,7 @@ function valueText(i) {
  * @param {{ apiKey?: string, model?: string }} [o.gemini]
  */
 export function createChat({ context, activeAlerts, gemini = {}, disclaimer, log = console, fetchImpl = fetch }) {
-  const model = gemini.model || 'gemini-2.5-flash';
+  const model = gemini.model || DEFAULT_MODEL;
 
   /** Everything the answer may rely on, already evaluated by the rules engine. */
   function facts({ scope, crewId }) {
@@ -117,10 +128,9 @@ export function createChat({ context, activeAlerts, gemini = {}, disclaimer, log
     const contents = messages.length
       ? messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }))
       : [{ role: 'user', parts: [{ text: 'Kısa bir durum brifingi ver.' }] }];
-    const res = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': gemini.apiKey },
-      body: JSON.stringify({
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const signal = AbortSignal.timeout(GEMINI_DEADLINE_MS);
+    const request = JSON.stringify({
         systemInstruction: { parts: [{ text: prompt(f) }] },
         contents,
         generationConfig: {
@@ -137,9 +147,19 @@ export function createChat({ context, activeAlerts, gemini = {}, disclaimer, log
             required: ['reply', 'escalation'],
           },
         },
-      }),
-      signal: AbortSignal.timeout(10_000),
     });
+    let res;
+    for (let attempt = 1; ; attempt++) {
+      res = await fetchImpl(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': gemini.apiKey },
+        body: request,
+        signal,
+      });
+      // 503/429 = "high demand": usually answered by the next try, and it returns within about a second.
+      if (res.ok || attempt >= 2 || ![429, 503].includes(res.status)) break;
+      await new Promise((r) => setTimeout(r, 300));
+    }
     if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
     const data = await res.json();
     const out = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
@@ -148,6 +168,9 @@ export function createChat({ context, activeAlerts, gemini = {}, disclaimer, log
   }
 
   function fallback(f, question) {
+    if (MEDICATION.test(question)) {
+      return { reply: `${MEDICATION_REPLY} ${ESCALATE_TEXT[f.escalation]}`, escalation: f.escalation, indicators: [], suggestions: ['Mevcut durum nasıl?', 'Ne zaman uçuş cerrahını aramalıyım?'] };
+    }
     const known = new Set(f.items.map((i) => i.type));
     const topics = new Set(TOPICS.filter(([re]) => re.test(question)).flatMap(([, t]) => t).filter((t) => known.has(t)));
     const who = (i) => (i.kind === 'vital' && f.scope === 'cabin' ? `${i.crew.name}: ` : '');
@@ -155,6 +178,9 @@ export function createChat({ context, activeAlerts, gemini = {}, disclaimer, log
     // Worst first; at equal severity the cabin comes before a single person (it affects everyone).
     const flagged = f.items.filter((i) => i.status !== 'green')
       .sort((a, b) => RANK[a.status] - RANK[b.status] || (a.kind === 'cabin' ? -1 : 0) - (b.kind === 'cabin' ? -1 : 0));
+    if (question && !topics.size && !ON_TOPIC.test(question)) {
+      return { reply: `${OFF_TOPIC_REPLY} ${ESCALATE_TEXT[f.escalation]}`, escalation: f.escalation, indicators: [], suggestions: ['Mevcut durum nasıl?', 'Ne zaman uçuş cerrahını aramalıyım?'] };
+    }
     const focus = topics.size ? f.items.filter((i) => topics.has(i.type)) : flagged;
     const subject = f.scope === 'crew' ? f.crew[0].name : 'Kabin ve mürettebat';
     const more = flagged.length - SHOWN;

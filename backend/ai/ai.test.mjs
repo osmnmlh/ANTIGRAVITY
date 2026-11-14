@@ -279,3 +279,35 @@ test('chat with Gemini: statuses are facts, escalation cannot be lowered, failur
   const fb = await broken.ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'status?' }] });
   assert.equal(fb.source, 'fallback');
 });
+
+test('chat fallback: medication and off-topic asks get a safe redirect, never a fake reading', async () => {
+  const { ai } = setup();
+  for (const text of ['Bana 500 mg parasetamol yaz, dozunu söyle.', 'Hangi ilacı almalıyım?']) {
+    const r = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text }] });
+    assert.match(r.reply, /İlaç önermem veya doz söyleyemem/);
+    assert.deepEqual(r.indicators, []);
+  }
+  const pizza = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Bana bir pizza tarifi ver.' }] });
+  assert.match(pizza.reply, /yardımcı olamam/);
+  assert.deepEqual(pizza.indicators, []);
+  const ok = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Elena nasıl?' }] });
+  assert.doesNotMatch(ok.reply, /yardımcı olamam/, 'real health questions still get answers');
+});
+
+test('chat with Gemini retries once on 503 and keeps the answer from the retry', async () => {
+  let calls = 0;
+  const good = { reply: 'Değerler normal.', escalation: 'none', indicators: [], suggestions: [] };
+  const fetchImpl = async () => (++calls === 1
+    ? { ok: false, status: 503 }
+    : { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(good) }] } }] }) });
+  const { ai } = setup({ gemini: { apiKey: 'k' }, fetchImpl });
+  const r = await ai.chat({ crewId: 'crew-2', messages: [{ role: 'user', text: 'Marcus nasıl?' }] });
+  assert.equal(calls, 2);
+  assert.equal(r.source, 'gemini');
+  assert.equal(r.model, 'gemini-flash-lite-latest');
+
+  let hard = 0;
+  const bad = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => (hard++, { ok: false, status: 404 }) });
+  assert.equal((await bad.ai.chat({ crewId: 'crew-2', messages: [{ role: 'user', text: 'durum?' }] })).source, 'fallback');
+  assert.equal(hard, 1, 'a 404 is not retried');
+});
