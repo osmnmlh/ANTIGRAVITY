@@ -34,6 +34,18 @@ NASA HRP hazard context → result stored in the packet's `aiGuidance` field →
 "AI recommendation". If there is no key, Gemini errors, times out (10 s) or returns a bad shape, the server builds the
 text from the rule-based guidance (`source: "fallback"`). The AI never changes the green/amber/red status.
 
+## Gemini key (team decision)
+
+One key, only in `backend/.env` on the **demo Mac** (git-ignored, never in a commit, chat or the frontend).
+Check it once after `npm start`:
+
+```bash
+curl -s localhost:8787/api/health                       # "gemini": true
+curl -s -X POST localhost:8787/api/ai/guidance -d '{"crewId":"crew-1"}' | grep -o '"source":"[a-z]*"'   # "source":"gemini"
+```
+
+`"source":"fallback"` means the key is missing or Gemini failed; the terminal shows `[ai] Gemini failed ...` with the reason.
+
 ## Demo tips
 
 - Safest: run the relay on the demo Mac; web and the iPhone **simulator** use `http://localhost:8787`.
