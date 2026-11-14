@@ -38,6 +38,7 @@ alerts** (cabin ones included) and the live simulation stays green. Everything s
 1. **Connection**: cockpit dock says "AI canlı"; the "Bağlı telefonlar" panel is empty.
 2. **Two phones**: open `phone.html?crewId=crew-1` and `?crewId=crew-2` (two tabs, or two real phones). Tap "Bildirimleri başlat" on each. The cockpit panel shows both online.
 3. **Simultaneous notification**: click "Gaz sızıntısı" in the cockpit. Both phones show a compact red popup; each plays the alarm tone and says only "Uyarı. Kabinde gaz salınımı." within the same second; the cockpit panel shows "2/2 telefona ulaştı". A third phone for `crew-3` (lunar base) gets nothing. An **amber** alert is only a soft tone, no speech: `curl -X POST localhost:8787/api/ai/cabin -H 'content-type: application/json' -d '{"readings":[{"metric":"ppCO2","value":4}]}'`.
+3b. **Voice**: press ⚙ in the alert bar: the Turkish voices of this device are listed (female ones marked), pick one, press a character preset or move speed / tone and press "Dene". The best female voice is used by default.
 4. **Acknowledge**: press "Anladım" on one phone. The cockpit panel and the other phone show that ack.
 5. **Recommendation on request**: in the popup press "🤖 AI önerisi": the steps, why and when to call the flight surgeon appear in writing (about 1.5 s after the alert Gemini's "✦ AI yorumu" is added). Press "🔊 Sesli oku" to hear the steps; press again to stop. Nothing of this is spoken automatically.
 6. **Correlation**: click "Düşük tansiyon" while the gas alert is active: the interpretation mentions both.

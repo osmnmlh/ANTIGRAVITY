@@ -4,6 +4,7 @@ import { aiStore, useAiState } from './aiStore'
 import { AI_LABELS as L } from './labels'
 import type { Alert } from './types'
 import { announce, readAloud, stopReading, toggleVoice, useVoiceEnabled } from './voice'
+import { VoiceSettings } from './VoiceSettings'
 import './ai.css'
 
 export interface AlertCenterProps {
@@ -164,6 +165,7 @@ export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId, placement = 'b
   const { connection, alerts, incoming } = useAiState()
   const voice = useVoiceEnabled()
   const [listOpen, setListOpen] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
   const announced = useRef(new Set<string>())
 
   // Signal each new alert once, oldest first so the newest is heard last.
@@ -199,13 +201,25 @@ export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId, placement = 'b
         </button>
         <button
           type="button"
+          className="ai-btn ai-voice-gear"
+          aria-expanded={voiceOpen}
+          aria-label={L.voiceSettings}
+          title={L.voiceSettings}
+          onClick={() => { setVoiceOpen((o) => !o); setListOpen(false) }}
+          data-testid="ai-voice-settings-toggle"
+        >
+          ⚙
+        </button>
+        <button
+          type="button"
           className={`ai-btn ai-count ${redCount ? 'has-red' : alerts.length ? 'has-amber' : ''}`}
           aria-expanded={listOpen}
-          onClick={() => setListOpen((o) => !o)}
+          onClick={() => { setListOpen((o) => !o); setVoiceOpen(false) }}
           data-testid="ai-alert-count"
         >
           🔔 {alerts.length}
         </button>
+        {voiceOpen && <VoiceSettings />}
         {listOpen && (
           <div className="ai-list" data-testid="ai-alert-list">
             <p className="ai-list-title">{L.activeAlerts}</p>
