@@ -1,0 +1,53 @@
+{
+  "id": "alert-0003",
+  "scope": "cabin",
+  "crewIds": [
+    "crew-1",
+    "crew-2"
+  ],
+  "severity": "red",
+  "scenarioId": "cabin-gas-leak",
+  "hazardId": "hostileClosedEnvironments",
+  "title": "Kabinde gaz salınımı: amonyak 14 ppm",
+  "spokenText": "Uyarı. Kabinde gaz salınımı. Amonyak seviyesi milyonda 14. Maskenizi takın.",
+  "metrics": [
+    {
+      "kind": "cabin",
+      "type": "contaminant",
+      "value": 14,
+      "unit": "ppm",
+      "status": "red"
+    }
+  ],
+  "advice": {
+    "why": "Soğutma hattından sızan amonyak gözleri ve akciğerleri tahriş eder; kapalı kabinde dağılacak yeri yoktur.",
+    "doNow": [
+      "Acil durum maskenizi hemen takın.",
+      "Güvenli modüle geçin ve kapağı kapatın.",
+      "Birbirinizi öksürük veya göz ağrısı açısından kontrol edin."
+    ],
+    "escalate": "Nefes darlığı, göğüs ağrısı veya göz ağrısı olan varsa uçuş cerrahına hemen başvurun. Dünya ile iletişim gecikmesi 20 dakikaya kadar çıkabilir; önce siz harekete geçin.",
+    "source": "fallback",
+    "model": null,
+    "generatedAt": "2026-11-14T08:02:10.000Z"
+  },
+  "deliveries": [
+    {
+      "deviceId": "9b1d2c4e-0000-4000-8000-000000000001",
+      "crewId": "crew-1",
+      "deliveredAt": "2026-11-14T08:02:18.000Z",
+      "ackedAt": "2026-11-14T08:02:18.000Z"
+    },
+    {
+      "deviceId": "9b1d2c4e-0000-4000-8000-000000000002",
+      "crewId": "crew-2",
+      "deliveredAt": "2026-11-14T08:02:11.000Z",
+      "ackedAt": null
+    }
+  ],
+  "cockpitAckedAt": null,
+  "state": "active",
+  "createdAt": "2026-11-14T08:02:10.000Z",
+  "updatedAt": "2026-11-14T08:02:18.000Z",
+  "disclaimer": "Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir."
+}
