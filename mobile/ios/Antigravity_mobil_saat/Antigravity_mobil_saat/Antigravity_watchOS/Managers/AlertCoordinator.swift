@@ -100,29 +100,21 @@ final class AlertCoordinator: ObservableObject {
         }
     }
 
-    /// Sends a 5-second mood (1-5) and optional symptom check-in to the paired iPhone as `HealthSample`s.
-    func sendQuickCheckIn(mood: Int, symptoms: [String]) {
+    /// Sends current Watch vitals and optional symptom check-in to the paired iPhone
+    /// so the algorithmic mood engine factors symptoms into mood calculation.
+    func sendSymptomCheckIn(symptoms: [String]) {
         let now = Date()
-        var samples = currentVitalSamples(at: now)
-        samples.append(
-            HealthSample(
-                crewId: Constants.defaultCrewId,
-                type: .mood,
-                value: Double(min(max(mood, 1), 5)),
-                timestamp: now,
-                source: .watch
-            )
-        )
+        let samples = currentVitalSamples(at: now)
 
         if sideEffectsEnabled {
-            ConnectivityManager.shared.sendSamples(samples)
+            ConnectivityManager.shared.sendQuickCheckIn(samples: samples, symptoms: symptoms)
         }
         lastSyncDate = now
         lastVitalsPushDate = now
         if symptoms.isEmpty {
-            lastCheckInMessage = "Ruh hâli (\(mood)/5) iletildi ✓"
+            lastCheckInMessage = "Vitaller iletildi (belirti yok) ✓"
         } else {
-            lastCheckInMessage = "\(mood)/5 • \(symptoms.count) belirti iletildi ✓"
+            lastCheckInMessage = "\(symptoms.count) belirti & vitaller iletildi ✓"
         }
     }
 

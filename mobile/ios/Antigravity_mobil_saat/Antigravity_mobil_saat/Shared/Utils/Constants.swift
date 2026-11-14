@@ -11,7 +11,7 @@ enum Constants {
     // Live backend relay on Render (ADR-0004 & ADR-0006).
     // Swap this single constant to http://<mac-ip>:8787 if using Plan B local relay.
     static let apiBaseURL = "https://antigravity-backend-8lv8.onrender.com"
-    static let defaultCrewId = "crew-2"
+    static let defaultCrewId = "crew-1"
 
     private static let deviceIdStorageKey = "antigravity.deviceId"
 
@@ -33,8 +33,22 @@ enum Constants {
         URL(string: "\(apiBaseURL)/api/samples")
     }
 
+    static func samplesURL(crewId: String) -> URL? {
+        var components = URLComponents(string: "\(apiBaseURL)/api/samples")
+        components?.queryItems = [URLQueryItem(name: "crewId", value: crewId)]
+        return components?.url
+    }
+
     static var aiGuidanceURL: URL? {
         URL(string: "\(apiBaseURL)/api/ai/guidance")
+    }
+
+    static var aiChatURL: URL? {
+        URL(string: "\(apiBaseURL)/api/ai/chat")
+    }
+
+    static var relayStreamURL: URL? {
+        URL(string: "\(apiBaseURL)/api/stream")
     }
 
     static func packetURL(crewId: String = defaultCrewId) -> URL? {
