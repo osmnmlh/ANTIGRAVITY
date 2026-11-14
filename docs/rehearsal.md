@@ -33,7 +33,7 @@ Bu üç komut `main` üzerinde temiz kurulum (`npm ci`) ile çalıştırılmış
 | **Web Derleme** | `cd web && npm ci && npm run build` | ✅ Geçti | `tsc -b && vite build` (27 modül, `450 ms` üretim derlemesi) |
 | **Backend + AI Testleri** | `cd backend && npm test` | ✅ Geçti | `16 / 16` test geçti (`node --experimental-strip-types --test ai/ai.test.mjs`) |
 | **Ortak Trend Motoru** | `node shared/tests/check-trends.mjs` | ✅ Geçti | `7 / 7` sentetik vaka + 3 mürettebat (`crew-1`, `crew-2`, `crew-3` her biri 81 örnek, başlangıç `green`) geçti |
-| **Render Canlı Erişim Notu** | `curl.exe -sS https://antigravity-backend-8lv8.onrender.com/api/health` | ⚠️ Yerel ağ sertifikası | Test edilen Windows ortamında yerel TLS kök sertifika zinciri hatası (`SEC_E_UNTRUSTED_ROOT` / `SELF_SIGNED_CERT_IN_CHAIN`) alındı; açık tarayıcı/farklı ağdan doğrulama gerekir |
+| **Render Canlı Prova** | `https://antigravity-backend-8lv8.onrender.com` (`/api/health`, `/api/demo/reset`, `/api/packets`, `/api/ai/demo/cabin-gas-leak`, `/api/simulation/incident/start` `apollo-13`, `/api/simulation/stop`, `/api/ai/chat`) | ✅ Geçti | Uyanma `21.5 sn` (`gemini: true`, `model: "gemini-flash-lite-latest"`), 3 mürettebat `green`, `apollo-13` `highestSeverity: "red"`, AI sohbet `source: "gemini"` ve son `POST /api/demo/reset` doğrulandı |
 
 ---
 
