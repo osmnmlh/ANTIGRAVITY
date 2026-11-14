@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceName": "NASA Human Research Program (HRP) — 5 Hazards of Human Spaceflight",
+  "sourceUrl": "https://www.nasa.gov/hrp/hazards/",
+  "sourceLastUpdated": "2026-06-12",
+  "hazards": [
+    {
+      "id": "spaceRadiation",
+      "order": 1,
+      "title": "Space Radiation",
+      "url": "https://www.nasa.gov/hrp/hazard-space-radiation/",
+      "videoUrl": "https://www.youtube.com/watch?v=3jRxgvwhGC0",
+      "summary": "Invisible ionizing radiation outside Earth's protective magnetic field and atmosphere, including high-energy galactic cosmic rays and solar storms (solar particle events and coronal mass ejections).",
+      "healthEffects": [
+        "Increased long-term cancer risk",
+        "Central nervous system damage",
+        "Altered cognitive function and reduced motor function",
+        "Immune system changes"
+      ],
+      "mitigations": [
+        "Continuous cumulative radiation dosimetry",
+        "Solar particle event alerts and shielded storm shelter protocols",
+        "Spacecraft shielding optimization"
+      ],
+      "referenceMetrics": {
+        "issDailyDoseMsv": "0.3-0.8",
+        "marsTransitDailyDoseMsv": "1.8",
+        "nasaCareerLimitMsv": 600
+      },
+      "relatedIndicators": ["radiationDose"],
+      "relatedWatchMetrics": []
+    },
+    {
+      "id": "isolationConfinement",
+      "order": 2,
+      "title": "Isolation and Confinement",
+      "url": "https://www.nasa.gov/hrp/hazard-isolation-and-confinement/",
+      "videoUrl": "https://www.youtube.com/watch?v=FPinASEKA_I",
+      "summary": "Behavioral and psychological strain among crew members isolated and confined in small habitats far from Earth for months or years.",
+      "healthEffects": [
+        "Sleep loss and circadian rhythm desynchronization",
+        "Mood changes, stress, and behavioral health challenges",
+        "Work overload and decreased cognitive performance"
+      ],
+      "mitigations": [
+        "Daily behavioral health and mood monitoring",
+        "Light therapy for circadian alignment and alertness",
+        "Workload balancing and crew support tools"
+      ],
+      "referenceMetrics": {
+        "targetSleepHours": ">=7.0",
+        "targetMoodScale": "4-5 (out of 5)"
+      },
+      "relatedIndicators": ["sleepHours", "mood"],
+      "relatedWatchMetrics": []
+    },
+    {
+      "id": "distanceFromEarth",
+      "order": 3,
+      "title": "Distance from Earth",
+      "url": "https://www.nasa.gov/hrp/hazard-distance-from-earth/",
+      "videoUrl": "https://www.youtube.com/watch?v=0_pbs8dG1oM",
+      "summary": "Extreme distance from Earth limits real-time medical support, instructions, and resupply, requiring crew self-sufficiency and autonomous health assessment.",
+      "healthEffects": [
+        "Delayed ground medical guidance (up to 20 minutes one-way on Mars missions)",
+        "No rapid emergency evacuation or immediate resupply",
+        "Higher reliance on crew self-triage for medical events"
+      ],
+      "mitigations": [
+        "On-board autonomous triage dashboards with plain-language guidance",
+        "Clear escalation thresholds for contacting crew medical officer and flight surgeon",
+        "Rationing and preventive health monitoring"
+      ],
+      "referenceMetrics": {
+        "marsAverageDistanceMiles": 140000000,
+        "marsMissionDurationYears": 3,
+        "lunarTripDays": 3,
+        "maxOneWayCommsDelayMinutes": 20
+      },
+      "relatedIndicators": [
+        "heartRate",
+        "bloodPressureSys",
+        "bloodPressureDia",
+        "spo2",
+        "bodyTemp",
+        "bloodGlucose",
+        "sleepHours",
+        "mood",
+        "radiationDose"
+      ],
+      "relatedWatchMetrics": []
+    },
+    {
+      "id": "gravityFields",
+      "order": 4,
+      "title": "Gravity Fields",
+      "url": "https://www.nasa.gov/hrp/hazard-gravity-fields/",
+      "videoUrl": "https://www.youtube.com/watch?v=f3-96ZbY5NA",
+      "summary": "Transitioning across weightlessness in transit, partial gravity on the Moon or Mars, and Earth gravity upon return affects bones, muscles, fluids, cardiovascular tone, and balance.",
+      "healthEffects": [
+        "Weight-bearing bone mineral density loss (~1% to 1.5% per month in microgravity)",
+        "Upward fluid shift to the head, eye pressure, and vision changes",
+        "Cardiovascular deconditioning, lightheadedness, and fainting during gravity transitions",
+        "Space motion sickness, balance, and spatial orientation shifts",
+        "Increased kidney stone risk from dehydration and bone calcium excretion"
+      ],
+      "mitigations": [
+        "Daily aerobic and resistive exercise countermeasures",
+        "Fluid hydration monitoring and cardiovascular tracking",
+        "Post-landing readiness and balance re-adaptation protocols"
+      ],
+      "referenceMetrics": {
+        "boneLossPerMonthPercent": "1.0-1.5",
+        "marsGravityFractionEarth": "0.38",
+        "lunarGravityFractionEarth": "0.165"
+      },
+      "relatedIndicators": ["heartRate", "bloodPressureSys", "bloodPressureDia"],
+      "relatedWatchMetrics": [
+        "activitySummary.exerciseMinutes",
+        "activitySummary.stepCount",
+        "environmentalData.gForce"
+      ]
+    },
+    {
+      "id": "hostileClosedEnvironments",
+      "order": 5,
+      "title": "Hostile/Closed Environments",
+      "url": "https://www.nasa.gov/hrp/hazard-hostile-closed-environments/",
+      "videoUrl": "https://www.youtube.com/watch?v=LgGt03MjHfA",
+      "summary": "Maintaining a safe spacecraft habitat ecosystem requires strict control of temperature, atmospheric pressure, air quality, lighting, noise, and microbial communities.",
+      "healthEffects": [
+        "Elevated stress hormones and altered immune system response",
+        "Increased susceptibility to allergies, infections, and person-to-person microbe transfer",
+        "Respiratory or thermal strain from cabin air-quality, CO2, pressure, or temperature shifts"
+      ],
+      "mitigations": [
+        "Continuous monitoring of cabin pressure, temperature, and blood oxygen (SpO2)",
+        "Microbial swab tracking and habitat air filtration",
+        "Early symptom and body temperature checks"
+      ],
+      "referenceMetrics": {
+        "habitabilityFactors": [
+          "temperature",
+          "pressure",
+          "lighting",
+          "noise",
+          "microbes",
+          "airQuality"
+        ]
+      },
+      "relatedIndicators": ["spo2", "bodyTemp", "bloodGlucose"],
+      "relatedWatchMetrics": [
+        "environmentalData.atmosphericPressure",
+        "environmentalData.altitudeMeters"
+      ]
+    }
+  ]
+}
