@@ -15,7 +15,11 @@ import {
   getGuidance,
   getOverallStatus,
   getStatus,
+  getTrendStatus,
 } from '../web/src/domain/thresholds.ts';
+import { guidanceByType } from '../web/src/domain/guidance.ts';
+import { metricDefinitions } from '../web/src/domain/types.ts';
+import { createAi } from './ai/index.mjs';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 try { process.loadEnvFile(here('./.env')); } catch { /* .env is optional */ }
@@ -75,6 +79,26 @@ function addSamples(input) {
   const packets = [...touched].map((id) => withStatus(findPacket(id)));
   for (const p of packets) broadcast('packet', p);
   return packets;
+}
+
+// ---- AI module (backend/ai/, ADR-0007): proactive alerts, cabin, phone fan-out, chat ----
+const ai = createAi({
+  getPackets: () => bundle.astronauts,
+  getVitalStatus: (type, value, packet) => getStatus(type, value, packet.mission?.radiationBudgetMsv),
+  getVitalGuidance: (type) => guidanceByType[type],
+  getTrendStatus: (crewId, type) => getTrendStatus(samples.filter((s) => s.crewId === crewId), type),
+  vitalLabel: (type) => metricDefinitions[type]?.label ?? type,
+  hazards,
+  applySamples: (list) => addSamples(list), // vital demo scenarios write real samples, so web SSE sees them too
+  gemini: { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL },
+});
+
+// Rehearsal reset: reload shared/mock/*.json into RAM (same as a restart), then reset the AI module.
+function resetRelay() {
+  const fresh = readJson('../shared/mock/astronaut-packets.json');
+  Object.assign(bundle, fresh);
+  samples.splice(0, samples.length, ...readJson('../shared/mock/samples.json'));
+  broadcast('hello', { astronauts: bundle.astronauts.map(withStatus) });
 }
 
 // ---- AI guidance: Gemini when a key is set, deterministic fallback otherwise ----
@@ -192,9 +216,18 @@ const server = http.createServer(async (req, res) => {
 
   const url = new URL(req.url, 'http://localhost');
   const route = `${req.method} ${url.pathname}`;
+  const started = Date.now();
+  res.on('finish', () => console.log(`[http] ${route} ${res.statusCode} ${Date.now() - started}ms`));
   try {
+    if (route === 'POST /api/demo/reset') {
+      resetRelay();
+      return ai.handle(req, res, new URL('/api/ai/demo/reset', 'http://localhost'));
+    }
+    if (await ai.handle(req, res, url)) return; // /api/ai/* except /api/ai/guidance (handled below)
     if (route === 'GET /api/health') {
-      return send(res, 200, { ok: true, gemini: Boolean(GEMINI_API_KEY), clients: clients.size });
+      return send(res, 200, {
+        ok: true, gemini: Boolean(GEMINI_API_KEY), model: GEMINI_API_KEY ? GEMINI_MODEL : null, clients: clients.size, ai: true,
+      });
     }
     if (route === 'GET /api/packets') {
       return send(res, 200, { ...bundle, astronauts: bundle.astronauts.map(withStatus) });
@@ -208,7 +241,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, crewId ? samples.filter((s) => s.crewId === crewId) : samples);
     }
     if (route === 'POST /api/samples') {
-      return send(res, 201, { packets: addSamples(await readBody(req)) });
+      const packets = addSamples(await readBody(req));
+      ai.onSamples();
+      return send(res, 201, { packets });
     }
     if (route === 'POST /api/ai/guidance') {
       const { crewId } = await readBody(req);

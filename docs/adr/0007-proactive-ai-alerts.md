@@ -1,6 +1,6 @@
 # 0007. Proactive AI alerts, cabin monitoring and phone fan-out
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-14
 - Affects: AI (GoktugFerdi), backend (osmnmlh), web (Ahmetzkn, Omerozcan71), iOS
 
@@ -33,4 +33,5 @@ All AI code lives in new folders (`backend/ai/`, `web/src/ai/`); owners add the 
 Cabin thresholds are demo values defined in `shared/contracts/ai.md`; the backend computes cabin status, clients only render it.
 
 ## Decision
-_To be filled by the team._
+Accepted (2026-11-14, osmnmlh): option 1 + a + ii as recommended. Detection runs in `backend/ai/`, wired into `backend/server.mjs`;
+phones get alerts over SSE (`/api/ai/stream`) with a local notification; deterministic text first, Gemini advice later. No APNs.

@@ -16,7 +16,7 @@ inside the boundary, each owner (and their agent) decides how to build.
 | [0004](0004-mobile-data-flow.md) | iPhone / Watch data flow | Proposed | iOS, watchOS, backend |
 | [0005](0005-ui-language.md) | UI language (Turkish vs English) | Accepted (Turkish) | all clients |
 | [0006](0006-demo-hosting.md) | Demo hosting and submission link | Proposed | web, backend, docs |
-| [0007](0007-proactive-ai-alerts.md) | Proactive AI alerts, cabin monitoring, phone fan-out | Proposed | AI, backend, web, iOS |
+| [0007](0007-proactive-ai-alerts.md) | Proactive AI alerts, cabin monitoring, phone fan-out | Accepted | AI, backend, web, iOS |
 
 ## Template
 

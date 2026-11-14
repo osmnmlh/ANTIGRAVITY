@@ -8,19 +8,24 @@ Status colors are computed with `web/src/domain/thresholds.ts` (same engine as t
 cd backend
 cp .env.example .env      # optional: add GEMINI_API_KEY
 npm start                 # = node --experimental-strip-types server.mjs  (Node 22.6+)
+npm test                  # AI module tests
 ```
 
 ## Endpoints
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| GET | `/api/health` | `{ ok, gemini, clients }` |
+| GET | `/api/health` | `{ ok, gemini, model, clients, ai }` |
 | GET | `/api/packets` | Packet bundle; each astronaut gets a computed `overallStatus` |
 | GET | `/api/packets/:crewId` | One packet (the iPhone reads `aiGuidance` from here) |
 | GET | `/api/samples?crewId=crew-1` | `HealthSample[]` history |
 | POST | `/api/samples` | `HealthSample` or `HealthSample[]` → stored, packet `measurements` updated, pushed over SSE |
 | POST | `/api/ai/guidance` | `{ "crewId": "crew-1" }` → Gemini (or fallback) → saved as `packet.aiGuidance`, pushed over SSE |
 | GET | `/api/stream` | SSE: `hello` (all packets) then `packet` on every change |
+| POST | `/api/demo/reset` | Rehearsal reset: reload `shared/mock/*.json` (like a restart) and reset AI alerts/cabin; SSE sends `hello` |
+| * | `/api/ai/*` | AI module (`backend/ai/`, ADR-0007): alerts, cabin, devices, `/api/ai/chat`, `/api/ai/stream`, `/api/ai/demo/:id`. See [`ai/README.md`](ai/README.md) |
+
+Every request is logged as `[http] METHOD /path status ms`; alerts as `[ai] ALERT ...`.
 
 ## AI guidance flow
 
