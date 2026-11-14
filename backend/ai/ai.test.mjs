@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { INDICATOR_META, getGuidance, getStatus, getTrendStatus } from '../../web/src/domain/thresholds.ts';
+import { INDICATOR_META, getStatus, getTrendStatus } from '../../web/src/domain/thresholds.ts';
+import { guidanceByType } from '../../web/src/domain/guidance.ts';
+import { metricDefinitions } from '../../web/src/domain/types.ts';
 import { createAi } from './index.mjs';
 import { cabinStatus } from './cabin.mjs';
 
@@ -26,9 +28,9 @@ function setup(extra = {}) {
   const ai = createAi({
     getPackets: () => packets,
     getVitalStatus: (type, value, p) => getStatus(type, value, p.mission?.radiationBudgetMsv),
-    getVitalGuidance: getGuidance,
+    getVitalGuidance: (type) => guidanceByType[type],
     getTrendStatus: (crewId, type) => getTrendStatus(SAMPLES.filter((x) => x.crewId === crewId), type),
-    vitalLabel: (t) => INDICATOR_META[t].label,
+    vitalLabel: (t) => metricDefinitions[t]?.label ?? t,
     hazards: HAZARDS,
     applySamples,
     now: () => new Date(clock.t),
@@ -83,7 +85,7 @@ test('gas leak: one red cabin alert for everyone in the cabin, routed only to th
   assert.equal(alert.severity, 'red');
   assert.equal(alert.scope, 'cabin');
   assert.deepEqual(alert.deliveries.map((d) => d.deviceId).sort(), ['phone-a', 'phone-b']);
-  assert.ok(alert.advice.doNow.length > 0 && alert.advice.escalate.includes('flight surgeon'));
+  assert.ok(alert.advice.doNow.length > 0 && alert.advice.escalate.includes('uçuş cerrahı'));
 
   const again = await call(ai, 'POST', '/api/ai/demo/cabin-gas-leak');
   assert.equal(again.json.created.length, 0, 'same problem does not re-announce');
@@ -222,20 +224,22 @@ test('chat fallback answers a Turkish status question from the computed statuses
   assert.match(r.reply, /kandaki oksijen %89 \(KRİTİK\)/);
   assert.match(r.reply, /Uçuş cerrahına hemen başvurun/);
   assert.equal(r.escalation, 'flightSurgeon');
-  assert.ok(r.disclaimer.includes('not a medical device'));
+  assert.ok(r.disclaimer.includes('tıbbi cihaz değildir'));
+  assert.match(r.reply, /Şimdi: /, 'includes a concrete action');
 });
 
-test('chat fallback: topic question in English, healthy astronaut, cabin scope', async () => {
+test('chat fallback: topic question, cabin scope, briefing', async () => {
   const { ai } = setup();
-  const hr = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'How is her heart rate?' }] });
+  const hr = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Nabzı nasıl?' }] });
   assert.deepEqual(hr.indicators, ['heartRate']);
-  assert.match(hr.reply, /Heart Rate 112 bpm \(needs attention\)/);
+  assert.match(hr.reply, /nabız 112 bpm \(dikkat\)/);
 
   await call(ai, 'POST', '/api/ai/demo/cabin-gas-leak');
   const cabin = await call(ai, 'POST', '/api/ai/chat', { scope: 'cabin', messages: [{ role: 'user', text: 'Kabinde gaz var mı?' }] });
   assert.equal(cabin.status, 200);
   assert.deepEqual(cabin.json.indicators, ['contaminant']);
-  assert.match(cabin.json.reply, /gaz kirliliği 14 ppm \(KRİTİK\)/);
+  assert.match(cabin.json.reply, /gaz \(amonyak\) 14 ppm \(KRİTİK\)/);
+  assert.match(cabin.json.reply, /maskenizi/, 'uses the gas-leak alert advice');
 
   const brief = await ai.chat({ scope: 'cabin', messages: [] });
   assert.ok(brief.reply.length > 0, 'empty messages = briefing');
@@ -260,7 +264,7 @@ test('chat with Gemini: statuses are facts, escalation cannot be lowered, failur
   assert.equal(r.escalation, 'flightSurgeon', 'red SpO2 → never "none"');
   assert.deepEqual(r.indicators, ['spo2']);
   const system = sent.systemInstruction.parts[0].text;
-  assert.match(system, /spo2: 89 % -> red/);
+  assert.ok(system.includes('spo2 (kandaki oksijen): 89 % -> red'));
   assert.match(system, /FINAL/);
 
   const broken = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => ({ ok: false, status: 503 }) });

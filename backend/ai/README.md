@@ -9,7 +9,7 @@ API shapes: [`shared/contracts/ai.md`](../../shared/contracts/ai.md). Plan: [`do
 | `index.mjs` | `createAi(deps)` → `{ handle, onSamples, cabin, alerts, devices }`, routes, demo triggers |
 | `cabin.mjs` | Cabin state + demo cabin thresholds (status computed here, clients only render it) |
 | `rules.mjs` | Scenario rules: when an alert fires, how severe, deterministic fallback advice |
-| `chat.mjs` | `POST /api/ai/chat` (#12): facts from the rules engine → Gemini, or a deterministic EN/TR answer |
+| `chat.mjs` | `POST /api/ai/chat` (#12): facts from the rules engine → Gemini, or a deterministic Turkish answer |
 | `alerts.mjs` | Alert store (transitions, 5 min cooldown, deliveries/acks), device registry, filtered SSE hub |
 | `dev-server.mjs` | Runs the module alone on `:8788` with `shared/mock`, also the reference adapter |
 | `ai.test.mjs` | `node:test` suite |
@@ -36,13 +36,16 @@ Three additions, nothing else changes. If the relay's internals differ, only the
 
 ```js
 import { createAi } from './ai/index.mjs';
+import { guidanceByType } from '../web/src/domain/guidance.ts';   // Turkish guidance texts
+import { metricDefinitions } from '../web/src/domain/types.ts';  // Turkish labels
+// getStatus, getTrendStatus come from thresholds.ts, already imported by server.mjs
 
 const ai = createAi({
   getPackets: () => bundle.astronauts,
   getVitalStatus: (type, value, packet) => getStatus(type, value, packet.mission?.radiationBudgetMsv),
-  getVitalGuidance: getGuidance,
+  getVitalGuidance: (type) => guidanceByType[type],
   getTrendStatus: (crewId, type) => getTrendStatus(samples.filter((s) => s.crewId === crewId), type),
-  vitalLabel: (type) => INDICATOR_META[type]?.label ?? type,
+  vitalLabel: (type) => metricDefinitions[type]?.label ?? type,
   hazards,
   applySamples: (list) => addSamples(list),   // lets vital demo scenarios write samples
   gemini: { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL },
@@ -64,9 +67,9 @@ ai.onSamples();
 | --- | --- | --- |
 | `getPackets()` | yes | live astronaut packets (`shared/mock/astronaut-packets.json` shape) |
 | `getVitalStatus(type, value, packet)` | yes | the platform's threshold engine; the module never has its own vital thresholds |
-| `getVitalGuidance(type, status)` | no | `{ whyInSpace, doNow[], escalateWhen }` for the generic "vital red" advice |
+| `getVitalGuidance(type, status)` | no | Turkish `{ why, doNow[], escalate }` (`guidanceByType`) for the generic "vital red" advice |
 | `getTrendStatus(crewId, type)` | no | shared multi-day trend rule; used by `fatigue-isolation` (2 days at mood ≤ 3) |
-| `vitalLabel(type)` | no | human label for spoken text |
+| `vitalLabel(type)` | no | Turkish label (`metricDefinitions[type].label`) for titles and speech |
 | `hazards` | no | NASA HRP hazards, maps an indicator to a `hazardId` |
 | `applySamples(samples)` | no | needed only by vital demo scenarios (`orthostatic`, …) |
 | `gemini` | no | `{ apiKey, model }` for chat; key stays on the server. Without it chat answers deterministically |
@@ -81,4 +84,5 @@ ai.onSamples();
 - `cabin-hypoxia` (cabin O2 low + ≥ 2 crew SpO2 < 94) replaces the separate cabin-O2 and per-person SpO2 alerts.
 - Chat: the model gets the computed statuses as final facts; its `escalation` can never be lower than the deterministic one.
   Key in `backend/.env` (`GEMINI_API_KEY`), read by `dev-server.mjs` too. No key, timeout or bad JSON → `source: "fallback"`, HTTP 200.
+- All user-facing text is Turkish (team decision). Spoken text spells units out ("milyonda 14", "yüzde 89") for a `tr-TR` voice.
 - Every alert carries deterministic advice (`source: "fallback"`); Gemini rewording comes in phase 3.

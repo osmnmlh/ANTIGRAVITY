@@ -7,7 +7,9 @@
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { INDICATOR_META, getGuidance, getStatus, getTrendStatus } from '../../web/src/domain/thresholds.ts';
+import { INDICATOR_META, getStatus, getTrendStatus } from '../../web/src/domain/thresholds.ts';
+import { guidanceByType } from '../../web/src/domain/guidance.ts';
+import { metricDefinitions } from '../../web/src/domain/types.ts';
 import { createAi } from './index.mjs';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
@@ -43,9 +45,9 @@ function applySamples(list) {
 const ai = createAi({
   getPackets: () => bundle.astronauts,
   getVitalStatus: (type, value, packet) => getStatus(type, value, packet.mission?.radiationBudgetMsv),
-  getVitalGuidance: getGuidance,
+  getVitalGuidance: (type) => guidanceByType[type],
   getTrendStatus: (crewId, type) => getTrendStatus(samples.filter((s) => s.crewId === crewId), type),
-  vitalLabel: (type) => INDICATOR_META[type]?.label ?? type,
+  vitalLabel: (type) => metricDefinitions[type]?.label ?? type,
   hazards,
   applySamples,
   gemini: { apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL },

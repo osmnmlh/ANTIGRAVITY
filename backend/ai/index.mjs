@@ -10,13 +10,14 @@ import { evaluate } from './rules.mjs';
 import { createAlertStore, createDevices, createHub } from './alerts.mjs';
 import { createChat } from './chat.mjs';
 
-const DISCLAIMER = 'AI-generated suggestion. Demo software, not a medical device.';
+const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir.';
 
 /**
  * @param {object} deps
  * @param {() => object[]} deps.getPackets  Live astronaut packets (shared/mock/astronaut-packets.json shape).
  * @param {(type: string, value: number, packet: object) => 'green'|'amber'|'red'|'missing'} deps.getVitalStatus
- * @param {(type: string, status: string) => { whyInSpace: string, doNow: string[], escalateWhen: string }} [deps.getVitalGuidance]
+ * @param {(type: string, status: string) => { why: string, doNow: string[], escalate: string }} [deps.getVitalGuidance]
+ *        Turkish guidance (web/src/domain/guidance.ts shape; thresholds.ts getGuidance shape also accepted).
  * @param {(crewId: string, type: string) => string} [deps.getTrendStatus]  Shared multi-day trend rule (getTrendStatus over that crew's samples).
  * @param {(type: string) => string} [deps.vitalLabel]
  * @param {object[]} [deps.hazards]  shared/mock/nasa-hazards.json `hazards`.
@@ -57,9 +58,9 @@ export function createAi(deps) {
   const vitalGuidance = (type, status) => {
     const g = getVitalGuidance(type, status);
     return {
-      why: g?.whyInSpace ?? 'This reading is outside the safe range for spaceflight.',
-      doNow: g?.doNow?.slice(0, 3) ?? ['Stop exertion and rest.', 'Re-measure in 5 minutes.'],
-      escalate: g?.escalateWhen ?? 'Contact the flight surgeon now if it stays in the red range.',
+      why: g?.why ?? g?.whyInSpace ?? 'Bu değer uzay uçuşu için güvenli aralığın dışında.',
+      doNow: g?.doNow?.slice(0, 3) ?? ['Eforu bırakın ve dinlenin.', '5 dakika sonra tekrar ölçün.'],
+      escalate: g?.escalate ?? g?.escalateWhen ?? 'Kırmızı aralıkta kalırsa uçuş cerrahına hemen başvurun.',
     };
   };
 

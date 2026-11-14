@@ -1,12 +1,36 @@
 // Scenario rules: deterministic, they decide WHEN an alert fires and HOW severe it is.
 // The AI (later phases) only rewrites the advice text. Scenario list: docs/ai/ROADMAP.md.
+// User-facing text is Turkish (team decision); spoken text spells units out for a tr-TR voice.
 //
 // evaluate(ctx) → Firing[]:
 //   { key, scenarioId, scope, hazardId, crewIds, severity, metrics, title, spokenText, advice: { why, doNow, escalate } }
 
-const COMMS = (ctx) => `Earth comms delay can be up to ${ctx.commsDelayMinutes} minutes, so act first.`;
+const COMMS = (ctx) => `Dünya ile iletişim gecikmesi ${ctx.commsDelayMinutes} dakikaya kadar çıkabilir; önce siz harekete geçin.`;
 const worst = (...s) => (s.includes('red') ? 'red' : 'amber');
 const num = (v) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 10) / 10));
+const lead = (status) => (status === 'red' ? 'Uyarı.' : 'Dikkat.');
+const lower = (s) => s.toLocaleLowerCase('tr-TR');
+const cap = (s) => s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1);
+
+/** Name without rank prefix, for speech ("Cmdr. Marcus Chen" → "Marcus Chen"). */
+const spokenName = (name) => name.replace(/^(Dr|Cmdr|Cdr|Capt|Lt)\.\s*/i, '');
+
+const SPOKEN_UNIT = {
+  bpm: 'atım', mmHg: 'milimetre cıva', '°C': 'derece', 'mg/dL': 'miligram', h: 'saat',
+  mSv: 'milisievert', kPa: 'kilopaskal', ppm: 'ppm',
+};
+/** 38.6 °C → "38,6 derece", 89 % → "yüzde 89", 3 (1-5) → "beşte 3". */
+export function say(value, unit) {
+  const n = num(value).replace('.', ',');
+  if (unit === '%') return `yüzde ${n}`;
+  if (unit === '1-5') return `beşte ${n}`;
+  if (unit === 'ppm') return `milyonda ${n}`;
+  if (unit === 'mSv/day') return `günde ${n} milisievert`;
+  return `${n} ${SPOKEN_UNIT[unit] ?? unit}`.trim();
+}
+
+const GAS = { ammonia: 'amonyak' };
+const POWER = { nominal: 'normal', degraded: 'düşük', fault: 'arızalı' };
 
 const cabinMetric = (r) => ({ kind: 'cabin', type: r.metric, value: r.value, unit: r.unit, status: r.status });
 const vitalMetric = (c, type) => {
@@ -23,7 +47,7 @@ function cabinRule({ scenarioId, metric, hazardId, title, spoken, why, doNow, es
     return [{
       scenarioId, scope: 'cabin', hazardId, crewIds: ctx.cabinCrewIds, severity: r.status,
       metrics: [cabinMetric(r)],
-      title: title(r), spokenText: spoken(r),
+      title: title(r), spokenText: `${lead(r.status)} ${spoken(r)}`,
       advice: { why, doNow, escalate: `${escalate} ${COMMS(ctx)}` },
     }];
   };
@@ -37,12 +61,12 @@ function cabinHypoxia(ctx) {
     scenarioId: 'cabin-hypoxia', scope: 'cabin', hazardId: 'hostileClosedEnvironments',
     crewIds: ctx.cabinCrewIds, severity: 'red',
     metrics: [cabinMetric(o2), ...low.map((c) => vitalMetric(c, 'spo2'))],
-    title: `Cabin oxygen low: ${low.length} crew members show low blood oxygen`,
-    spokenText: `Warning. Cabin oxygen is low at ${num(o2.value)} kilopascals and ${low.length} crew members have low blood oxygen. The cabin is the likely cause.`,
+    title: `Kabin oksijeni düşük: ${low.length} astronotta kan oksijeni düştü`,
+    spokenText: `Uyarı. Kabin oksijeni düşük, ${say(o2.value, 'kPa')}. ${low.length} astronotta kan oksijeni düştü. Muhtemel neden kabin havası.`,
     advice: {
-      why: 'Several people dropping at the same time points to the cabin air, not to one person. Low oxygen slows thinking before you feel short of breath.',
-      doNow: ['Stop all exertion and put on oxygen masks.', 'Check the oxygen generation system and cabin pressure.', 'Re-measure everyone\'s SpO2 in 5 minutes.'],
-      escalate: `Contact the flight surgeon now. ${COMMS(ctx)}`,
+      why: 'Birden fazla kişide aynı anda düşüş olması, sorunun kişide değil kabin havasında olduğunu gösterir. Düşük oksijen, nefes darlığı hissedilmeden önce düşünmeyi yavaşlatır.',
+      doNow: ['Tüm eforu bırakın ve oksijen maskelerini takın.', 'Oksijen üretim sistemini ve kabin basıncını kontrol edin.', 'Herkesin SpO2 değerini 5 dakika sonra tekrar ölçün.'],
+      escalate: `Uçuş cerrahına hemen haber verin. ${COMMS(ctx)}`,
     },
   }];
 }
@@ -52,51 +76,51 @@ const CABIN_RULES = [
   cabinRule({
     scenarioId: 'cabin-o2-low', metric: 'ppO2', hazardId: 'hostileClosedEnvironments',
     when: (_ctx, fired) => !fired.has('cabin-hypoxia'),
-    title: (r) => `Cabin oxygen ${r.value < 19.5 ? 'low' : 'high'}: ${num(r.value)} kPa`,
-    spoken: (r) => `Warning. Cabin oxygen pressure is ${r.value < 19.5 ? 'low' : 'high'}, ${num(r.value)} kilopascals.`,
-    why: 'Oxygen outside the safe band affects thinking and breathing (low) or raises fire risk (high).',
-    doNow: ['Stop exertion and stay calm.', 'Check the oxygen generation system and look for leaks.', 'Watch the crew for headache, dizziness or confusion.'],
-    escalate: 'Alert the crew medical officer; contact the flight surgeon if anyone has symptoms or the value keeps moving.',
+    title: (r) => `Kabin oksijeni ${r.value < 19.5 ? 'düşük' : 'yüksek'}: ${num(r.value)} kPa`,
+    spoken: (r) => `Kabin oksijen basıncı ${r.value < 19.5 ? 'düşük' : 'yüksek'}, ${say(r.value, 'kPa')}.`,
+    why: 'Güvenli aralığın dışındaki oksijen, düşükse düşünmeyi ve nefes almayı, yüksekse yangın riskini etkiler.',
+    doNow: ['Eforu bırakın ve sakin kalın.', 'Oksijen üretim sistemini kontrol edin, sızıntı arayın.', 'Mürettebatta baş ağrısı, baş dönmesi veya bilinç bulanıklığı olup olmadığını izleyin.'],
+    escalate: 'Mürettebat sağlık sorumlusunu bilgilendirin; belirti varsa veya değer değişmeye devam ederse uçuş cerrahına başvurun.',
   }),
   cabinRule({
     scenarioId: 'cabin-gas-leak', metric: 'contaminant', hazardId: 'hostileClosedEnvironments',
-    title: (r) => `Gas release in the cabin: ${r.label} ${num(r.value)} ppm`,
-    spoken: (r) => `Warning. Gas release in the crew cabin. ${r.label} is at ${num(r.value)} parts per million.${r.status === 'red' ? ' Put on your mask.' : ''}`,
-    why: 'Ammonia from the cooling loop irritates eyes and lungs, and in a closed cabin there is nowhere for it to go.',
-    doNow: ['Put on your emergency mask now.', 'Move to the designated safe module and close the hatch.', 'Check each other for coughing or eye pain.'],
-    escalate: 'Contact the flight surgeon now if anyone has trouble breathing, chest pain or eye pain.',
+    title: (r) => `Kabinde gaz salınımı: ${GAS[r.label] ?? r.label} ${num(r.value)} ppm`,
+    spoken: (r) => `Kabinde gaz salınımı. ${cap(GAS[r.label] ?? r.label)} seviyesi ${say(r.value, 'ppm')}.${r.status === 'red' ? ' Maskenizi takın.' : ''}`,
+    why: 'Soğutma hattından sızan amonyak gözleri ve akciğerleri tahriş eder; kapalı kabinde dağılacak yeri yoktur.',
+    doNow: ['Acil durum maskenizi hemen takın.', 'Güvenli modüle geçin ve kapağı kapatın.', 'Birbirinizi öksürük veya göz ağrısı açısından kontrol edin.'],
+    escalate: 'Nefes darlığı, göğüs ağrısı veya göz ağrısı olan varsa uçuş cerrahına hemen başvurun.',
   }),
   cabinRule({
     scenarioId: 'cabin-co2-high', metric: 'ppCO2', hazardId: 'hostileClosedEnvironments',
-    title: (r) => `Cabin CO2 high: ${num(r.value)} mmHg`,
-    spoken: (r) => `Caution. Carbon dioxide in the cabin is high, ${num(r.value)} millimeters of mercury.`,
-    why: 'CO2 builds up fast in a closed cabin and causes headaches, poor focus and faster breathing.',
-    doNow: ['Check the CO2 scrubber and fans.', 'Reduce exertion until levels fall.', 'Watch for headaches and slow thinking.'],
-    escalate: 'Contact the flight surgeon if anyone has a severe headache, confusion or breathing trouble.',
+    title: (r) => `Kabin CO2 yüksek: ${num(r.value)} mmHg`,
+    spoken: (r) => `Kabindeki karbondioksit yüksek, ${say(r.value, 'mmHg')}.`,
+    why: 'Kapalı kabinde CO2 hızla birikir; baş ağrısı, dikkat dağınıklığı ve hızlı nefes almaya yol açar.',
+    doNow: ['CO2 temizleyicisini ve fanları kontrol edin.', 'Değer düşene kadar eforu azaltın.', 'Baş ağrısı ve yavaş düşünmeye dikkat edin.'],
+    escalate: 'Şiddetli baş ağrısı, bilinç bulanıklığı veya nefes sorunu olan varsa uçuş cerrahına başvurun.',
   }),
   cabinRule({
     scenarioId: 'cabin-pressure-drop', metric: 'pressure', hazardId: 'hostileClosedEnvironments',
-    title: (r) => `Cabin pressure out of range: ${num(r.value)} kPa`,
-    spoken: (r) => `Warning. Cabin pressure is ${num(r.value)} kilopascals.${r.status === 'red' ? ' Possible leak.' : ''}`,
-    why: 'Pressure loss lowers the oxygen you can breathe and can mean a hull or seal leak.',
-    doNow: ['Run the leak check procedure.', 'Keep pressure suits and masks within reach.', 'Close hatches to isolate modules if pressure keeps falling.'],
-    escalate: 'Contact the flight surgeon and mission control now if pressure keeps falling or anyone feels unwell.',
+    title: (r) => `Kabin basıncı aralık dışında: ${num(r.value)} kPa`,
+    spoken: (r) => `Kabin basıncı ${say(r.value, 'kPa')}.${r.status === 'red' ? ' Olası sızıntı.' : ''}`,
+    why: 'Basınç kaybı solunabilir oksijeni azaltır ve gövde ya da conta sızıntısına işaret edebilir.',
+    doNow: ['Sızıntı kontrol prosedürünü başlatın.', 'Basınçlı giysileri ve maskeleri yakında tutun.', 'Basınç düşmeye devam ederse kapakları kapatıp modülleri ayırın.'],
+    escalate: 'Basınç düşmeye devam ederse veya kendini kötü hisseden varsa uçuş cerrahına ve görev kontrolüne hemen haber verin.',
   }),
   cabinRule({
     scenarioId: 'solar-event', metric: 'radiationRate', hazardId: 'spaceRadiation',
-    title: (r) => `Solar particle event: radiation ${num(r.value)} mSv/day`,
-    spoken: (r) => `Warning. Radiation dose rate is ${num(r.value)} millisieverts per day. ${r.status === 'red' ? 'Go to the storm shelter now.' : 'Prepare to shelter.'}`,
-    why: 'A solar storm can deliver weeks of normal dose in hours, raising long-term cancer and nervous-system risk.',
-    doNow: ['Move to the shielded storm shelter.', 'Postpone any EVA.', 'Keep your dosimeter on and log your time in the shelter.'],
-    escalate: 'Report your dose to the flight surgeon once you are sheltered; contact them now if anyone feels nausea.',
+    title: (r) => `Güneş parçacık fırtınası: radyasyon ${num(r.value)} mSv/gün`,
+    spoken: (r) => `Radyasyon doz hızı ${say(r.value, 'mSv/day')}. ${r.status === 'red' ? 'Hemen fırtına sığınağına geçin.' : 'Sığınağa geçmeye hazırlanın.'}`,
+    why: 'Bir güneş fırtınası birkaç saatte haftalarca alınacak dozu verebilir; uzun vadeli kanser ve sinir sistemi riskini artırır.',
+    doNow: ['Korunaklı fırtına sığınağına geçin.', 'Planlanan uzay yürüyüşünü erteleyin.', 'Dozimetrenizi takılı tutun ve sığınakta geçen süreyi kaydedin.'],
+    escalate: 'Sığınağa geçtikten sonra dozunuzu uçuş cerrahına bildirin; mide bulantısı olan varsa hemen başvurun.',
   }),
   cabinRule({
     scenarioId: 'power-life-support', metric: 'lifeSupportPower', hazardId: 'hostileClosedEnvironments',
-    title: (r) => `Life-support power ${r.value}`,
-    spoken: (r) => `Warning. Life-support power is ${r.value}. Oxygen and CO2 systems may be affected.`,
-    why: 'Without power, oxygen generation and CO2 removal stop and the air degrades within hours.',
-    doNow: ['Switch life support to backup power.', 'Watch cabin oxygen and CO2 closely.', 'Limit exertion to save oxygen.'],
-    escalate: 'Contact mission control now; contact the flight surgeon if anyone shows symptoms.',
+    title: (r) => `Yaşam destek gücü ${POWER[r.value] ?? r.value}`,
+    spoken: (r) => `Yaşam destek gücü ${POWER[r.value] ?? r.value}. Oksijen ve CO2 sistemleri etkilenebilir.`,
+    why: 'Güç olmadan oksijen üretimi ve CO2 temizliği durur; hava birkaç saat içinde bozulur.',
+    doNow: ['Yaşam desteğini yedek güce alın.', 'Kabin oksijeni ve CO2 değerlerini yakından izleyin.', 'Oksijen tasarrufu için eforu sınırlayın.'],
+    escalate: 'Görev kontrolüne hemen haber verin; belirti gösteren varsa uçuş cerrahına başvurun.',
   }),
 ];
 
@@ -106,23 +130,24 @@ function crewFiring(ctx, c, { scenarioId, hazardId, severity, types, title, spok
   return {
     scenarioId, scope: 'crew', hazardId, crewIds: [c.id], severity,
     metrics: types.map((t) => vitalMetric(c, t)),
-    title: `${c.name}: ${title}`, spokenText,
+    title: `${c.name}: ${title}`, spokenText: `${lead(severity)} ${spokenText}`,
     advice: { why, doNow, escalate: `${escalate} ${COMMS(ctx)}` },
   };
 }
 
 function crewRules(ctx, c, cabinHypoxiaFired) {
   const v = (t) => c.vitals[t]?.value;
+  const name = spokenName(c.name);
   const out = [];
   if (v('bloodPressureSys') < 90 && v('heartRate') > 100) {
     out.push(crewFiring(ctx, c, {
       scenarioId: 'orthostatic', hazardId: 'gravityFields', severity: 'red',
       types: ['bloodPressureSys', 'heartRate'],
-      title: 'low blood pressure with a fast heart rate',
-      spokenText: `Warning. ${c.name}'s blood pressure is low, ${v('bloodPressureSys')} systolic, and heart rate is ${v('heartRate')}.`,
-      why: 'In weightlessness body fluids shift and the heart deconditions, so blood pressure can drop and the heart races to compensate.',
-      doNow: ['Lie down or sit with legs raised.', 'Drink fluids with electrolytes.', 'Re-measure blood pressure in 5 minutes.'],
-      escalate: 'Contact the flight surgeon now if systolic stays below 90 or there is fainting or chest pain.',
+      title: 'düşük tansiyon ve hızlı nabız',
+      spokenText: `${name} için tansiyon düşük, büyük tansiyon ${say(v('bloodPressureSys'), 'mmHg')}, nabız ${say(v('heartRate'), 'bpm')}.`,
+      why: 'Ağırlıksızlıkta vücut sıvıları yer değiştirir ve kalp zayıflar; tansiyon düşebilir ve kalp bunu telafi etmek için hızlanır.',
+      doNow: ['Uzanın veya bacaklarınızı yükseltip oturun.', 'Elektrolitli sıvı için.', 'Tansiyonu 5 dakika sonra tekrar ölçün.'],
+      escalate: "Büyük tansiyon 90'ın altında kalırsa, bayılma veya göğüs ağrısı olursa uçuş cerrahına hemen başvurun.",
     }));
   }
   if (v('bodyTemp') >= 37.6 && v('heartRate') > 100) {
@@ -130,39 +155,38 @@ function crewRules(ctx, c, cabinHypoxiaFired) {
       scenarioId: 'infection-suspected', hazardId: 'hostileClosedEnvironments',
       severity: worst(c.vitals.bodyTemp.status, c.vitals.heartRate.status),
       types: ['bodyTemp', 'heartRate'],
-      title: 'fever with a fast heart rate',
-      spokenText: `Caution. ${c.name} has a temperature of ${num(v('bodyTemp'))} degrees and a heart rate of ${v('heartRate')}.`,
-      why: 'Spaceflight weakens the immune system and microbes spread easily in a closed cabin.',
-      doNow: ['Rest and limit contact with the crew.', 'Drink fluids.', 'Re-measure temperature in 1 hour.'],
-      escalate: 'Contact the flight surgeon if temperature reaches 38.5 °C or there is breathing trouble.',
+      title: 'ateş ve hızlı nabız',
+      spokenText: `${name} için vücut ısısı ${say(v('bodyTemp'), '°C')}, nabız ${say(v('heartRate'), 'bpm')}.`,
+      why: 'Uzay uçuşu bağışıklık sistemini zayıflatır ve mikroplar kapalı kabinde kolayca yayılır.',
+      doNow: ['Dinlenin ve mürettebatla teması sınırlayın.', 'Bol sıvı için.', 'Vücut ısısını 1 saat sonra tekrar ölçün.'],
+      escalate: "Ateş 38,5 °C'ye ulaşırsa veya nefes sorunu olursa uçuş cerrahına başvurun.",
     }));
   }
   if (c.vitals.spo2?.status === 'red' && !(c.inCabin && cabinHypoxiaFired)) {
     out.push(crewFiring(ctx, c, {
       scenarioId: 'individual-hypoxia', hazardId: 'hostileClosedEnvironments', severity: 'red',
       types: ['spo2'],
-      title: `blood oxygen ${v('spo2')}% while cabin air is normal`,
-      spokenText: `Warning. ${c.name}'s blood oxygen is ${v('spo2')} percent. Cabin air is normal, so check the crew member.`,
-      why: 'Cabin oxygen is fine, so the cause is more likely the person (lungs, circulation) or the sensor.',
-      doNow: ['Stop exertion and sit upright.', 'Re-check the sensor fit and re-measure in 5 minutes.', 'Breathe slowly and deeply.'],
-      escalate: 'If it stays below 90%, alert the crew medical officer and contact the flight surgeon now.',
+      title: `kan oksijeni %${v('spo2')}, kabin havası normal`,
+      spokenText: `${name} için kan oksijeni ${say(v('spo2'), '%')}. Kabin havası normal, astronotu kontrol edin.`,
+      why: 'Kabin oksijeni normal olduğu için neden büyük olasılıkla kişide (akciğer, dolaşım) ya da sensörde.',
+      doNow: ['Eforu bırakın ve dik oturun.', 'Sensörün takılışını kontrol edip 5 dakika sonra tekrar ölçün.', 'Yavaş ve derin nefes alın.'],
+      escalate: "%90'ın altında kalırsa mürettebat sağlık sorumlusunu uyarın ve uçuş cerrahına hemen başvurun.",
     }));
   }
   // Multi-day part comes from the shared trend rule (2 days at mood <= 3 → red), never a copy of it.
   const moodTrend = c.trend('mood');
   if (c.vitals.mood && (moodTrend === 'red' || (v('sleepHours') < 6 && v('mood') <= 3))) {
-    const statuses = [c.vitals.mood.status, moodTrend];
     out.push(crewFiring(ctx, c, {
       scenarioId: 'fatigue-isolation', hazardId: 'isolationConfinement',
-      severity: statuses.includes('red') ? 'red' : 'amber',
+      severity: [c.vitals.mood.status, moodTrend].includes('red') ? 'red' : 'amber',
       types: c.vitals.sleepHours ? ['sleepHours', 'mood'] : ['mood'],
-      title: moodTrend === 'red' ? 'low mood two days in a row' : 'short sleep and low mood',
+      title: moodTrend === 'red' ? 'iki gündür düşük ruh hali' : 'kısa uyku ve düşük ruh hali',
       spokenText: moodTrend === 'red'
-        ? `Notice. ${c.name} has reported low mood two days in a row.`
-        : `Notice. ${c.name} slept ${num(v('sleepHours'))} hours and reports low mood.`,
-      why: 'Months of isolation and disrupted day-night cycles wear down sleep and mood, which affects focus and safety.',
-      doNow: ['Use the light therapy schedule tonight.', 'Rebalance today\'s workload.', 'Book a private call with family or the support team.'],
-      escalate: 'Talk to the flight surgeon or psychologist if this continues for 2 more days.',
+        ? `${name} iki gündür düşük ruh hali bildiriyor.`
+        : `${name} ${say(v('sleepHours'), 'h')} uyudu ve ruh hali düşük.`,
+      why: 'Aylarca süren izolasyon ve bozulan gece-gündüz döngüsü uykuyu ve ruh halini yıpratır; bu da dikkati ve güvenliği etkiler.',
+      doNow: ['Bu akşam ışık terapisi programını uygulayın.', 'Bugünkü iş yükünü yeniden dengeleyin.', 'Ailenizle veya destek ekibiyle özel bir görüşme planlayın.'],
+      escalate: 'Bu durum 2 gün daha sürerse uçuş cerrahı veya psikologla konuşun.',
     }));
   }
   return out;
@@ -177,8 +201,8 @@ function vitalRed(ctx, c, covered) {
       return {
         scenarioId: 'vital-red', scope: 'crew', hazardId: ctx.hazardFor(type), crewIds: [c.id], severity: 'red',
         metrics: [vitalMetric(c, type)],
-        title: `${c.name}: ${label} critical (${num(s.value)} ${s.unit})`,
-        spokenText: `Warning. ${c.name}'s ${label.toLowerCase()} is at a critical level, ${num(s.value)} ${s.unit}.`,
+        title: `${c.name}: ${lower(label)} kritik (${num(s.value)} ${s.unit})`,
+        spokenText: `Uyarı. ${spokenName(c.name)} için ${lower(label)} kritik seviyede, ${say(s.value, s.unit)}.`,
         advice: { why: g.why, doNow: g.doNow, escalate: `${g.escalate} ${COMMS(ctx)}` },
         type,
       };
