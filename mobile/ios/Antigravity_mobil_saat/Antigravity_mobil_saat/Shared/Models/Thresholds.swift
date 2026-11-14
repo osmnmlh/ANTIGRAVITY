@@ -306,79 +306,81 @@ enum HealthThresholds {
         return (.green, direction, nil)
     }
 
+    /// Offline fallback of the guidance sheet. While the backend is reachable the sheet shows the AI recommendation
+    /// (`AiGuidance.indicators`, Gemini or the backend's Turkish rules) instead; this table is only used without it.
     static func guidance(for type: HealthIndicatorType, status: HealthStatus) -> IndicatorGuidance {
         switch type {
         case .heartRate:
             return IndicatorGuidance(
-                whatItIs: "Heart rate measures how many times your heart beats per minute at rest.",
-                whyInSpace: "Altered gravity causes fluid shifts and cardiovascular deconditioning, which can raise resting pulse.",
+                whatItIs: "Nabız, kalbinin dinlenirken dakikada kaç kez attığını gösterir.",
+                whyInSpace: "Değişen yerçekimi sıvıların vücutta kaymasına ve kalp-damar sisteminin zayıflamasına yol açar; bu da dinlenik nabzı yükseltebilir.",
                 doNow: status == .green
-                    ? ["Keep up your daily countermeasures and hydration routine."]
-                    : ["Stop strenuous activity and sit or tether quietly for 5 minutes.", "Drink 250 mL of water and repeat the Apple Watch reading in 15 minutes."],
-                escalateWhen: "Contact the crew medical officer and flight surgeon if resting heart rate stays above 120 bpm, below 40 bpm, or comes with dizziness or chest discomfort."
+                    ? ["Günlük egzersiz ve sıvı alımı düzenini sürdür."]
+                    : ["Yorucu aktiviteyi bırak, 5 dakika sakin otur veya kendini sabitle.", "250 mL su iç ve Apple Watch ölçümünü 15 dakika sonra tekrarla."],
+                escalateWhen: "Dinlenik nabız 120'nin üzerinde ya da 40'ın altında kalıyorsa veya baş dönmesi ya da göğüste rahatsızlık varsa mürettebat sağlık sorumlusuna ve uçuş cerrahına haber ver."
             )
         case .bloodPressureSys, .bloodPressureDia:
             return IndicatorGuidance(
-                whatItIs: "Blood pressure measures the force of blood pushing against artery walls.",
-                whyInSpace: "Microgravity shifts fluids toward the head and chest, altering vascular tone over long missions.",
+                whatItIs: "Kan basıncı, kanın damar duvarlarına uyguladığı kuvveti gösterir.",
+                whyInSpace: "Mikro yerçekimi sıvıları baş ve göğüs bölgesine kaydırır; uzun görevlerde damar tonusunu değiştirir.",
                 doNow: status == .green
-                    ? ["Maintain regular aerobic and resistive exercise protocols."]
-                    : ["Rest quietly for 5 minutes with the cuff at heart level and re-measure.", "Check hydration and avoid caffeine before retesting."],
-                escalateWhen: "Contact the flight surgeon if systolic pressure is 140 mmHg or higher, below 90 mmHg, or diastolic reaches 90 mmHg or higher."
+                    ? ["Düzenli aerobik ve direnç egzersizi programını sürdür."]
+                    : ["Manşet kalp hizasındayken 5 dakika sakin dinlen ve yeniden ölç.", "Sıvı alımını kontrol et ve tekrar ölçmeden önce kafein alma."],
+                escalateWhen: "Büyük tansiyon 140 mmHg ve üzerinde ya da 90 mmHg'nin altındaysa veya küçük tansiyon 90 mmHg ve üzerine çıkarsa uçuş cerrahına haber ver."
             )
         case .spo2:
             return IndicatorGuidance(
-                whatItIs: "Blood oxygen saturation (SpO2) shows how much oxygen your red blood cells carry.",
-                whyInSpace: "In a hostile closed cabin, a drop in SpO2 can warn of air-quality/CO2 issues or respiratory illness.",
+                whatItIs: "Kandaki oksijen doygunluğu (SpO2), alyuvarlarının ne kadar oksijen taşıdığını gösterir.",
+                whyInSpace: "Kapalı ve zorlu bir kabinde SpO2 düşüşü, hava kalitesi veya CO2 sorununa ya da solunum hastalığına işaret edebilir.",
                 doNow: status == .green
-                    ? ["Cabin oxygen delivery and lung uptake look healthy."]
-                    : ["Stop exertion immediately, sit upright, and check cabin CO2/O2 readouts.", "Warm your wrist/finger and repeat the measurement in 5 minutes."],
-                escalateWhen: "Alert the crew medical officer and contact the flight surgeon immediately if SpO2 remains below 90%."
+                    ? ["Kabin oksijeni ve akciğerlerin oksijen alımı normal görünüyor."]
+                    : ["Eforu hemen bırak, dik otur ve kabin CO2/O2 göstergelerini kontrol et.", "Bileğini veya parmağını ısıt ve ölçümü 5 dakika sonra tekrarla."],
+                escalateWhen: "SpO2 %90'ın altında kalırsa mürettebat sağlık sorumlusunu uyar ve uçuş cerrahına hemen haber ver."
             )
         case .bodyTemp:
             return IndicatorGuidance(
-                whatItIs: "Body temperature reflects your core thermal balance and immune response.",
-                whyInSpace: "Closed habitats make infections spread more easily and thermal regulation differs without natural air convection.",
+                whatItIs: "Vücut ısısı, çekirdek ısı dengeni ve bağışıklık yanıtını yansıtır.",
+                whyInSpace: "Kapalı yaşam alanlarında enfeksiyonlar daha kolay yayılır; doğal hava dolaşımı olmadığı için ısı düzenlemesi de farklıdır.",
                 doNow: status == .green
-                    ? ["Continue normal cabin thermal and hydration habits."]
-                    : ["Rest, hydrate, and re-measure oral/skin temperature in 30 minutes.", "Verify spacecraft cabin temperature and cooling loop status."],
-                escalateWhen: "Contact the flight surgeon if temperature reaches 38.5 °C or higher, drops below 35.0 °C, or persists with chills."
+                    ? ["Normal kabin ısısı ve sıvı alışkanlıklarını sürdür."]
+                    : ["Dinlen, sıvı al ve vücut ısını 30 dakika sonra tekrar ölç.", "Kabin sıcaklığını ve soğutma devresinin durumunu kontrol et."],
+                escalateWhen: "Isı 38,5 °C ve üzerine çıkarsa, 35,0 °C'nin altına düşerse veya titremeyle birlikte sürerse uçuş cerrahına haber ver."
             )
         case .bloodGlucose:
             return IndicatorGuidance(
-                whatItIs: "Blood glucose measures the concentration of sugar in your blood for cellular energy.",
-                whyInSpace: "Nutrition shifts, spaceflight stress, and altered metabolism in closed habitats affect glucose control.",
+                whatItIs: "Kan şekeri, hücrelerin enerji için kullandığı kandaki şeker miktarını gösterir.",
+                whyInSpace: "Beslenme değişiklikleri, uçuş stresi ve kapalı ortamda değişen metabolizma kan şekeri kontrolünü etkiler.",
                 doNow: status == .green
-                    ? ["Stick to scheduled mission meals and hydration."]
-                    : ["If below 70 mg/dL, take 15 g of fast-acting carbohydrates and retest in 15 minutes. If elevated, hydrate and retest fasting."],
-                escalateWhen: "Contact the flight surgeon immediately if glucose drops below 54 mg/dL or rises above 180 mg/dL."
+                    ? ["Planlanan görev öğünlerine ve sıvı alımına uy."]
+                    : ["70 mg/dL'nin altındaysa 15 g hızlı etkili karbonhidrat al ve 15 dakika sonra tekrar ölç. Yüksekse sıvı al ve açken yeniden ölç."],
+                escalateWhen: "Kan şekeri 54 mg/dL'nin altına düşer ya da 180 mg/dL'yi aşarsa uçuş cerrahına hemen haber ver."
             )
         case .sleepHours:
             return IndicatorGuidance(
-                whatItIs: "Sleep hours track total restorative sleep over the past 24 hours.",
-                whyInSpace: "Isolation, confinement, noise, and shifting light cycles disrupt circadian rhythms.",
+                whatItIs: "Uyku süresi, son 24 saatte aldığın toplam dinlendirici uykuyu gösterir.",
+                whyInSpace: "İzolasyon, kapalı alan, gürültü ve değişen ışık döngüleri gece-gündüz ritmini bozar.",
                 doNow: status == .green
-                    ? ["Keep a consistent sleep window and cabin light schedule."]
-                    : ["Dim blue-light screens 60 minutes before sleep and adjust sleep-station ventilation.", "Schedule a brief recovery rest period if mission timeline permits."],
-                escalateWhen: "Consult the crew medical officer and flight surgeon if sleep stays under 5 hours across multiple nights or impairs alertness."
+                    ? ["Uyku saatini ve kabin ışık düzenini sabit tut."]
+                    : ["Uyumadan 60 dakika önce mavi ışıklı ekranları kıs ve uyku istasyonunun havalandırmasını ayarla.", "Görev takvimi uygunsa kısa bir toparlanma molası planla."],
+                escalateWhen: "Uyku birkaç gece üst üste 5 saatin altında kalırsa veya dikkatini etkilerse mürettebat sağlık sorumlusu ve uçuş cerrahıyla görüş."
             )
         case .mood:
             return IndicatorGuidance(
-                whatItIs: "Mood check-in captures your subjective stress, focus, and emotional resilience (1–5).",
-                whyInSpace: "Long-duration isolation, confinement, and distance from Earth increase behavioral health strain.",
+                whatItIs: "Ruh hali kontrolü; stres, odak ve duygusal dayanıklılığına dair kendi değerlendirmeni (1–5) kaydeder.",
+                whyInSpace: "Uzun süreli izolasyon, kapalı alan ve Dünya'dan uzaklık davranışsal sağlığı zorlar.",
                 doNow: status == .green
-                    ? ["Continue crew check-ins and scheduled family/ground audio messages."]
-                    : ["Take a 15-minute break, connect with a crewmate, or run a guided breathing exercise.", "Log any persistent symptoms on your Apple Watch check-in."],
-                escalateWhen: "Reach out to the crew medical officer and flight behavioral health team if mood is 1–2 or remains at 3 for two or more consecutive days."
+                    ? ["Mürettebatla görüşmeleri ve planlı aile veya yer istasyonu ses mesajlarını sürdür."]
+                    : ["15 dakika mola ver, bir mürettebat arkadaşınla konuş veya yönlendirmeli bir nefes egzersizi yap.", "Süren belirtileri Apple Watch kontrolüne kaydet."],
+                escalateWhen: "Ruh halin 1–2 ise ya da iki veya daha fazla gün üst üste 3'te kalıyorsa mürettebat sağlık sorumlusuna ve davranışsal sağlık ekibine ulaş."
             )
         case .radiationDose:
             return IndicatorGuidance(
-                whatItIs: "Cumulative radiation dose tracks total ionizing radiation absorbed during the mission.",
-                whyInSpace: "Space radiation raises long-term cancer, immune, and central nervous system risks outside Earth's magnetosphere.",
+                whatItIs: "Kümülatif radyasyon dozu, görev boyunca aldığın toplam iyonlaştırıcı radyasyonu gösterir.",
+                whyInSpace: "Dünya'nın manyetosferi dışında uzay radyasyonu uzun vadeli kanser, bağışıklık ve merkezi sinir sistemi risklerini artırır.",
                 doNow: status == .green
-                    ? ["Standard spacecraft shielding is keeping exposure within plan."]
-                    : ["Check solar particle event alerts and move to higher-shielding habitat quarters if advised."],
-                escalateWhen: "Alert mission control and the flight surgeon whenever cumulative exposure exceeds 80% of the mission budget or after any solar event."
+                    ? ["Standart uzay aracı korumasıyla maruziyet planın içinde kalıyor."]
+                    : ["Güneş parçacık olayı uyarılarını kontrol et; önerilirse daha iyi korunan yaşam bölümüne geç."],
+                escalateWhen: "Kümülatif maruziyet görev bütçesinin %80'ini aşarsa veya herhangi bir güneş olayından sonra görev kontrolünü ve uçuş cerrahını bilgilendir."
             )
         }
     }

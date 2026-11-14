@@ -33,7 +33,8 @@ struct DashboardView: View {
 
                 AstronautBodyMapView(
                     values: viewModel.indicatorValues,
-                    statuses: viewModel.indicatorStatuses
+                    statuses: viewModel.indicatorStatuses,
+                    aiGuidance: viewModel.aiGuidance
                 )
 
                 missionsCard
