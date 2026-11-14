@@ -1,6 +1,6 @@
 # 0005. UI language (Turkish vs English)
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-14
 - Affects: web, iOS, watchOS, AI chat
 
@@ -19,4 +19,4 @@ Option 1, with all user-facing strings in one file per client (e.g. `web/src/ui/
 The AI chat answers in the language the user writes in.
 
 ## Decision
-_To be filled by the team._
+Option 2, Turkish UI and Turkish presentation (decided by osmnmlh, 2026-11-14). Keep user-facing strings in one file per client so an English version stays cheap. The AI chat answers in the language the user writes in.

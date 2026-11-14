@@ -43,5 +43,5 @@
 
 - [ ] Write Playwright E2E smoke test in `web/e2e/` (dashboard load, click red SpO2 card -> guidance visible, submit manual entry -> status updates)
 - [ ] Verify paired iPhone 16 Pro + Apple Watch simulator sync end-to-end
-- [ ] Write `docs/demo-script.md` and capture screenshots in `docs/screenshots/`
-- [ ] Record 3-minute demo video and complete NASA Space Apps submission checklist
+- [ ] Write `docs/demo-script.md` (`[x]` hazırlandı) and capture screenshots in `docs/screenshots/`
+- [ ] Record 3-minute demo video and complete NASA Space Apps submission checklist (`docs/submission-checklist.md` hazırlandı)

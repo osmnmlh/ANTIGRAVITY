@@ -14,7 +14,7 @@ inside the boundary, each owner (and their agent) decides how to build.
 | [0002](0002-web-data-source.md) | Web data source: mock first, backend optional | Proposed | web, backend |
 | [0003](0003-ai-chatbot.md) | AI chatbot: where it lives and its guardrails | Proposed | web, backend, AI |
 | [0004](0004-mobile-data-flow.md) | iPhone / Watch data flow | Proposed | iOS, watchOS, backend |
-| [0005](0005-ui-language.md) | UI language (Turkish vs English) | Proposed | all clients |
+| [0005](0005-ui-language.md) | UI language (Turkish vs English) | Accepted (Turkish) | all clients |
 | [0006](0006-demo-hosting.md) | Demo hosting and submission link | Proposed | web, backend, docs |
 | [0007](0007-proactive-ai-alerts.md) | Proactive AI alerts, cabin monitoring, phone fan-out | Proposed | AI, backend, web, iOS |
 
