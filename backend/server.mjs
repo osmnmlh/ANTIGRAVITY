@@ -221,10 +221,12 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const stepInt = (v, d, lo, hi) => Math.round(clamp(v + (Math.floor(Math.random() * (d * 2 + 1)) - d), lo, hi));
 const stepTemp = (v, lo, hi) => Number(clamp(v + (Math.floor(Math.random() * 3) - 1) * 0.1, lo, hi).toFixed(1));
 
+// Live jitter stays inside green for everyone (team decision: red/amber only from a scenario or incident replay).
+// Steps are small enough that the 3-reading drift rule cannot fire; SpO2 stays 98-99 so it never "falls" 3 times in a row.
 const LIVE_BOUNDS = {
-  'crew-1': { heartRate: [98, 118], bloodPressureSys: [122, 134], bloodPressureDia: [68, 78], spo2: [88, 93], bodyTemp: [36.3, 36.8], bloodGlucose: [90, 104] },
-  'crew-2': { heartRate: [60, 72], bloodPressureSys: [112, 122], bloodPressureDia: [70, 78], spo2: [97, 99], bodyTemp: [36.4, 36.8], bloodGlucose: [88, 98] },
-  'crew-3': { heartRate: [76, 88], bloodPressureSys: [128, 138], bloodPressureDia: [80, 88], spo2: [93, 96], bodyTemp: [37.4, 37.9], bloodGlucose: [124, 138] },
+  'crew-1': { heartRate: [66, 80], bloodPressureSys: [110, 122], bloodPressureDia: [68, 78], spo2: [98, 99], bodyTemp: [36.4, 36.9], bloodGlucose: [88, 104] },
+  'crew-2': { heartRate: [60, 72], bloodPressureSys: [112, 122], bloodPressureDia: [70, 78], spo2: [98, 99], bodyTemp: [36.4, 36.8], bloodGlucose: [88, 98] },
+  'crew-3': { heartRate: [70, 82], bloodPressureSys: [112, 124], bloodPressureDia: [72, 78], spo2: [98, 99], bodyTemp: [36.5, 36.9], bloodGlucose: [90, 106] },
 };
 
 let preSimSnapshot = null;
@@ -342,7 +344,7 @@ function generateLiveTick(targetCrewIds) {
       { crewId: id, type: 'spo2', value: stepInt(cur('spo2') ?? 97, 1, ...b.spo2), timestamp: ts, source: 'watch' },
       { crewId: id, type: 'bodyTemp', value: stepTemp(cur('bodyTemp') ?? 36.5, ...b.bodyTemp), timestamp: ts, source: 'watch' },
       { crewId: id, type: 'bloodGlucose', value: stepInt(cur('bloodGlucose') ?? 95, 2, ...b.bloodGlucose), timestamp: ts, source: 'manual' },
-      { crewId: id, type: 'radiationDose', value: Number(((cur('radiationDose') ?? 20) + 0.02).toFixed(2)), timestamp: ts, source: 'mock' },
+      { crewId: id, type: 'radiationDose', value: Number(((cur('radiationDose') ?? 20) + 0.001).toFixed(3)) /* slow: a fast climb would trip the daily dose-rate trend rule */, timestamp: ts, source: 'mock' },
     );
   }
   const updated = addSamples(batch);
