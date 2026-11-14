@@ -6,3 +6,13 @@
 //
 
 import Foundation
+import Combine
+
+// Saat, Telefon veya Web fark etmez; veri sağlayacak her motor bu kurallara uymak zorunda.
+protocol TelemetryServiceProtocol {
+    // Arayüzlerin dinleyeceği sürekli veri akışı (Combine Framework ile)
+    var telemetryPublisher: AnyPublisher<WatchTelemetryData, Never> { get }
+    
+    func startMonitoring()
+    func stopMonitoring()
+}
