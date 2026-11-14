@@ -11,14 +11,17 @@ get a clear status (green / amber / red), and get plain-language guidance on wha
 
 - Full brief: `docs/Hackathon-Subject.md`
 - Team: 6 people, ~24 hours to submission. **Ship a working demo, not an architecture.**
+- Decisions: `docs/adr/` (0001-0007, all accepted). UI and presentation are **Turkish** (ADR-0005); code, comments, commits and docs stay English.
+- Live backend (ADR-0006): `https://antigravity-backend-8lv8.onrender.com` (Render, free tier sleeps after 15 min). Web is on Vercel and reads it via `VITE_API_URL`.
+- Every crew starts **green**; red only comes from a scenario, an incident replay or a posted sample (team decision).
 
 ## Layout
 
 ```text
-web/          Web dashboard (Vite + React + TypeScript). Main demo surface. Playwright e2e tests in web/e2e/
+web/          Web dashboard (Vite + React + TypeScript + three.js). Main demo surface. AI UI in web/src/ai/. Playwright e2e planned in web/e2e/ (#11)
 mobile/ios/   One Xcode project with the iPhone app (iPhone 16 Pro / iOS 18) AND the watchOS app, synced via WatchConnectivity
-shared/       Data contract shared by all clients (health-sample JSON shape + mock data)
-backend/      Optional zero-dependency Node relay (mock data in RAM, SSE, Gemini proxy). Clients must work without it
+shared/       Data contract shared by all clients (health-sample JSON shape, mock data, AI contract in shared/contracts/, trend checks in shared/tests/)
+backend/      Zero-dependency Node relay (mock data in RAM, SSE, Gemini, simulations) + AI module in backend/ai/. Clients must work without it
 docs/         Challenge brief, notes, demo script
 .agent/skills/   Canonical skills (Antigravity reads these directly)
 .claude/skills/  Thin pointers to .agent/skills/ for Claude Code
@@ -87,7 +90,10 @@ Status logic (thresholds → green/amber/red) lives in one place per platform an
 ```bash
 # web
 cd web && npm install && npm run dev        # local dev
-cd web && npx playwright test               # e2e
-cd backend && node --experimental-strip-types server.mjs   # optional relay on :8787 (Node 22.6+)
+cd web && npm run build                     # type-check + build (must pass before a PR)
+cd web && npx playwright test               # e2e (once #11 adds Playwright)
+cd backend && npm start                     # relay on :8787 (Node 22.6+), same as node --experimental-strip-types server.mjs
+cd backend && npm test                      # AI module tests
+node shared/tests/check-trends.mjs          # trend rule + "all crew start green" check
 # iOS / watchOS: open mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj in Xcode 16+, pick the iOS or watchOS scheme, Run
 ```

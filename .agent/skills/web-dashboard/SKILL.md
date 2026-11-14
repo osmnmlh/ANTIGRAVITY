@@ -9,22 +9,27 @@ The web app is the **main demo surface**. Optimize for a judge seeing it for 2 m
 
 ## Stack (do not add more without team agreement)
 
-- Vite + React + TypeScript (`npm create vite@latest web -- --template react-ts`)
-- Charts: `recharts`. Styling: plain CSS modules or Tailwind (pick one on day 1, don't mix).
-- State: React state + a small `useHealthData()` hook. No Redux, no backend required.
+- Vite + React + TypeScript, `three` for the 3D body map. Plain CSS (`App.css`, `index.css`, `src/ai/ai.css`). No chart library, no Tailwind.
+- State: React state + the `useHealthData()` hook. No Redux, no backend required.
 - Data: `shared/mock/*.json` loaded at start; manual entries kept in `localStorage`.
-- Optional live data: if `VITE_API_URL` is set, fetch `GET /api/packets` + `GET /api/samples` and subscribe to `GET /api/stream` (SSE `packet` events). On any error or timeout (~2 s) **fall back to `shared/mock/*.json`** silently and show a small "offline / mock data" badge. The demo must never depend on `backend/`.
-- AI recommendation: call `POST /api/ai/guidance {crewId}` (never call Gemini from the browser, never put an API key in `web/`). Show `aiGuidance` with its disclaimer next to, not instead of, the rule-based guidance.
+- UI text is **Turkish** (ADR-0005); indicator labels/guidance come from `src/domain/types.ts` (`metricDefinitions`) and `src/domain/guidance.ts`.
+- Live data (#9): if `VITE_API_URL` is set (Vercel: `https://antigravity-backend-8lv8.onrender.com`), fetch `GET /api/packets` + `GET /api/samples` and subscribe to `GET /api/stream` (SSE `hello`, `sample`, `packet`, `simulation`). On any error or timeout (~2 s) **fall back to `shared/mock/*.json` silently, with no badge** (ADR-0002). The demo must never depend on `backend/`.
+- Simulations (live + historical incidents) run in the backend (`/api/simulation/*`); the web only triggers them and renders the SSE events. Do not build a second engine in the browser.
+- AI: `src/ai/` (`AlertCenter`, `AiChat`, `AiDemoControls`) talks to `/api/ai/*`; mount them in `App.tsx` (#13). Never call Gemini from the browser, never put an API key in `web/`. Show `aiGuidance` next to, not instead of, the rule-based guidance, without a "Gemini / fallback" label (ADR-0002).
 
 ## Suggested structure
 
+Current layout on `main` (add new components under `components/` instead of growing `App.tsx`):
+
 ```text
 web/src/
-  domain/thresholds.ts   # copy of astronaut-health-domain table + getStatus(type, value)
-  domain/types.ts        # HealthSample type = shared data contract
-  data/useHealthData.ts  # load mock + localStorage, add sample
-  components/StatusCard.tsx  BodyMap.tsx  TrendChart.tsx  EntryForm.tsx  GuidancePanel.tsx
-  pages/Dashboard.tsx
+  App.tsx                    # dashboard: status cards, 7-day trend, scenarios, manual entry, guidance
+  components/ThreeBodyMap.tsx  # 3D astronaut body map (three.js)
+  data/useHealthData.ts      # mock + localStorage (live backend switch goes here, #9)
+  domain/thresholds.ts       # the only getStatus + trend rule (backend imports it too)
+  domain/types.ts            # shared data contract + metricDefinitions (Turkish labels)
+  domain/guidance.ts         # Turkish What / Why / Do now / Escalate texts
+  ai/                        # AI alerts, chat, demo controls (owner: GoktugFerdi)
 ```
 
 ## Screens (priority order, stop when time runs out)
@@ -32,7 +37,7 @@ web/src/
 1. **Dashboard**: overall status banner + one card per indicator (value, unit, status color + label, last updated).
 2. **Detail / Guidance**: click a card → trend chart (7 days) + What/Why/Do now/Escalate text.
 3. **Manual entry**: form per indicator with unit and valid range; instantly updates status.
-4. **Body map**: SVG human figure; regions (heart, lungs, bones, brain) colored by related indicators; click → guidance.
+4. **Body map**: 3D astronaut (`ThreeBodyMap`); regions colored by related indicators; click → guidance.
 5. Nice to have: mission context switch (ISS / Lunar / Mars transit) changing radiation rate; reminders; streak badges.
 
 ## Rules

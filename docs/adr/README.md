@@ -3,6 +3,7 @@
 Short records of decisions that set **boundaries** for everyone's work. They are not specs:
 inside the boundary, each owner (and their agent) decides how to build.
 
+- All seven ADRs (0001-0007) were accepted on 14 Nov 2026; each **Decision** section says what was built.
 - Status flow: `Proposed` → `Accepted` (or `Rejected` / `Superseded by NNNN`).
 - To decide: the team picks an option, edit **Decision** + **Status** in a tiny PR (or ask osmnmlh). Keep it one paragraph.
 - Agents: read the ADRs linked from your issue before coding. A `Proposed` ADR → follow the **Recommendation** until the team decides.

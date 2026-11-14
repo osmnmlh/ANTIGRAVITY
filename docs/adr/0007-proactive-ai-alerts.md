@@ -35,3 +35,8 @@ Cabin thresholds are demo values defined in `shared/contracts/ai.md`; the backen
 ## Decision
 Accepted (2026-11-14, osmnmlh): option 1 + a + ii as recommended. Detection runs in `backend/ai/`, wired into `backend/server.mjs`;
 phones get alerts over SSE (`/api/ai/stream`) with a local notification; deterministic text first, Gemini advice later. No APNs.
+
+As built (14 Nov, #26, #29, #31, #32): Gemini model `gemini-flash-lite-latest` (`GEMINI_MODEL`; `gemini-2.5-flash` is closed to new keys);
+every crew starts **green** and red only comes from a scenario, an incident replay or a posted sample; loose per-IP rate limits
+(AI routes 30/min, everything else 600/min, `/api/health` unlimited) so two phones and the web can share one venue IP.
+The optional ntfy.sh channel (option c) is proposed in PR #33 and not on `main` yet.

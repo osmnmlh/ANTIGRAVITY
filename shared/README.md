@@ -10,6 +10,9 @@ The shared data files every client (`web/`, `mobile/ios/` iPhone + Watch) uses.
 - `mock/nasa-hazards.json`: Structured reference dataset of NASA HRP's 5 Hazards of Human Spaceflight (`https://www.nasa.gov/hrp/hazards/`), including health effects, mitigations, reference metrics, and mapped indicators/Watch telemetry fields.
 - `mock/historical-incidents.json`: 3 calibrated real historical spaceflight accident simulations (`apollo-13`, `mir-1997-fire`, `iss-eva-23-water`), each with 6 telemetry phases aligned with `web/src/domain/thresholds.ts`.
 
+- `contracts/ai.md` + `contracts/examples/`: shapes for AI alerts, cabin snapshot, devices and chat (ADR-0007).
+- `tests/check-trends.mjs` + `tests/trend-cases.json`: checks the multi-day trend rule and that every mock crew starts green. Run `node shared/tests/check-trends.mjs`.
+
 ## Bridging Watch Telemetry to Health Samples
 
 `watchTelemetry` mirrors the Swift `WatchTelemetryData` model (`ActivitySummary`, `VitalsData`, `EnvironmentalData`, `GForceData`). Clients map `vitals` fields (`currentHeartRate` -> `heartRate`, `bloodOxygenPercentage` -> `spo2`, `bodyTemperature` -> `bodyTemp`) into `HealthSample` records so watchOS, iOS, and the web dashboard share one threshold and guidance engine.

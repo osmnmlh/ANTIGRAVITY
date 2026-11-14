@@ -63,7 +63,11 @@ NASA İnsan Araştırmaları Programı (HRP) tarafından tanımlanan beş temel 
 - **iPhone & Apple Watch (`mobile/ios/`, tek Xcode projesi):** Apple Watch üzerinden canlı nabız/telemetri ve hızlı duygu durum kontrolü `WatchConnectivity` ile iPhone'a aktarılır; iPhone aynı anda canlı backend SSE akışından gelen proaktif uyarıları ve **"AI recommendation"** kartlarını gösterir.
 - **Deterministik Eşik & Trend Motoru:** **Yeşil / Amber / Kırmızı** sağlık durumlarını her zaman deterministik eşik ve çok günlük trend kuralları belirler — **yapay zekâ asla durum rengine karar vermez**; yalnızca düz dilde *neden önemli*, *ne yapmalı* ve *ne zaman uçuş cerrahına başvurmalı* rehberliği üretir (API yoksa `fallback` katmanı devreye girer).
 
-> 🚧 **Güncel durum (`main`, 14 Kasım):** Yukarıdaki akış hedef mimaridir. Bugün `main` üzerinde web dashboard yalnızca yerel mock veriyle çalışır (backend'e bağlanmaz, `VITE_API_URL` henüz yok); `backend/ai/` modülü `server.mjs`'e bağlanmadı ve şimdilik tek başına `backend/ai/dev-server.mjs` ile `:8788` üzerinde çalışır (`/api/ai/demo/:id`, `/api/ai/stream`); `POST /api/ai/chat` henüz yok (ADR-0003); iPhone/Watch uygulaması `features/ios_viewmodel` branch'inde geliştiriliyor. Barındırma (Vercel vb.) kararı [ADR-0006](./docs/adr/0006-demo-hosting.md)'da bekliyor.
+> 🚧 **Güncel durum (`main`, 14 Kasım akşamı):**
+> - ✅ Backend Render'da canlı: `https://antigravity-backend-8lv8.onrender.com` (`/api/health`). AI modülü `server.mjs`'e bağlı: proaktif uyarılar (`/api/ai/stream`), 11 demo senaryosu (`/api/ai/demo/:id`), sohbet (`POST /api/ai/chat`, model `gemini-flash-lite-latest`), canlı ve tarihî kaza simülasyonları (`/api/simulation/*`). Tüm mürettebat yeşil başlar.
+> - ⏳ Web şu an yalnızca yerel mock veriyle çalışıyor: Vercel'de `VITE_API_URL` ayarı ve `useHealthData` bağlantısı (#9), mürettebat seçici (#10), `AlertCenter`/`AiChat` bileşenlerinin `App.tsx`'e eklenmesi (#13), Playwright testi (#11) bekliyor.
+> - ⏳ iPhone ekranları `main`'de (#27) ama Xcode'da derlendiği henüz doğrulanmadı; backend adresi ve AI önerisi kartı (#16), watchOS hedefi ve WatchConnectivity (#17) bekliyor.
+> - Kararlar: [ADR 0001–0007](./docs/adr/README.md), hepsi kabul edildi.
 
 > ⚠️ **Tıbbi Uyarı (Disclaimer):** **Demo software, not a medical device.** — Bu yazılım yalnızca NASA Space Apps Challenge 2026 kapsamında hazırlanmış bir **demo uygulamasıdır; tıbbi cihaz değildir**, klinik tanı veya tedavi amacıyla kullanılamaz.
 
@@ -78,10 +82,10 @@ cd web
 npm install
 npm run dev          # Yerel geliştirme sunucusu
 npm run build        # Üretim derlemesi
-npx playwright test  # Uçtan uca (E2E) testler
+npx playwright test  # Uçtan uca (E2E) testler (#11 ile eklenecek)
 ```
 
-> **Vercel Canlı Dağıtım Notu:** Vercel dağıtımında kök dizin `web/` olarak ayarlanır ve `VITE_API_URL` ortam değişkeni HTTPS üzerinden erişilebilen canlı `backend/server.mjs` adresine yönlendirilir (Vercel HTTPS olduğu için tarayıcı mixed-content engeline takılmaması adına backend HTTPS üzerinden sunulmalıdır).
+> **Vercel Canlı Dağıtım Notu:** Vercel dağıtımında kök dizin `web/` olarak ayarlanır ve `VITE_API_URL=https://antigravity-backend-8lv8.onrender.com` ortam değişkeni tanımlanır (Vercel HTTPS olduğu için tarayıcı mixed-content engeline takılmaması adına backend HTTPS üzerinden sunulmalıdır).
 
 ### 2. Backend Relay ve AI Modülü (`backend/`, Node 22.6+)
 
@@ -89,6 +93,7 @@ npx playwright test  # Uçtan uca (E2E) testler
 cd backend
 cp .env.example .env
 npm start            # node --experimental-strip-types server.mjs (varsayılan :8787)
+npm test             # AI modülü testleri
 ```
 
 AI modülünü tek başına test etmek veya geliştirmek için:
@@ -133,7 +138,8 @@ ANTIGRAVITY/
 ├── .agent/skills/                   # Agent skill dokümanları (Antigravity)
 ├── .claude/skills/                  # .agent/skills'e işaret eden kısa dosyalar (Claude Code)
 ├── web/                             # Web dashboard (Vite + React + TS, Playwright, Vercel)
-├── backend/                         # Sıfır bağımlılıklı Node SSE relay + backend/ai/ modülü
+├── backend/                         # Sıfır bağımlılıklı Node SSE relay + backend/ai/ modülü (Render)
+├── render.yaml                      # Render Blueprint (backend dağıtımı)
 ├── watch/                           # Sadece yönlendirme README'si (watch kodu mobile/ios/ içinde)
 ├── mobile/ios/                      # Xcode projesi: iPhone 16 Pro + Apple Watch eşleşmesi
 ├── shared/                          # Ortak JSON veri sözleşmesi, NASA tehlike mock verisi ve trend testleri
@@ -141,6 +147,7 @@ ANTIGRAVITY/
 │   ├── demo-script.md               # 3 dakikalık canlı demo akışı ve Sahne B Planı (TR)
 │   ├── submission-checklist.md      # NASA Space Apps teslim kontrol listesi (TR)
 │   ├── TODO.md                      # Takım görev takip listesi
+│   ├── simulation-spec.md           # Canlı ve tarihî kaza simülasyonu şartnamesi (TR)
 │   ├── adr/                         # Mimari karar kayıtları (ADR)
 │   ├── ai/                          # AI yol haritası (ROADMAP.md)
 │   ├── Hackathon-Subject.md         # Orijinal yarışma metni (EN)
@@ -153,7 +160,9 @@ ANTIGRAVITY/
 
 - 🎬 **Canlı Demo Senaryosu (3 dk, TR):** [`docs/demo-script.md`](./docs/demo-script.md)
 - ✅ **Teslim Kontrol Listesi (TR):** [`docs/submission-checklist.md`](./docs/submission-checklist.md)
-- 📋 **Takım Görev Listesi:** [`docs/TODO.md`](./docs/TODO.md)
+- 📋 **Takım Görev Listesi:** [`docs/TODO.md`](./docs/TODO.md) ve [GitHub Issues](https://github.com/osmnmlh/ANTIGRAVITY/issues)
+- 🧪 **Simülasyon şartnamesi:** [`docs/simulation-spec.md`](./docs/simulation-spec.md)
+- 🤖 **AI yol haritası:** [`docs/ai/ROADMAP.md`](./docs/ai/ROADMAP.md)
 - 🏛️ **Mimari Karar Kayıtları:** [`docs/adr/README.md`](./docs/adr/README.md)
 - 🇹🇷 **Yarışma Konusu (Türkçe PDF):** [`Hackathon-Subject-TR.pdf`](./Hackathon-Subject-TR.pdf)
 - 📄 **Yarışma Konusu (Orijinal Markdown - EN):** [`docs/Hackathon-Subject.md`](./docs/Hackathon-Subject.md)

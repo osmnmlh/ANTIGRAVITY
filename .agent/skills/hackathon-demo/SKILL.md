@@ -9,7 +9,9 @@ description: Scope, prioritize and cut features for a 24-hour hackathon, plan th
 
 The judges see a **3-minute story**, not the codebase. Build backwards from the demo.
 
-## Demo story (default; edit in docs/demo-script.md)
+## Demo story (generic default)
+
+The team's real script is `docs/demo-script.md` (Turkish, ~3 min live demo inside a 10 min talk). Use it; the list below is only the fallback outline.
 
 1. Context (20s): Mars transit, day 120, 20-minute comms delay; astronaut must self-assess.
 2. Watch (30s): morning check-in on the wrist: mood 3, heart rate auto-captured → syncs to iPhone.
