@@ -2,7 +2,7 @@
 
 > **Uyarı:** Bu uygulama NASA Space Apps Challenge 2026 için geliştirilmiş bir prototiptir (**Demo software, not a medical device.** — Bu yazılım bir demo uygulamasıdır, tıbbi cihaz değildir).
 
-Bu doküman, jüri önünde gerçekleştirilecek **yaklaşık 3 dakikalık (180 saniye)** canlı demoyu adım adım tanımlar. Demo statik mock akış yerine **Vercel üzerinde canlıya alınmış Web Dashboard** ile canlı backend SSE akışını kullanır; Web üzerinden tetiklenen senaryolar ve AI bot veri girişleri yapay gecikme eklenmeden gerçek zamanlı olarak **iPhone** ve **Apple Watch** ekranlarına iletilir.
+Bu doküman, **10 dakikalık** jüri sunumunun içindeki **yaklaşık 3 dakikalık (180 saniye)** canlı demo bölümünü adım adım tanımlar. Sunum dili Türkçedir (ADR-0005). iPhone ve Apple Watch adımı canlı gösterilecektir; bunun için iOS uygulamasının demodan önce `main`'e girmesi gerekir. Sunumun geri kalan bölümleri ve konuşmacılar henüz belirlenmedi. Demo statik mock akış yerine **Vercel üzerinde canlıya alınmış Web Dashboard** ile canlı backend SSE akışını kullanır; Web üzerinden tetiklenen senaryolar ve AI bot veri girişleri yapay gecikme eklenmeden gerçek zamanlı olarak **iPhone** ve **Apple Watch** ekranlarına iletilir.
 
 ---
 
