@@ -16,8 +16,13 @@ const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 try { process.loadEnvFile(here('../.env')); } catch { /* reported below */ }
 
 const KEY = process.env.ELEVENLABS_API_KEY;
-const VOICE = process.env.ELEVENLABS_VOICE_ID ?? '6GYyziau4Hk8qdg7od5c'; // "Betül Tuna", Turkish female (team choice)
-const MODEL = process.env.ELEVENLABS_MODEL ?? 'eleven_multilingual_v2';
+// Default: "Alice" (premade, clear female), usable on the FREE plan. The team's first choice, the Turkish "Betül Tuna" (6GYyziau4Hk8qdg7od5c),
+// is a library voice: the API answers 402 paid_plan_required without a paid plan. With one, set ELEVENLABS_VOICE_ID to it.
+// Other free female voices: Matilda XrExE9yKIg1WjnnlVkGX, Sarah EXAVITQu4vr4xnSDxMaL.
+const VOICE = process.env.ELEVENLABS_VOICE_ID ?? 'Xb7hH8MSUJpSbSDYk0k2';
+// turbo v2.5 can be told the language, which keeps a non-Turkish voice from reading Turkish with its own accent (and costs half a credit per character).
+const MODEL = process.env.ELEVENLABS_MODEL ?? 'eleven_turbo_v2_5';
+const LANGUAGE = /v2_5/.test(MODEL) ? { language_code: 'tr' } : {};
 // "Hafif donuk": very stable and style-free = flat, little emotion; a touch slower. The web adds a soft low-pass on top.
 const VOICE_SETTINGS = { stability: 0.9, similarity_boost: 0.8, style: 0, use_speaker_boost: false, speed: 0.94 };
 const OUT = here('../../web/public/ai-voice/');
@@ -42,12 +47,12 @@ const save = () => writeFileSync(manifestPath, `${JSON.stringify({ voice: VOICE,
 
 let made = 0;
 for (const text of phrases) {
-  const file = `${createHash('sha1').update(`${VOICE}|${text}`).digest('hex').slice(0, 12)}.mp3`;
+  const file = `${createHash('sha1').update(`${VOICE}|${MODEL}|${text}`).digest('hex').slice(0, 12)}.mp3`;
   if (!force && manifest.clips[text] === file && existsSync(OUT + file)) continue;
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_64`, {
     method: 'POST',
     headers: { 'xi-api-key': KEY, 'content-type': 'application/json', accept: 'audio/mpeg' },
-    body: JSON.stringify({ text, model_id: MODEL, voice_settings: VOICE_SETTINGS }),
+    body: JSON.stringify({ text, model_id: MODEL, voice_settings: VOICE_SETTINGS, ...LANGUAGE }),
     signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) {

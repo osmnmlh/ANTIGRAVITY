@@ -52,9 +52,11 @@ Browsers block audio until a click, so voice starts **off**: click "🔇 Sesli u
 in this browser; after a reload the first click anywhere re-enables audio. Speech uses a `tr-TR` voice when the OS has one
 (Windows/macOS/Chrome do).
 
-**ElevenLabs clips (the alert voice):** the short alert phrases are pre-rendered with the team's ElevenLabs voice ("Betül Tuna", id `6GYyziau4Hk8qdg7od5c`)
-by `backend/ai/make-voice-clips.mjs` into `web/public/ai-voice/` (mp3 + `manifest.json`): put `ELEVENLABS_API_KEY` in `backend/.env`, run the script once, commit
-the folder. Generation uses flat, style-free settings and the web plays a clip through a soft low-pass, slightly slower ("hafif donuk", constants `DULL` in `voice.ts`).
+**ElevenLabs clips (the alert voice):** the short alert phrases are pre-rendered with ElevenLabs by `backend/ai/make-voice-clips.mjs` into `web/public/ai-voice/`
+(52 mp3 + `manifest.json`, already committed). Voice: **Alice** (free premade female) with `eleven_turbo_v2_5` and `language_code: tr`, flat style-free settings.
+The web plays a clip through a soft low-pass, slightly slower ("hafif donuk", constants `DULL` in `voice.ts`). The Turkish voice "Betül Tuna" is a library voice:
+the API refuses it on the free plan (402); with a paid plan set `ELEVENLABS_VOICE_ID=6GYyziau4Hk8qdg7od5c`. To change voice or add phrases: key in `backend/.env`
+(`ELEVENLABS_API_KEY`, git-ignored), `node --experimental-strip-types backend/ai/make-voice-clips.mjs` (`--force` = render all again), commit the folder.
 Clips play instantly, need no key or network at runtime and cost no quota. A phrase without a clip, and the "Sesli oku" reading, use the browser voice below.
 
 **Which browser voice:** the page picks the best **female Turkish** voice of the device (Windows "Microsoft Emel", macOS / iOS "Yelda", Chrome "Google Türkçe";
