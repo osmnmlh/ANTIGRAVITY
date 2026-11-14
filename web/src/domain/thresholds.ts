@@ -2,7 +2,11 @@ import type { HealthStatus, HealthType } from './types'
 
 export const DEMO_MISSION_DOSE_BUDGET_MSV = 200
 
-export function getStatus(type: HealthType, value: number): HealthStatus {
+export function getStatus(
+  type: HealthType,
+  value: number,
+  radiationBudgetMsv = DEMO_MISSION_DOSE_BUDGET_MSV,
+): HealthStatus {
   switch (type) {
     case 'heartRate':
       if (value < 40 || value > 120) return 'red'
@@ -37,7 +41,7 @@ export function getStatus(type: HealthType, value: number): HealthStatus {
       if (value === 3) return 'amber'
       return 'green'
     case 'radiationDose': {
-      const budgetUse = value / DEMO_MISSION_DOSE_BUDGET_MSV
+      const budgetUse = value / radiationBudgetMsv
       if (budgetUse > 0.8) return 'red'
       if (budgetUse >= 0.5) return 'amber'
       return 'green'

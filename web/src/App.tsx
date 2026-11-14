@@ -1,10 +1,9 @@
-import { useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import './App.css'
 import { ThreeBodyMap } from './components/ThreeBodyMap'
-import { latestSampleFor, useHealthData } from './data/useHealthData'
+import { astronautProfiles, latestSampleFor, useHealthData } from './data/useHealthData'
 import { guidanceByType } from './domain/guidance'
 import {
-  DEMO_MISSION_DOSE_BUDGET_MSV,
   getStatus,
   statusDescriptions,
   statusLabels,
@@ -13,10 +12,96 @@ import {
   healthTypes,
   metricDefinitions,
   type HealthStatus,
+  type HealthSample,
   type HealthType,
 } from './domain/types'
 
 type MissionEnvironment = 'iss' | 'lunar' | 'mars'
+type Workspace = 'astronauts' | 'base'
+type TaskPriority = 'normal' | 'high'
+type AlertSeverity = 'info' | 'warning' | 'critical'
+type AlertRecipient = 'all' | (typeof astronautProfiles)[number]['id']
+
+interface MissionTask {
+  id: string
+  title: string
+  details: string
+  assigneeId: (typeof astronautProfiles)[number]['id']
+  dueAt: string
+  priority: TaskPriority
+  completed: boolean
+  createdAt: string
+}
+
+interface CrewMessage {
+  id: string
+  title: string
+  message: string
+  recipientId: AlertRecipient
+  severity: AlertSeverity
+  acknowledged: boolean
+  createdAt: string
+}
+
+const taskStorageKey = 'antigravity.mission-tasks.v1'
+const messageStorageKey = 'antigravity.crew-messages.v1'
+
+function isMissionTask(value: unknown): value is MissionTask {
+  if (!value || typeof value !== 'object') return false
+  const task = value as Record<string, unknown>
+  return (
+    typeof task.id === 'string' &&
+    typeof task.title === 'string' &&
+    typeof task.details === 'string' &&
+    astronautProfiles.some(({ id }) => id === task.assigneeId) &&
+    typeof task.dueAt === 'string' &&
+    (task.priority === 'normal' || task.priority === 'high') &&
+    typeof task.completed === 'boolean' &&
+    typeof task.createdAt === 'string'
+  )
+}
+
+function isCrewMessage(value: unknown): value is CrewMessage {
+  if (!value || typeof value !== 'object') return false
+  const message = value as Record<string, unknown>
+  return (
+    typeof message.id === 'string' &&
+    typeof message.title === 'string' &&
+    typeof message.message === 'string' &&
+    (message.recipientId === 'all' || astronautProfiles.some(({ id }) => id === message.recipientId)) &&
+    (message.severity === 'info' || message.severity === 'warning' || message.severity === 'critical') &&
+    typeof message.acknowledged === 'boolean' &&
+    typeof message.createdAt === 'string'
+  )
+}
+
+function readMissionTasks(): MissionTask[] {
+  try {
+    const stored = window.localStorage.getItem(taskStorageKey)
+    if (!stored) return []
+    const parsed: unknown = JSON.parse(stored)
+    if (Array.isArray(parsed) && parsed.every(isMissionTask)) return parsed
+    console.error('Saved mission tasks have an invalid shape; starting with an empty task list.')
+    return []
+  } catch (error) {
+    console.error('Could not load mission tasks from local storage.', error)
+    return []
+  }
+}
+
+function readCrewMessages(): CrewMessage[] {
+  try {
+    const stored = window.localStorage.getItem(messageStorageKey)
+    if (!stored) return []
+    const parsed: unknown = JSON.parse(stored)
+    if (Array.isArray(parsed) && parsed.every(isCrewMessage)) return parsed
+    console.error('Saved crew messages have an invalid shape; starting with an empty message list.')
+    return []
+  } catch (error) {
+    console.error('Could not load crew messages from local storage.', error)
+    return []
+  }
+}
 
 const missionEnvironments: Record<
   MissionEnvironment,
@@ -45,18 +130,6 @@ const missionEnvironments: Record<
   },
 }
 
-const inputRanges: Record<HealthType, { min: number; max: number; step: number }> = {
-  heartRate: { min: 30, max: 180, step: 1 },
-  bloodPressureSys: { min: 60, max: 220, step: 1 },
-  bloodPressureDia: { min: 30, max: 140, step: 1 },
-  spo2: { min: 60, max: 100, step: 1 },
-  bodyTemp: { min: 32, max: 43, step: 0.1 },
-  bloodGlucose: { min: 30, max: 350, step: 1 },
-  sleepHours: { min: 0, max: 24, step: 0.1 },
-  mood: { min: 1, max: 5, step: 1 },
-  radiationDose: { min: 0, max: 300, step: 0.1 },
-}
-
 const metricOrder: HealthType[] = [
   'heartRate',
   'bloodPressureSys',
@@ -69,20 +142,15 @@ const metricOrder: HealthType[] = [
   'radiationDose',
 ]
 
-const trendOffsets: Record<HealthType, number[]> = {
-  heartRate: [-5, -2, 1, 0, 3, -1, 0],
-  bloodPressureSys: [-4, -2, 0, 2, -1, 1, 0],
-  bloodPressureDia: [-3, -1, 0, 2, -2, 1, 0],
-  spo2: [1, 0, -1, 1, 0, 0, 0],
-  bodyTemp: [-0.2, -0.1, 0, 0.1, 0, 0.1, 0],
-  bloodGlucose: [-5, -2, 2, -3, 4, 1, 0],
-  sleepHours: [0.6, 0.2, -0.4, -0.8, -0.3, 0.1, 0],
-  mood: [0, -1, 0, 1, 0, 0, 0],
-  radiationDose: [-3, -2, -1, 0, 1, 2, 0],
-}
-
 function getStatusTone(status: HealthStatus) {
   return `status-${status}`
+}
+
+function getMissionEnvironment(missionName: string): MissionEnvironment {
+  const mission = missionName.toLowerCase()
+  if (mission.includes('lunar')) return 'lunar'
+  if (mission.includes('mars')) return 'mars'
+  return 'iss'
 }
 
 function getLatestByType(samples: ReturnType<typeof useHealthData>['samples']) {
@@ -108,31 +176,39 @@ function StatusBadge({ status }: { status: HealthStatus }) {
   )
 }
 
-function TrendChart({ type, value }: { type: HealthType; value: number }) {
-  const offsets = trendOffsets[type]
-  const scale = type === 'bodyTemp' ? 0.35 : type === 'sleepHours' ? 0.7 : type === 'mood' ? 1 : type === 'radiationDose' ? 3 : type === 'spo2' ? 1 : 5
-  const values = offsets.map((offset, index) => {
-    if (index === offsets.length - 1) return value
-    const adjusted = value + offset * scale
-    return type === 'mood' ? Math.min(5, Math.max(1, Math.round(adjusted))) : Math.max(0, adjusted)
-  })
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const span = max - min || 1
-  const points = values.map((point, index) => ({
-    x: 8 + (index * 264) / (values.length - 1),
-    y: 112 - ((point - min) / span) * 82,
-    value: point,
+function TrendChart({ type, samples }: { type: HealthType; samples: HealthSample[] }) {
+  const orderedSamples = [...samples].sort(
+    (left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp),
+  )
+  const firstTimestamp = Date.parse(orderedSamples[0].timestamp)
+  const lastTimestamp = Date.parse(orderedSamples[orderedSamples.length - 1].timestamp)
+  const rangeStart = Math.max(firstTimestamp, lastTimestamp - 6 * 24 * 60 * 60 * 1000)
+  const recentSamples = orderedSamples.filter((sample) => Date.parse(sample.timestamp) >= rangeStart)
+  const values = recentSamples.map(({ value }) => value)
+  const minimum = Math.min(...values)
+  const maximum = Math.max(...values)
+  const padding = (maximum - minimum) * 0.15 || Math.max(Math.abs(minimum) * 0.02, 0.1)
+  const min = minimum - padding
+  const span = maximum - minimum + padding * 2
+  const dateSpan = Date.parse(recentSamples[recentSamples.length - 1].timestamp) -
+    Date.parse(recentSamples[0].timestamp)
+  const points = recentSamples.map((sample) => ({
+    x: 8 + (dateSpan
+      ? ((Date.parse(sample.timestamp) - Date.parse(recentSamples[0].timestamp)) / dateSpan) * 264
+      : 132),
+    y: 112 - ((sample.value - min) / span) * 82,
+    value: sample.value,
+    date: new Date(sample.timestamp).toLocaleDateString('tr-TR', { day: '2-digit' }),
   }))
   const pointString = points.map(({ x, y }) => `${x},${y}`).join(' ')
   const areaPath = `M ${points[0].x} 122 L ${points.map(({ x, y }) => `${x} ${y}`).join(' L ')} L ${points[points.length - 1].x} 122 Z`
 
   return (
-    <div className="trend-chart" role="img" aria-label={`${metricDefinitions[type].label}: yedi günlük simüle edilmiş eğilim`}>
+    <div className="trend-chart" role="img" aria-label={`${metricDefinitions[type].label}: kaydedilmiş yedi günlük ölçümler`}>
       <div className="trend-chart-head">
         <div>
           <span className="eyebrow">7 GÜNLÜK EĞİLİM</span>
-          <span className="chart-caption">Simüle edilmiş geçmiş</span>
+          <span className="chart-caption">Kaydedilmiş ölçümler</span>
         </div>
         <span className="chart-period">SON 7 GÜN</span>
       </div>
@@ -159,23 +235,37 @@ function TrendChart({ type, value }: { type: HealthType; value: number }) {
         ))}
       </svg>
       <div className="trend-days">
-        {['08', '09', '10', '11', '12', '13', '14'].map((day) => <span key={day}>{day}</span>)}
+        {points.map(({ x, date }) => <span key={`${x}-${date}`}>{date}</span>)}
       </div>
     </div>
   )
 }
 
 function App() {
-  const { samples, addSample, addSamples, resetSamples } = useHealthData()
+  const { samples } = useHealthData()
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('astronauts')
+  const [missionTasks, setMissionTasks] = useState<MissionTask[]>(readMissionTasks)
+  const [crewMessages, setCrewMessages] = useState<CrewMessage[]>(readCrewMessages)
+  const [taskTitle, setTaskTitle] = useState('')
+  const [taskDetails, setTaskDetails] = useState('')
+  const [taskAssignee, setTaskAssignee] = useState<(typeof astronautProfiles)[number]['id']>('crew-1')
+  const [taskPriority, setTaskPriority] = useState<TaskPriority>('normal')
+  const [taskDueAt, setTaskDueAt] = useState('')
+  const [alertTitle, setAlertTitle] = useState('')
+  const [alertMessage, setAlertMessage] = useState('')
+  const [alertRecipient, setAlertRecipient] = useState<AlertRecipient>('all')
+  const [alertSeverity, setAlertSeverity] = useState<AlertSeverity>('critical')
   const [environment, setEnvironment] = useState<MissionEnvironment>('mars')
+  const [selectedCrewId, setSelectedCrewId] = useState<(typeof astronautProfiles)[number]['id']>('crew-1')
   const [selectedMetric, setSelectedMetric] = useState<HealthType>('heartRate')
   const [focusedMetric, setFocusedMetric] = useState<HealthType | null>(null)
-  const [inputType, setInputType] = useState<HealthType>('heartRate')
-  const [inputValue, setInputValue] = useState('72')
-  const [formMessage, setFormMessage] = useState('')
-  const [scenarioMessage, setScenarioMessage] = useState('')
 
-  const latest = useMemo(() => getLatestByType(samples), [samples])
+  const selectedAstronaut = astronautProfiles.find(({ id }) => id === selectedCrewId) ?? astronautProfiles[0]
+  const crewSamples = useMemo(
+    () => samples.filter((sample) => sample.crewId === selectedCrewId),
+    [samples, selectedCrewId],
+  )
+  const latest = useMemo(() => getLatestByType(crewSamples), [crewSamples])
   const values = useMemo(
     () =>
       Object.fromEntries(healthTypes.map((type) => [type, latest[type]?.value])) as Record<
@@ -189,10 +279,10 @@ function App() {
       Object.fromEntries(
         healthTypes.map((type) => {
           const sample = latest[type]
-          return [type, sample ? getStatus(type, sample.value) : 'missing']
+          return [type, sample ? getStatus(type, sample.value, selectedAstronaut.radiationBudgetMsv) : 'missing']
         }),
       ) as Record<HealthType, HealthStatus>,
-    [latest],
+    [latest, selectedAstronaut.radiationBudgetMsv],
   )
   const statusCounts = useMemo(
     () =>
@@ -224,53 +314,108 @@ function App() {
   const selectedStatus = statuses[selectedMetric]
   const selectedGuidance = guidanceByType[selectedMetric]
   const activeEnvironment = missionEnvironments[environment]
+  const selectedTrendSamples = useMemo(
+    () => crewSamples.filter((sample) => sample.type === selectedMetric),
+    [crewSamples, selectedMetric],
+  )
+  const selectedAstronautTasks = useMemo(
+    () => missionTasks.filter((task) => task.assigneeId === selectedCrewId),
+    [missionTasks, selectedCrewId],
+  )
+  const selectedOpenTaskCount = selectedAstronautTasks.filter((task) => !task.completed).length
+  const crewOverview = useMemo(
+    () =>
+      astronautProfiles.map((astronaut) => {
+        const astronautSamples = samples.filter((sample) => sample.crewId === astronaut.id)
+        const latestMeasurements = getLatestByType(astronautSamples)
+        const statuses = Object.fromEntries(
+          healthTypes.map((type) => {
+            const sample = latestMeasurements[type]
+            return [type, sample ? getStatus(type, sample.value, astronaut.radiationBudgetMsv) : 'missing']
+          }),
+        ) as Record<HealthType, HealthStatus>
+        const redIndicators = healthTypes.filter((type) => statuses[type] === 'red')
+        const amberCount = healthTypes.filter((type) => statuses[type] === 'amber').length
+        const hasMeasurements = healthTypes.some((type) => latestMeasurements[type])
+        const overallStatus: HealthStatus = redIndicators.length
+          ? 'red'
+          : amberCount
+            ? 'amber'
+            : hasMeasurements
+              ? 'green'
+              : 'missing'
+        return {
+          ...astronaut,
+          overallStatus,
+          redIndicators,
+          latestMeasurements,
+        }
+      }),
+    [samples],
+  )
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(taskStorageKey, JSON.stringify(missionTasks))
+    } catch (error) {
+      console.error('Could not save mission tasks to local storage.', error)
+    }
+  }, [missionTasks])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(messageStorageKey, JSON.stringify(crewMessages))
+    } catch (error) {
+      console.error('Could not save crew messages to local storage.', error)
+    }
+  }, [crewMessages])
 
   function selectMetric(type: HealthType) {
     setSelectedMetric(type)
     setFocusedMetric(type)
   }
 
-  function handleManualEntry(event: FormEvent<HTMLFormElement>) {
+  function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const value = Number(inputValue)
-    const range = inputRanges[inputType]
-    if (!Number.isFinite(value) || value < range.min || value > range.max) {
-      setFormMessage(`Değer ${range.min}–${range.max} aralığında olmalı.`)
-      return
-    }
-    if (inputType === 'mood' && !Number.isInteger(value)) {
-      setFormMessage('Ruh hâli puanı 1–5 arasında tam sayı olmalı.')
-      return
-    }
-    addSample(inputType, value, 'manual')
-    selectMetric(inputType)
-    setFormMessage(`${metricDefinitions[inputType].shortLabel} ölçümü kaydedildi.`)
-    setScenarioMessage('')
+    const title = taskTitle.trim()
+    if (!title) return
+    setMissionTasks((current) => [{
+      id: crypto.randomUUID(),
+      title,
+      details: taskDetails.trim(),
+      assigneeId: taskAssignee,
+      dueAt: taskDueAt,
+      priority: taskPriority,
+      completed: false,
+      createdAt: new Date().toISOString(),
+    }, ...current])
+    setTaskTitle('')
+    setTaskDetails('')
+    setTaskDueAt('')
   }
 
-  function runSolarScenario() {
-    addSample('radiationDose', 170, 'mock')
-    selectMetric('radiationDose')
-    setScenarioMessage('Güneş parçacık olayı senaryosu etkin · 170 mSv / 200 mSv demo görev bütçesi')
-    setFormMessage('')
+  function handleDeleteTask(task: MissionTask) {
+    const shouldDelete = window.confirm(`"${task.title}" görevini silmek istediğine emin misin?`)
+    if (!shouldDelete) return
+    setMissionTasks((current) => current.filter((item) => item.id !== task.id))
   }
 
-  function runSleepScenario() {
-    const timestamp = new Date().toISOString()
-    addSamples([
-      { id: crypto.randomUUID(), crewId: 'crew-1', type: 'sleepHours', value: 4.2, unit: 'h', timestamp, source: 'mock' },
-      { id: crypto.randomUUID(), crewId: 'crew-1', type: 'mood', value: 3, unit: '1-5', timestamp, source: 'mock' },
-    ])
-    selectMetric('sleepHours')
-    setScenarioMessage('Uyku yoksunluğu senaryosu etkin · uyku ve ruh hâli göstergeleri güncellendi')
-    setFormMessage('')
-  }
-
-  function restoreBaseline() {
-    resetSamples()
-    selectMetric('heartRate')
-    setScenarioMessage('Başlangıç demo verileri geri yüklendi.')
-    setFormMessage('')
+  function handleSendCrewMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const title = alertTitle.trim()
+    const message = alertMessage.trim()
+    if (!title || !message) return
+    setCrewMessages((current) => [{
+      id: crypto.randomUUID(),
+      title,
+      message,
+      recipientId: alertRecipient,
+      severity: alertSeverity,
+      acknowledged: false,
+      createdAt: new Date().toISOString(),
+    }, ...current])
+    setAlertTitle('')
+    setAlertMessage('')
   }
 
   const currentTime = new Date().toLocaleTimeString('tr-TR', {
@@ -278,6 +423,16 @@ function App() {
     minute: '2-digit',
     timeZone: 'UTC',
   })
+  const automaticHealthAlerts = crewOverview.flatMap((astronaut) =>
+    astronaut.redIndicators.map((type) => ({
+      id: `${astronaut.id}-${type}`,
+      astronaut,
+      type,
+      value: astronaut.latestMeasurements[type]?.value,
+    })),
+  )
+  const openTaskCount = missionTasks.filter((task) => !task.completed).length
+  const unacknowledgedMessageCount = crewMessages.filter((message) => !message.acknowledged).length
 
   return (
     <div className="app-shell">
@@ -305,7 +460,37 @@ function App() {
         </div>
       </header>
 
+      <nav className="workspace-nav" aria-label="Görev çalışma alanları" data-testid="workspace-navigation">
+        <button
+          className={`workspace-tab ${activeWorkspace === 'astronauts' ? 'is-active' : ''}`}
+          data-testid="workspace-astronauts"
+          onClick={() => setActiveWorkspace('astronauts')}
+          type="button"
+          aria-current={activeWorkspace === 'astronauts' ? 'page' : undefined}
+        >
+          <span className="workspace-tab-icon" aria-hidden="true">◉</span>
+          <span>Astronotlar</span>
+          <small>SAĞLIK GÖRÜNÜMÜ</small>
+        </button>
+        <button
+          className={`workspace-tab ${activeWorkspace === 'base' ? 'is-active' : ''}`}
+          data-testid="workspace-base"
+          onClick={() => setActiveWorkspace('base')}
+          type="button"
+          aria-current={activeWorkspace === 'base' ? 'page' : undefined}
+        >
+          <span className="workspace-tab-icon" aria-hidden="true">⌂</span>
+          <span>Ana üs</span>
+          {(automaticHealthAlerts.length + unacknowledgedMessageCount + openTaskCount > 0) && (
+            <b className="workspace-alert-count">{automaticHealthAlerts.length + unacknowledgedMessageCount + openTaskCount}</b>
+          )}
+          <small>GÖREV KONTROLÜ</small>
+        </button>
+      </nav>
+
       <main id="dashboard" className="dashboard">
+        {activeWorkspace === 'astronauts' ? (
+          <>
         <section className="page-heading">
           <div>
             <div className="breadcrumb"><span>FLIGHT DECK</span><b>/</b><span>CREW HEALTH</span></div>
@@ -356,90 +541,129 @@ function App() {
           </div>
         )}
 
+        <section className="astronaut-selector" aria-label="Astronot seçimi">
+          <div className="astronaut-selector-heading">
+            <div>
+              <span className="eyebrow">MÜRETTEBAT</span>
+              <h2>Astronot profili</h2>
+            </div>
+            <span className="astronaut-selector-note">{selectedAstronaut.role} · {selectedAstronaut.missionName}</span>
+          </div>
+          <div className="astronaut-select-box">
+            <span className="astronaut-option-avatar" aria-hidden="true">AST</span>
+            <label className="astronaut-select-field" htmlFor="astronaut-select">
+              <span className="eyebrow">SEÇİLİ ASTRONOT</span>
+              <select
+                id="astronaut-select"
+                data-testid="astronaut-selector"
+                value={selectedCrewId}
+                onChange={(event) => {
+                  const astronaut = astronautProfiles.find(({ id }) => id === event.target.value)
+                  if (!astronaut) {
+                    console.error(`No astronaut profile exists for ${event.target.value}.`)
+                    return
+                  }
+                  setSelectedCrewId(astronaut.id)
+                  setEnvironment(getMissionEnvironment(astronaut.missionName))
+                  setFocusedMetric(selectedMetric)
+                }}
+              >
+                {astronautProfiles.map((astronaut) => (
+                  <option key={astronaut.id} value={astronaut.id}>
+                    {astronaut.name} · {astronaut.code}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="astronaut-identity" data-testid="astronaut-identity">
+              <strong>{selectedAstronaut.code}</strong>
+              <span>{selectedAstronaut.name}</span>
+            </span>
+            <span className={`astronaut-data-state ${crewSamples.length ? 'has-data' : ''}`} data-testid="astronaut-data-state">
+              {crewSamples.length ? 'VERİ HAZIR' : 'VERİ BEKLENİYOR'}
+            </span>
+          </div>
+        </section>
+
         <section className="dashboard-grid">
-          <details className="dashboard-disclosure control-column" data-testid="controls-disclosure">
+          <details className="dashboard-disclosure control-column" data-testid="astronaut-tasks-panel" open>
             <summary className="disclosure-summary">
-              <span className="disclosure-icon" aria-hidden="true">+</span>
+              <span className="disclosure-icon" aria-hidden="true">✓</span>
               <span className="disclosure-copy">
-                <span className="eyebrow">GÖREV ARAÇLARI</span>
-                <strong>Ölçüm ve senaryo kontrolleri</strong>
-                <small>Manuel kayıt · Demo senaryoları</small>
+                <span className="eyebrow">ASTRONOT GÖREVLERİ</span>
+                <strong>{selectedAstronaut.name} · Atanmış görevler</strong>
+                <small>{selectedOpenTaskCount} açık görev · {selectedAstronaut.code}</small>
               </span>
+              <span className="assigned-task-count">{selectedAstronautTasks.length}</span>
               <span className="disclosure-chevron" aria-hidden="true">⌄</span>
             </summary>
             <div className="disclosure-content">
-            <section className="panel manual-panel">
-              <div className="panel-heading">
-                <div><span className="eyebrow">HIZLI GİRİŞ</span><h2>Ölçüm kaydet</h2></div>
-                <span className="panel-icon">+</span>
-              </div>
-              <form onSubmit={handleManualEntry}>
-                <label className="field-label" htmlFor="metric-type">Gösterge</label>
-                <select
-                  id="metric-type"
-                  data-testid="entry-type"
-                  value={inputType}
-                  onChange={(event) => {
-                    const nextType = event.target.value as HealthType
-                    setInputType(nextType)
-                    setInputValue(latest[nextType] ? String(latest[nextType]?.value) : '')
-                    setFormMessage('')
-                  }}
-                >
-                  {metricOrder.map((type) => (
-                    <option key={type} value={type}>{metricDefinitions[type].input}</option>
-                  ))}
-                </select>
-                <label className="field-label" htmlFor="metric-value">Ölçüm değeri</label>
-                <div className="value-input-wrap">
-                  <input
-                    id="metric-value"
-                    data-testid="entry-value"
-                    type="number"
-                    min={inputRanges[inputType].min}
-                    max={inputRanges[inputType].max}
-                    step={inputRanges[inputType].step}
-                    required
-                    value={inputValue}
-                    onChange={(event) => setInputValue(event.target.value)}
-                  />
-                  <span>{metricDefinitions[inputType].displayUnit}</span>
+              <section className="panel assigned-task-panel">
+                <div className="panel-heading">
+                  <div><span className="eyebrow">GÖREV LİSTESİ</span><h2>{selectedAstronaut.name} için görevler</h2></div>
+                  <span className="assigned-task-progress">{selectedOpenTaskCount} AÇIK</span>
                 </div>
-                <button className="primary-button" type="submit" data-testid="entry-submit">
-                  <span>Ölçümü kaydet</span><b>↗</b>
-                </button>
-                {formMessage && <p className="form-message" role="status">{formMessage}</p>}
-              </form>
-              <div className="panel-footnote"><span className="source-dot" /> Kayıtlar bu tarayıcıda saklanır.</div>
-            </section>
-
-            <section className="panel scenario-panel">
-              <div className="panel-heading">
-                <div><span className="eyebrow">DEMO ARAÇLARI</span><h2>Senaryo çalıştır</h2></div>
-                <span className="scenario-pulse"><i /></span>
-              </div>
-              <button className="scenario-button" type="button" onClick={runSolarScenario} data-testid="scenario-solar">
-                <span className="scenario-symbol solar-symbol">☼</span>
-                <span><strong>Güneş olayı</strong><small>Radyasyon uyarısını göster</small></span>
-                <b>→</b>
-              </button>
-              <button className="scenario-button" type="button" onClick={runSleepScenario} data-testid="scenario-sleep">
-                <span className="scenario-symbol sleep-symbol">Zz</span>
-                <span><strong>Uyku yoksunluğu</strong><small>Uyku ve ruh hâlini değiştir</small></span>
-                <b>→</b>
-              </button>
-              {scenarioMessage && <p className="scenario-message" role="status">{scenarioMessage}</p>}
-              <button className="reset-button" type="button" onClick={restoreBaseline} data-testid="scenario-reset">
-                Başlangıç verilerine dön
-              </button>
-            </section>
-
-            <div className="hazards-panel">
-              <span className="eyebrow">NASA HRP · 5 UZAY TEHLİKESİ</span>
-              <div className="hazard-chips">
-                <span>Radyasyon</span><span>İzolasyon</span><span>Uzaklık</span><span>Yerçekimi</span><span>Kapalı ortam</span>
-              </div>
-            </div>
+                {selectedAstronautTasks.length ? (
+                  <div className="base-task-list" data-testid="astronaut-task-list">
+                    {selectedAstronautTasks.map((task) => (
+                      <article
+                        className={`base-task-card ${task.completed ? 'is-completed' : ''}`}
+                        data-testid={`astronaut-task-${task.id}`}
+                        key={task.id}
+                      >
+                        <button
+                          aria-label={task.completed ? 'Görevi yeniden aç' : 'Görevi tamamlandı olarak işaretle'}
+                          aria-pressed={task.completed}
+                          className="task-complete-toggle"
+                          data-testid={`astronaut-task-toggle-${task.id}`}
+                          onClick={() => setMissionTasks((current) =>
+                            current.map((item) => item.id === task.id ? { ...item, completed: !item.completed } : item),
+                          )}
+                          type="button"
+                        >
+                          {task.completed ? '✓' : ''}
+                        </button>
+                        <div className="base-task-content">
+                          <div className="base-task-title-line">
+                            <strong>{task.title}</strong>
+                            {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
+                          </div>
+                          {task.details && <p>{task.details}</p>}
+                          <span className="base-task-meta">
+                            {task.dueAt
+                              ? `Son tarih · ${new Date(task.dueAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                              : 'Son tarih belirtilmedi'}
+                          </span>
+                        </div>
+                        <span className={`task-status ${task.completed ? 'done' : ''}`}>{task.completed ? 'TAMAM' : 'AÇIK'}</span>
+                        <button
+                          aria-label={`Görevi sil: ${task.title}`}
+                          className="task-delete-button"
+                          data-testid={`astronaut-task-delete-${task.id}`}
+                          onClick={() => handleDeleteTask(task)}
+                          type="button"
+                        >
+                          SİL
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="base-empty-state" data-testid="astronaut-tasks-empty">
+                    <span>{selectedAstronaut.code}</span>
+                    <strong>Henüz atanmış görev yok</strong>
+                    <p>Ana üs görev panosundan {selectedAstronaut.name} için görev oluşturabilirsin.</p>
+                    <button
+                      className="assigned-task-link"
+                      data-testid="go-to-base-tasks"
+                      onClick={() => setActiveWorkspace('base')}
+                      type="button"
+                    >
+                      Ana üs görev panosuna git <b aria-hidden="true">→</b>
+                    </button>
+                  </div>
+                )}
+              </section>
             </div>
           </details>
 
@@ -447,7 +671,7 @@ function App() {
             <div className="section-label"><span>02</span> DURUM HARİTASI</div>
             <section className="panel body-panel">
               <div className="panel-heading body-heading">
-                <div><span className="eyebrow">MÜRETTEBAT / AST-01</span><h2>Vücut risk haritası</h2></div>
+                <div><span className="eyebrow">MÜRETTEBAT / {selectedAstronaut.code}</span><h2>{selectedAstronaut.name} · Sağlık görünümü</h2></div>
                 <div className="body-heading-tools">
                   <button
                     className="map-reset-button"
@@ -476,6 +700,8 @@ function App() {
               <div className="map-indicator-layout">
                 <ThreeBodyMap
                   environment={environment}
+                  astronautCode={selectedAstronaut.code}
+                  astronautName={selectedAstronaut.name}
                   statuses={statuses}
                   values={values}
                   selected={selectedMetric}
@@ -542,7 +768,19 @@ function App() {
                 </span>
               </div>
               <div className="guidance-hazard"><span>BAĞLANTILI UZAY TEHLİKESİ</span><strong>{selectedGuidance.hazard}</strong></div>
-              <TrendChart type={selectedMetric} value={selectedSample?.value ?? 0} />
+              {selectedTrendSamples.length > 1 ? (
+                <TrendChart type={selectedMetric} samples={selectedTrendSamples} />
+              ) : (
+                <div className="trend-chart-empty" data-testid="trend-data-pending">
+                  <span className="eyebrow">7 GÜNLÜK EĞİLİM</span>
+                  <strong>{selectedTrendSamples.length ? 'Haftalık seri bekleniyor' : 'Ölçüm bekleniyor'}</strong>
+                  <p>
+                    {selectedTrendSamples.length
+                      ? `${selectedAstronaut.name} için şu an yalnızca tek ölçüm var; eğilim için ek kayıt gerekli.`
+                      : `${selectedAstronaut.name} için ölçüm geldiğinde eğilim burada görüntülenecek.`}
+                  </p>
+                </div>
+              )}
               <div className="guidance-copy">
                 <div className="guidance-item">
                   <span className="guidance-index">01</span>
@@ -573,8 +811,357 @@ function App() {
         <footer className="app-footer">
           <span className="footer-brand"><span className="brand-mark small"><span /><span /><span /></span> ANTIGRAVITY · MISSION HEALTH DEMO</span>
           <span className="medical-disclaimer">Demo yazılımıdır, tıbbi cihaz değildir. Değerler örnek/simüle edilmiştir; tıbbi karar yerine geçmez.</span>
-          <span className="dose-budget">DEMO DOZ BÜTÇESİ: {DEMO_MISSION_DOSE_BUDGET_MSV} mSv</span>
+          <span className="dose-budget">GÖREV DOZ BÜTÇESİ: {selectedAstronaut.radiationBudgetMsv} mSv</span>
         </footer>
+          </>
+        ) : (
+          <>
+            <section className="base-welcome">
+              <div>
+                <div className="breadcrumb"><span>FLIGHT DECK</span><b>/</b><span>ANA ÜS</span></div>
+                <h1>Görev kontrol merkezi</h1>
+                <p className="page-subtitle">Mürettebatı takip et · görevleri ata · önemli bilgileri ilet.</p>
+              </div>
+              <div className="base-link-state"><i /> SİMÜLE EDİLMİŞ YER İSTASYONU</div>
+            </section>
+
+            <section className="base-summary" aria-label="Görev merkezi özeti">
+              <article className="base-summary-card">
+                <span className="eyebrow">MÜRETTEBAT</span>
+                <strong>{crewOverview.length}<small> ASTRONOT</small></strong>
+                <span>Görev kadrosu</span>
+              </article>
+              <article className={`base-summary-card ${automaticHealthAlerts.length ? 'has-critical' : ''}`}>
+                <span className="eyebrow">KRİTİK SAĞLIK UYARISI</span>
+                <strong>{automaticHealthAlerts.length}<small> AÇIK</small></strong>
+                <span>Demo eşiklerine göre</span>
+              </article>
+              <article className="base-summary-card">
+                <span className="eyebrow">AÇIK GÖREVLER</span>
+                <strong>{openTaskCount}<small> ATANMIŞ</small></strong>
+                <span>{missionTasks.length - openTaskCount} tamamlandı</span>
+              </article>
+              <article className={`base-summary-card ${unacknowledgedMessageCount ? 'has-warning' : ''}`}>
+                <span className="eyebrow">ONAY BEKLEYEN MESAJ</span>
+                <strong>{unacknowledgedMessageCount}<small> MESAJ</small></strong>
+                <span>Simüle edilmiş iletim</span>
+              </article>
+            </section>
+
+            <section className="base-roster panel">
+              <div className="panel-heading">
+                <div><span className="eyebrow">MÜRETTEBAT DURUMU</span><h2>Görev ekibi</h2></div>
+                <span className="base-updated"><i /> SON VERİ: 08:00 UTC</span>
+              </div>
+              <div className="base-roster-list">
+                {crewOverview.map((astronaut) => (
+                  <article className="base-roster-row" data-testid={`base-crew-${astronaut.id}`} key={astronaut.id}>
+                    <span className="base-crew-avatar">{astronaut.code.slice(-2)}</span>
+                    <span className="base-crew-main">
+                      <strong>{astronaut.name}</strong>
+                      <small>{astronaut.role}</small>
+                    </span>
+                    <span className="base-crew-mission">{astronaut.missionName}</span>
+                    <span className={`base-health-state ${getStatusTone(astronaut.overallStatus)}`}>
+                      <i /> {statusLabels[astronaut.overallStatus]}
+                    </span>
+                    <span className="base-crew-note">
+                      {astronaut.redIndicators.length
+                        ? `${astronaut.redIndicators.length} kritik gösterge`
+                        : astronaut.overallStatus === 'amber'
+                          ? 'Takip gerekli'
+                          : 'Açık kritik yok'}
+                    </span>
+                    <button
+                      className="base-open-astronaut"
+                      data-testid={`base-open-${astronaut.id}`}
+                      onClick={() => {
+                        setSelectedCrewId(astronaut.id)
+                        setEnvironment(getMissionEnvironment(astronaut.missionName))
+                        setActiveWorkspace('astronauts')
+                      }}
+                      type="button"
+                    >
+                      SAĞLIĞI AÇ <span>↗</span>
+                    </button>
+                  </article>
+                ))}
+              </div>
+              <p className="base-disclaimer">Sağlık durumu demo eşikleriyle hesaplanır; klinik değerlendirme değildir.</p>
+            </section>
+
+            <section className="base-operations-grid">
+              <div className="base-operations-column">
+                <section className="panel base-operation-panel">
+                  <div className="panel-heading">
+                    <div><span className="eyebrow">UÇUŞ OPERASYONLARI</span><h2>Görev ata</h2></div>
+                    <span className="base-panel-symbol">＋</span>
+                  </div>
+                  <form className="base-form" onSubmit={handleCreateTask} data-testid="task-form">
+                    <label className="field-label" htmlFor="task-title">Görev adı</label>
+                    <input
+                      id="task-title"
+                      data-testid="task-title"
+                      maxLength={90}
+                      onChange={(event) => setTaskTitle(event.target.value)}
+                      placeholder="Örn. Güneş paneli kontrolü"
+                      required
+                      value={taskTitle}
+                    />
+                    <label className="field-label" htmlFor="task-details">Talimat / not</label>
+                    <textarea
+                      id="task-details"
+                      data-testid="task-details"
+                      maxLength={400}
+                      onChange={(event) => setTaskDetails(event.target.value)}
+                      placeholder="Astronota iletilecek kısa görev açıklaması"
+                      rows={3}
+                      value={taskDetails}
+                    />
+                    <div className="base-form-row">
+                      <label>
+                        <span className="field-label">Atanacak astronot</span>
+                        <select
+                          data-testid="task-assignee"
+                          onChange={(event) => setTaskAssignee(event.target.value as typeof taskAssignee)}
+                          value={taskAssignee}
+                        >
+                          {astronautProfiles.map((astronaut) => (
+                            <option key={astronaut.id} value={astronaut.id}>{astronaut.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="field-label">Öncelik</span>
+                        <select
+                          data-testid="task-priority"
+                          onChange={(event) => setTaskPriority(event.target.value as TaskPriority)}
+                          value={taskPriority}
+                        >
+                          <option value="normal">Rutin</option>
+                          <option value="high">Yüksek</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label className="field-label" htmlFor="task-due">Son tarih (isteğe bağlı)</label>
+                    <input
+                      id="task-due"
+                      data-testid="task-due"
+                      onChange={(event) => setTaskDueAt(event.target.value)}
+                      type="datetime-local"
+                      value={taskDueAt}
+                    />
+                    <button className="primary-button base-submit" data-testid="task-submit" type="submit">
+                      <span>Görevi ata</span><b>↗</b>
+                    </button>
+                  </form>
+                </section>
+
+                <section className="panel base-operation-panel">
+                  <div className="panel-heading">
+                    <div><span className="eyebrow">GÖREV PANOSU</span><h2>Atanmış işler <small>{missionTasks.length}</small></h2></div>
+                  </div>
+                  {missionTasks.length ? (
+                    <div className="base-task-list">
+                      {missionTasks.map((task) => {
+                        const assignee = astronautProfiles.find(({ id }) => id === task.assigneeId)
+                        return (
+                          <article className={`base-task-card ${task.completed ? 'is-completed' : ''}`} data-testid={`mission-task-${task.id}`} key={task.id}>
+                            <button
+                              aria-label={task.completed ? 'Görevi yeniden aç' : 'Görevi tamamlandı olarak işaretle'}
+                              className="task-complete-toggle"
+                              data-testid={`task-toggle-${task.id}`}
+                              onClick={() => setMissionTasks((current) =>
+                                current.map((item) => item.id === task.id ? { ...item, completed: !item.completed } : item),
+                              )}
+                              type="button"
+                            >
+                              {task.completed ? '✓' : ''}
+                            </button>
+                            <div className="base-task-content">
+                              <div className="base-task-title-line">
+                                <strong>{task.title}</strong>
+                                {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
+                              </div>
+                              {task.details && <p>{task.details}</p>}
+                              <span className="base-task-meta">
+                                {assignee?.name ?? 'Atanmamış'}
+                                {task.dueAt ? ` · ${new Date(task.dueAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                              </span>
+                            </div>
+                            <span className={`task-status ${task.completed ? 'done' : ''}`}>{task.completed ? 'TAMAM' : 'AÇIK'}</span>
+                            <button
+                              aria-label={`Görevi sil: ${task.title}`}
+                              className="task-delete-button"
+                              data-testid={`task-delete-${task.id}`}
+                              onClick={() => handleDeleteTask(task)}
+                              type="button"
+                            >
+                              SİL
+                            </button>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="base-empty-state" data-testid="tasks-empty">
+                      <span>01</span><strong>Henüz görev atanmadı</strong>
+                      <p>İlk görevi oluşturduğunda burada görünecek.</p>
+                    </div>
+                  )}
+                </section>
+              </div>
+
+              <div className="base-operations-column">
+                <section className="panel base-operation-panel base-alert-panel">
+                  <div className="panel-heading">
+                    <div><span className="eyebrow">MÜRETTEBAT İLETİŞİMİ</span><h2>Uyarı ve bilgilendirme</h2></div>
+                    <span className="base-panel-symbol alert-symbol">!</span>
+                  </div>
+                  <p className="base-panel-intro">Önemli görev bilgisini bir astronota veya tüm mürettebata ilet.</p>
+                  <form className="base-form" onSubmit={handleSendCrewMessage} data-testid="crew-message-form">
+                    <label className="field-label" htmlFor="alert-title">Konu</label>
+                    <input
+                      id="alert-title"
+                      data-testid="alert-title"
+                      maxLength={90}
+                      onChange={(event) => setAlertTitle(event.target.value)}
+                      placeholder="Örn. Yaşam destek kontrolü"
+                      required
+                      value={alertTitle}
+                    />
+                    <div className="base-form-row">
+                      <label>
+                        <span className="field-label">Alıcı</span>
+                        <select
+                          data-testid="alert-recipient"
+                          onChange={(event) => setAlertRecipient(event.target.value as AlertRecipient)}
+                          value={alertRecipient}
+                        >
+                          <option value="all">Tüm mürettebat</option>
+                          {astronautProfiles.map((astronaut) => (
+                            <option key={astronaut.id} value={astronaut.id}>{astronaut.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span className="field-label">Önem düzeyi</span>
+                        <select
+                          data-testid="alert-severity"
+                          onChange={(event) => setAlertSeverity(event.target.value as AlertSeverity)}
+                          value={alertSeverity}
+                        >
+                          <option value="critical">Kritik</option>
+                          <option value="warning">Önemli</option>
+                          <option value="info">Bilgi</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label className="field-label" htmlFor="alert-message">Astronota iletilecek mesaj</label>
+                    <textarea
+                      id="alert-message"
+                      data-testid="alert-message"
+                      maxLength={500}
+                      onChange={(event) => setAlertMessage(event.target.value)}
+                      placeholder="Mesajı ve atılması gereken adımı açıkça yaz."
+                      required
+                      rows={4}
+                      value={alertMessage}
+                    />
+                    <button className="primary-button base-submit alert-submit" data-testid="alert-submit" type="submit">
+                      <span>Mesajı gönder · simülasyon</span><b>↗</b>
+                    </button>
+                  </form>
+                  <p className="base-simulation-note">Bu demo iletimi yalnızca bu tarayıcıda kaydedilir; gerçek iletişim hattı değildir.</p>
+                </section>
+
+                <section className="panel base-operation-panel">
+                  <div className="panel-heading">
+                    <div><span className="eyebrow">UYARI MERKEZİ</span><h2>Açık sağlık uyarıları <small>{automaticHealthAlerts.length}</small></h2></div>
+                  </div>
+                  {automaticHealthAlerts.length ? (
+                    <div className="base-health-alert-list">
+                      {automaticHealthAlerts.map(({ id, astronaut, type, value }) => (
+                        <article className="base-health-alert" data-testid={`health-alert-${id}`} key={id}>
+                          <span className="alert-indicator-icon">!</span>
+                          <div>
+                            <strong>{astronaut.name} · {metricDefinitions[type].shortLabel}</strong>
+                            <p>{formatValue(type, value)} {metricDefinitions[type].displayUnit} · Demo eşiği kritik</p>
+                          </div>
+                          <button
+                            data-testid={`alert-open-${astronaut.id}`}
+                            onClick={() => {
+                              setSelectedCrewId(astronaut.id)
+                              setEnvironment(getMissionEnvironment(astronaut.missionName))
+                              setSelectedMetric(type)
+                              setFocusedMetric(type)
+                              setActiveWorkspace('astronauts')
+                            }}
+                            type="button"
+                          >
+                            İNCELE ↗
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="base-empty-state compact"><strong>Açık kritik sağlık uyarısı yok</strong></div>
+                  )}
+                </section>
+
+                <section className="panel base-operation-panel">
+                  <div className="panel-heading">
+                    <div><span className="eyebrow">GÖNDERİM KAYDI</span><h2>Mürettebat mesajları <small>{crewMessages.length}</small></h2></div>
+                  </div>
+                  {crewMessages.length ? (
+                    <div className="base-message-list">
+                      {crewMessages.map((message) => {
+                        const recipient = message.recipientId === 'all'
+                          ? 'Tüm mürettebat'
+                          : astronautProfiles.find(({ id }) => id === message.recipientId)?.name ?? 'Mürettebat'
+                        return (
+                          <article className={`base-message-card severity-${message.severity}`} data-testid={`crew-message-${message.id}`} key={message.id}>
+                            <div className="base-message-topline">
+                              <span className="message-severity">{message.severity === 'critical' ? 'KRİTİK' : message.severity === 'warning' ? 'ÖNEMLİ' : 'BİLGİ'}</span>
+                              <span>{new Date(message.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · SİMÜLE</span>
+                            </div>
+                            <strong>{message.title}</strong>
+                            <p>{message.message}</p>
+                            <div className="base-message-footer">
+                              <span>ALICI · {recipient}</span>
+                              <button
+                                className={message.acknowledged ? 'is-acknowledged' : ''}
+                                data-testid={`message-ack-${message.id}`}
+                                disabled={message.acknowledged}
+                                onClick={() => setCrewMessages((current) =>
+                                  current.map((item) => item.id === message.id ? { ...item, acknowledged: true } : item),
+                                )}
+                                type="button"
+                              >
+                                {message.acknowledged ? '✓ ONAYLANDI' : 'ALINDI · SİMÜLE ET'}
+                              </button>
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="base-empty-state compact" data-testid="messages-empty">
+                      <strong>Henüz mesaj gönderilmedi</strong>
+                      <p>Gönderilen bilgilendirmeler ve onay durumları burada listelenir.</p>
+                    </div>
+                  )}
+                </section>
+              </div>
+            </section>
+
+            <footer className="app-footer">
+              <span className="footer-brand"><span className="brand-mark small"><span /><span /><span /></span> ANTIGRAVITY · MISSION CONTROL DEMO</span>
+              <span className="medical-disclaimer">Demo yazılımıdır, tıbbi cihaz değildir. Sağlık uyarıları demo eşiklerine dayanır.</span>
+              <span className="dose-budget">GÖREV: {activeEnvironment.short} · {activeEnvironment.latency}</span>
+            </footer>
+          </>
+        )}
       </main>
     </div>
   )

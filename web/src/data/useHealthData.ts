@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import astronautPacketData from '../../../shared/mock/astronaut-packets.json'
 import sharedSamples from '../../../shared/mock/samples.json'
 import {
   healthTypes,
@@ -9,39 +10,67 @@ import {
   type HealthType,
 } from '../domain/types'
 
-const storageKey = 'antigravity.health-samples.v2'
+const storageKey = 'antigravity.health-samples.v3'
+const legacyStorageKey = 'antigravity.health-samples.v2'
 const sharedSeedSamples = sharedSamples.filter(isHealthSample)
-const baselineValues: Record<HealthType, number> = {
-  heartRate: 72,
-  bloodPressureSys: 118,
-  bloodPressureDia: 76,
-  spo2: 97,
-  bodyTemp: 36.5,
-  bloodGlucose: 96,
-  sleepHours: 7.5,
-  mood: 4,
-  radiationDose: 21,
+const packetSamples = astronautPacketData.astronauts.flatMap((astronaut) =>
+  healthTypes.flatMap((type) => {
+    const measurement = astronaut.measurements[type]
+    if (!measurement) return []
+
+    const sample = {
+      id: `${astronaut.astronautId}-${type}-${measurement.timestamp}`,
+      crewId: astronaut.astronautId,
+      type,
+      value: measurement.value,
+      unit: measurement.unit,
+      timestamp: measurement.timestamp,
+      source: measurement.source,
+    }
+    if (!isHealthSample(sample)) {
+      console.error(`Invalid ${type} measurement in the ${astronaut.astronautId} packet.`)
+      return []
+    }
+    return [sample]
+  }),
+)
+const packetSampleKeys = new Set(
+  packetSamples.map(({ crewId, type, timestamp }) => `${crewId}:${type}:${timestamp}`),
+)
+const initialSamples = [
+  ...sharedSeedSamples.filter(
+    ({ crewId, type, timestamp }) => !packetSampleKeys.has(`${crewId}:${type}:${timestamp}`),
+  ),
+  ...packetSamples,
+]
+
+export const astronautProfiles = astronautPacketData.astronauts.map((astronaut, index) => ({
+  id: astronaut.astronautId,
+  name: astronaut.fullName,
+  role: astronaut.role,
+  missionName: astronaut.mission.name,
+  radiationBudgetMsv: astronaut.mission.radiationBudgetMsv,
+  code: `AST-${String(index + 1).padStart(2, '0')}`,
+}))
+
+function mergeWithInitialSamples(savedSamples: HealthSample[]) {
+  const initialKeys = new Set(
+    initialSamples.map(({ crewId, type, timestamp }) => `${crewId}:${type}:${timestamp}`),
+  )
+  const additionalSamples = savedSamples.filter(
+    (sample) =>
+      !sample.id.startsWith('web-demo-') &&
+      !initialKeys.has(`${sample.crewId}:${sample.type}:${sample.timestamp}`),
+  )
+  return [...initialSamples, ...additionalSamples]
 }
-const baselineTimestamp = new Date().toISOString()
-const initialSamples = healthTypes.flatMap((type) => {
-  const seed = latestSampleFor(sharedSeedSamples, type)
-  return seed
-    ? [{
-        ...seed,
-        id: `web-demo-${type}`,
-        value: baselineValues[type],
-        timestamp: baselineTimestamp,
-        source: 'mock' as const,
-      }]
-    : []
-})
 
 function readSamples(): HealthSample[] {
   try {
-    const stored = window.localStorage.getItem(storageKey)
+    const stored = window.localStorage.getItem(storageKey) ?? window.localStorage.getItem(legacyStorageKey)
     if (!stored) return initialSamples
     const parsed: unknown = JSON.parse(stored)
-    if (Array.isArray(parsed) && parsed.every(isHealthSample)) return parsed
+    if (Array.isArray(parsed) && parsed.every(isHealthSample)) return mergeWithInitialSamples(parsed)
     console.error('Saved health samples have an invalid shape; using the shared demo samples.')
     return initialSamples
   } catch (error) {
@@ -50,10 +79,15 @@ function readSamples(): HealthSample[] {
   }
 }
 
-export function createSample(type: HealthType, value: number, source: HealthSource): HealthSample {
+export function createSample(
+  type: HealthType,
+  value: number,
+  source: HealthSource,
+  crewId: string,
+): HealthSample {
   return {
     id: crypto.randomUUID(),
-    crewId: 'crew-1',
+    crewId,
     type,
     value,
     unit: metricDefinitions[type].unit,
@@ -77,8 +111,8 @@ export function useHealthData() {
     setSamples((current) => [...current, ...nextSamples])
   }
 
-  function addSample(type: HealthType, value: number, source: HealthSource) {
-    addSamples([createSample(type, value, source)])
+  function addSample(type: HealthType, value: number, source: HealthSource, crewId: string) {
+    addSamples([createSample(type, value, source, crewId)])
   }
 
   function resetSamples() {

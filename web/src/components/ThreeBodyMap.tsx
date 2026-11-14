@@ -4,6 +4,7 @@ import {
   BufferAttribute,
   Box3,
   BufferGeometry,
+  CanvasTexture,
   DirectionalLight,
   Group,
   Line,
@@ -15,6 +16,7 @@ import {
   MathUtils,
   Object3D,
   PerspectiveCamera,
+  PlaneGeometry,
   PointLight,
   Points,
   PointsMaterial,
@@ -35,6 +37,8 @@ import {
 } from '../domain/types'
 
 interface ThreeBodyMapProps {
+  astronautCode: string
+  astronautName: string
   environment: 'iss' | 'lunar' | 'mars'
   statuses: Record<HealthType, HealthStatus>
   values: Record<HealthType, number | undefined>
@@ -91,6 +95,36 @@ function formatValue(type: HealthType, value: number | undefined) {
     return value.toFixed(1)
   }
   return String(value)
+}
+
+function drawAstronautNameplate(canvas: HTMLCanvasElement, name: string, code: string) {
+  const context = canvas.getContext('2d')
+  if (!context) {
+    console.error('The astronaut nameplate could not acquire a 2D canvas context.')
+    return
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.shadowColor = 'rgba(56, 189, 248, 0.3)'
+  context.shadowBlur = 18
+  context.fillStyle = 'rgba(7, 18, 30, 0.92)'
+  context.strokeStyle = 'rgba(91, 220, 232, 0.78)'
+  context.lineWidth = 2
+  context.beginPath()
+  context.roundRect(5, 5, canvas.width - 10, canvas.height - 10, 20)
+  context.fill()
+  context.shadowBlur = 0
+  context.stroke()
+
+  context.fillStyle = '#5bdce8'
+  context.fillRect(22, 24, 4, 80)
+  context.textBaseline = 'middle'
+  context.font = '600 19px monospace'
+  context.fillStyle = '#80a9bc'
+  context.fillText(code, 43, 42)
+  context.font = '600 32px sans-serif'
+  context.fillStyle = '#edf7fb'
+  context.fillText(name, 43, 82, canvas.width - 68)
 }
 
 function FallbackFigure() {
@@ -165,6 +199,8 @@ function disposeModelResources(root: Object3D) {
 }
 
 export function ThreeBodyMap({
+  astronautCode,
+  astronautName,
   environment,
   statuses,
   values,
@@ -183,6 +219,7 @@ export function ThreeBodyMap({
   const lineRefs = useRef(new Map<HealthType, SVGPathElement>())
   const targetRefs = useRef(new Map<HealthType, SVGGElement>())
   const visibleLabelsRef = useRef<HealthType[]>([])
+  const nameplateRef = useRef<{ canvas: HTMLCanvasElement; texture: CanvasTexture } | null>(null)
   const [unavailable, setUnavailable] = useState(false)
 
   statusesRef.current = statuses
@@ -236,6 +273,28 @@ export function ThreeBodyMap({
     const figure = new Group()
     figureRef.current = figure
     scene.add(figure)
+    const nameplateCanvas = document.createElement('canvas')
+    nameplateCanvas.width = 512
+    nameplateCanvas.height = 128
+    const nameplateTexture = new CanvasTexture(nameplateCanvas)
+    nameplateTexture.colorSpace = 'srgb'
+    nameplateRef.current = { canvas: nameplateCanvas, texture: nameplateTexture }
+    const nameplateMaterial = new MeshBasicMaterial({
+      map: nameplateTexture,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+    })
+    const nameplateGeometry = new PlaneGeometry(1.4, 0.32)
+    const frontNameplate = new Mesh(nameplateGeometry, nameplateMaterial)
+    frontNameplate.position.set(0, 2.18, 0.3)
+    frontNameplate.renderOrder = 6
+    figure.add(frontNameplate)
+    const rearNameplate = new Mesh(nameplateGeometry, nameplateMaterial)
+    rearNameplate.position.set(0, 2.18, -0.3)
+    rearNameplate.rotation.y = Math.PI
+    rearNameplate.renderOrder = 6
+    figure.add(rearNameplate)
     let disposed = false
     let modelFailed = false
 
@@ -542,11 +601,19 @@ export function ThreeBodyMap({
       renderer.domElement.removeEventListener('pointercancel', handlePointerCancel)
       disposed = true
       figureRef.current = null
+      nameplateRef.current = null
       disposeModelResources(scene)
       renderer.dispose()
       renderer.domElement.remove()
     }
   }, [])
+
+  useEffect(() => {
+    const nameplate = nameplateRef.current
+    if (!nameplate) return
+    drawAstronautNameplate(nameplate.canvas, astronautName, astronautCode)
+    nameplate.texture.needsUpdate = true
+  }, [astronautCode, astronautName])
 
   useEffect(() => {
     const marker = markers.find(({ type }) => type === selected)
@@ -687,6 +754,9 @@ export function ThreeBodyMap({
       </div>
       {unavailable && (
         <div className="body-map-fallback">
+          <div className="body-map-fallback-name" data-testid="astronaut-nameplate">
+            <strong>{astronautCode}</strong><span>{astronautName}</span>
+          </div>
           <FallbackFigure />
           <span>3D görünüm kullanılamıyor · ölçümler aşağıdan seçilebilir</span>
         </div>
