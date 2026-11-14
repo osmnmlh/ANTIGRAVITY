@@ -19,6 +19,7 @@ web/          Web dashboard (Vite + React + TypeScript). Main demo surface. Play
 watch/        watchOS app (SwiftUI). Reads heart rate etc., quick mood/symptom check-in, sends to iPhone
 mobile/ios/   iPhone app (SwiftUI, target iPhone 16 Pro / iOS 18). Companion of the watch via WatchConnectivity
 shared/       Data contract shared by all clients (health-sample JSON shape + mock data)
+backend/      Optional zero-dependency Node relay (mock data in RAM, SSE, Gemini proxy). Clients must work without it
 docs/         Challenge brief, notes, demo script
 .agent/skills/   Canonical skills (Antigravity reads these directly)
 .claude/skills/  Thin pointers to .agent/skills/ for Claude Code
@@ -49,12 +50,22 @@ Canonical files: `.agent/skills/<name>/SKILL.md`.
 
 `type` ∈ `heartRate | bloodPressureSys | bloodPressureDia | spo2 | bodyTemp | bloodGlucose | sleepHours | mood | radiationDose`.
 `source` ∈ `watch | iphone | manual | mock`. Change it only via a PR touching `shared/` and tell the team.
+
+Two files in `shared/mock/` use this contract:
+
+- `samples.json` — `HealthSample[]` history (one record per reading, shape above). Feeds charts.
+- `astronaut-packets.json` — one **packet per astronaut**: profile + mission + latest `measurements` + Apple Watch `watchTelemetry` + `aiGuidance`.
+  `astronautId` in a packet equals `crewId` in samples. Types: `web/src/domain/types.ts`, `mobile/ios/Shared/HealthModels.swift`.
+- `aiGuidance` = `{ generatedAt, source: "gemini"|"fallback", model, overallStatus, summary, actions[], escalate, disclaimer }`.
+  Only the backend writes it (Gemini key stays server-side). iPhone parses it and shows it as **"AI recommendation"**.
+  `overallStatus` comes from the threshold engine — **the AI never decides green/amber/red**.
+
 Status logic (thresholds → green/amber/red) lives in one place per platform and follows `astronaut-health-domain`.
 
 ## How to work
 
 1. **Small and done beats big and almost.** No new framework, backend, auth or database unless the team agreed. Mock data is fine.
-2. Stay inside your folder (`web/`, `watch/`, `mobile/ios/`). Touching `shared/` or root files = mention it in the PR.
+2. Stay inside your folder (`web/`, `watch/`, `mobile/ios/`, `backend/`). Touching `shared/` or root files = mention it in the PR.
 3. Verify before claiming done: run it (`npm run dev` / `npm test` / build in Xcode) and say what you checked.
 4. Branch `feat/<area>-<short>` (e.g. `feat/web-body-map`), small PRs into `main`, never force-push `main`. See `team-git-workflow`.
 5. Never commit secrets, real personal health data, `node_modules/`, `DerivedData/`.
@@ -67,5 +78,6 @@ Status logic (thresholds → green/amber/red) lives in one place per platform an
 # web
 cd web && npm install && npm run dev        # local dev
 cd web && npx playwright test               # e2e
+cd backend && node --experimental-strip-types server.mjs   # optional relay on :8787 (Node 22.6+)
 # iOS / watchOS: open mobile/ios/*.xcodeproj in Xcode 16+, pick scheme, Run
 ```

@@ -10,7 +10,7 @@ inside the boundary, each owner (and their agent) decides how to build.
 
 | # | Title | Status | Affects |
 | --- | --- | --- | --- |
-| [0001](0001-single-domain-layer.md) | One types/thresholds file per platform | Proposed | web, backend, shared |
+| [0001](0001-single-domain-layer.md) | One types/thresholds file per platform | Accepted | web, backend, shared |
 | [0002](0002-web-data-source.md) | Web data source: mock first, backend optional | Proposed | web, backend |
 | [0003](0003-ai-chatbot.md) | AI chatbot: where it lives and its guardrails | Proposed | web, backend, AI |
 | [0004](0004-mobile-data-flow.md) | iPhone / Watch data flow | Proposed | iOS, watchOS, backend |

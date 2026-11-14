@@ -1,0 +1,353 @@
+{
+  "schemaVersion": "1.2.0",
+  "disclaimer": "Demo software, not a medical device.",
+  "generatedAt": "2026-11-14T08:00:00Z",
+  "nasaHazardsSource": "https://www.nasa.gov/hrp/hazards/",
+  "astronauts": [
+    {
+      "astronautId": "crew-1",
+      "fullName": "Dr. Elena Vance",
+      "role": "Mission Commander & Flight Medical Officer",
+      "mission": {
+        "name": "Ares-IV Mars Transit",
+        "environment": "spacecraft",
+        "missionDay": 120,
+        "commsDelayMinutes": 20,
+        "radiationBudgetMsv": 100
+      },
+      "activeHazardIds": [
+        "hostileClosedEnvironments",
+        "gravityFields",
+        "isolationConfinement",
+        "distanceFromEarth"
+      ],
+      "lastUpdated": "2026-11-14T08:00:00Z",
+      "measurements": {
+        "heartRate": {
+          "value": 112,
+          "unit": "bpm",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "bloodPressureSys": {
+          "value": 122,
+          "unit": "mmHg",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "bloodPressureDia": {
+          "value": 70,
+          "unit": "mmHg",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "spo2": {
+          "value": 89,
+          "unit": "%",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "bodyTemp": {
+          "value": 36.5,
+          "unit": "°C",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "bloodGlucose": {
+          "value": 96,
+          "unit": "mg/dL",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "sleepHours": {
+          "value": 5.5,
+          "unit": "h",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "mood": {
+          "value": 3,
+          "unit": "1-5",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "radiationDose": {
+          "value": 21.0,
+          "unit": "mSv",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "mock"
+        }
+      },
+      "watchTelemetry": {
+        "userId": "crew-1",
+        "syncTimestamp": "2026-11-14T08:00:00Z",
+        "deviceModel": "Apple Watch Series 9",
+        "activitySummary": {
+          "stepCount": 4210,
+          "activeCaloriesBurned": 315.4,
+          "exerciseMinutes": 28,
+          "standHours": 7,
+          "distanceMeters": 3120.5
+        },
+        "vitals": {
+          "currentHeartRate": 112.0,
+          "restingHeartRate": 74.0,
+          "bloodOxygenPercentage": 89.0,
+          "bodyTemperature": 36.5
+        },
+        "environmentalData": {
+          "altitudeMeters": 408000.0,
+          "atmosphericPressure": 1013.2,
+          "gForce": {
+            "xAxis": 0.01,
+            "yAxis": -0.02,
+            "zAxis": 0.03
+          }
+        }
+      },
+      "aiGuidance": {
+        "generatedAt": "2026-11-14T08:05:00Z",
+        "source": "fallback",
+        "model": null,
+        "overallStatus": "red",
+        "summary": "Your blood oxygen (89%) is below the safe level and your heart rate is raised. Short sleep and a mood of 3 may be adding stress. The red SpO2 reading needs attention first.",
+        "actions": [
+          "Stop exertion, sit upright and check the cabin CO2/O2 readouts.",
+          "Re-measure SpO2 on the Apple Watch in 5 minutes.",
+          "Plan a protected 8-hour sleep window tonight."
+        ],
+        "escalate": "If SpO2 stays below 90% after re-measuring, alert the crew medical officer and contact the flight surgeon now.",
+        "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
+      }
+    },
+    {
+      "astronautId": "crew-2",
+      "fullName": "Cmdr. Marcus Chen",
+      "role": "Flight Engineer",
+      "mission": {
+        "name": "Ares-IV Mars Transit",
+        "environment": "spacecraft",
+        "missionDay": 120,
+        "commsDelayMinutes": 20,
+        "radiationBudgetMsv": 100
+      },
+      "activeHazardIds": [
+        "gravityFields",
+        "distanceFromEarth"
+      ],
+      "lastUpdated": "2026-11-14T08:00:00Z",
+      "measurements": {
+        "heartRate": {
+          "value": 64,
+          "unit": "bpm",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "bloodPressureSys": {
+          "value": 116,
+          "unit": "mmHg",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "bloodPressureDia": {
+          "value": 74,
+          "unit": "mmHg",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "spo2": {
+          "value": 98,
+          "unit": "%",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "bodyTemp": {
+          "value": 36.6,
+          "unit": "°C",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "bloodGlucose": {
+          "value": 92,
+          "unit": "mg/dL",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "sleepHours": {
+          "value": 7.8,
+          "unit": "h",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "mood": {
+          "value": 5,
+          "unit": "1-5",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "radiationDose": {
+          "value": 19.4,
+          "unit": "mSv",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "mock"
+        }
+      },
+      "watchTelemetry": {
+        "userId": "crew-2",
+        "syncTimestamp": "2026-11-14T08:00:00Z",
+        "deviceModel": "Apple Watch Ultra 2",
+        "activitySummary": {
+          "stepCount": 6840,
+          "activeCaloriesBurned": 485.0,
+          "exerciseMinutes": 45,
+          "standHours": 10,
+          "distanceMeters": 5210.0
+        },
+        "vitals": {
+          "currentHeartRate": 64.0,
+          "restingHeartRate": 60.0,
+          "bloodOxygenPercentage": 98.0,
+          "bodyTemperature": 36.6
+        },
+        "environmentalData": {
+          "altitudeMeters": 408000.0,
+          "atmosphericPressure": 1013.5,
+          "gForce": {
+            "xAxis": 0.0,
+            "yAxis": 0.01,
+            "zAxis": 0.02
+          }
+        }
+      },
+      "aiGuidance": {
+        "generatedAt": "2026-11-14T08:05:00Z",
+        "source": "fallback",
+        "model": null,
+        "overallStatus": "green",
+        "summary": "All your readings are in the normal range. Keep your daily routine.",
+        "actions": [
+          "Continue the scheduled exercise countermeasures.",
+          "Keep your current sleep and hydration routine."
+        ],
+        "escalate": "No escalation needed. Contact the flight surgeon if you notice new symptoms.",
+        "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
+      }
+    },
+    {
+      "astronautId": "crew-3",
+      "fullName": "Dr. Aria Demir",
+      "role": "Payload & Life Sciences Specialist",
+      "mission": {
+        "name": "Artemis Lunar South Pole Base",
+        "environment": "lunarBase",
+        "missionDay": 42,
+        "commsDelayMinutes": 1,
+        "radiationBudgetMsv": 100
+      },
+      "activeHazardIds": [
+        "spaceRadiation",
+        "gravityFields",
+        "hostileClosedEnvironments",
+        "isolationConfinement"
+      ],
+      "lastUpdated": "2026-11-14T08:00:00Z",
+      "measurements": {
+        "heartRate": {
+          "value": 82,
+          "unit": "bpm",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "bloodPressureSys": {
+          "value": 134,
+          "unit": "mmHg",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "bloodPressureDia": {
+          "value": 84,
+          "unit": "mmHg",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "spo2": {
+          "value": 94,
+          "unit": "%",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "bodyTemp": {
+          "value": 37.7,
+          "unit": "°C",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "bloodGlucose": {
+          "value": 132,
+          "unit": "mg/dL",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "manual"
+        },
+        "sleepHours": {
+          "value": 6.4,
+          "unit": "h",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "watch"
+        },
+        "mood": {
+          "value": 4,
+          "unit": "1-5",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "iphone"
+        },
+        "radiationDose": {
+          "value": 54.0,
+          "unit": "mSv",
+          "timestamp": "2026-11-14T08:00:00Z",
+          "source": "mock"
+        }
+      },
+      "watchTelemetry": {
+        "userId": "crew-3",
+        "syncTimestamp": "2026-11-14T08:00:00Z",
+        "deviceModel": "Apple Watch Series 10",
+        "activitySummary": {
+          "stepCount": 5120,
+          "activeCaloriesBurned": 390.2,
+          "exerciseMinutes": 32,
+          "standHours": 8,
+          "distanceMeters": 3890.0
+        },
+        "vitals": {
+          "currentHeartRate": 82.0,
+          "restingHeartRate": 71.0,
+          "bloodOxygenPercentage": 94.0,
+          "bodyTemperature": 37.7
+        },
+        "environmentalData": {
+          "altitudeMeters": 0.0,
+          "atmosphericPressure": 703.0,
+          "gForce": {
+            "xAxis": 0.02,
+            "yAxis": 0.01,
+            "zAxis": 0.165
+          }
+        }
+      },
+      "aiGuidance": {
+        "generatedAt": "2026-11-14T08:05:00Z",
+        "source": "fallback",
+        "model": null,
+        "overallStatus": "amber",
+        "summary": "Several readings are slightly outside the normal range: blood pressure, temperature, glucose and SpO2 are in caution, and cumulative radiation has passed 50% of the mission budget.",
+        "actions": [
+          "Rest for 30 minutes, hydrate, then re-measure blood pressure and temperature.",
+          "Check the space-weather alerts and limit time outside shielded quarters.",
+          "Aim for at least 7 hours of sleep tonight."
+        ],
+        "escalate": "Contact the flight surgeon if temperature reaches 38.5 °C, blood pressure reaches 140/90 mmHg, or SpO2 drops below 90%.",
+        "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
+      }
+    }
+  ]
+}

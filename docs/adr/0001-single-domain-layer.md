@@ -1,6 +1,6 @@
 # 0001. One types/thresholds file per platform
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-14
 - Affects: web (Ahmetzkn, Omerozcan71), backend (osmnmlh, GoktugFerdi), shared (Mehmetson01)
 
@@ -22,4 +22,9 @@ Option 1. Merge order: #3 → #2 → `main`, then #4 rebases on `main`. Threshol
 Threshold numbers change only via a PR that edits both TS and Swift.
 
 ## Decision
-_To be filled by the team._
+Accepted (osmnmlh, 2026-11-14), done as a light version of option 3 because PR #4 merged first.
+There is **one** `web/src/domain/types.ts` and **one** `web/src/domain/thresholds.ts`: PR #4's exports
+(`healthTypes`, `metricDefinitions`, `isHealthSample`, `statusLabels`, `statusDescriptions`, `DEMO_MISSION_DOSE_BUDGET_MSV`)
+are kept unchanged, PR #2/#3's packet, Watch, hazard and `aiGuidance` types and `getOverallStatus` / `getGuidance` /
+`watchTelemetryToSamples` were added, and there is a single `getStatus`. Default dose budget is 200 mSv on web and Swift.
+`guidance.ts` (Turkish dashboard text) and `getGuidance` (English, used by the backend fallback) both stay until ADR-0005 decides the language.
