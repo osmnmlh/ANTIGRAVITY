@@ -67,3 +67,16 @@ Every popup also reminds the crew that a Mars comms delay can be up to 20 minute
 - **Gemini latency/outage**: deterministic alert is spoken first; advice is optional.
 - **Browser autoplay**: speech needs one user click, hence the "🔊 Voice alerts" toggle.
 - **Locked phones**: SSE + local notification needs the app open. Optional ntfy.sh channel covers locked screens; APNs only if someone has a paid Apple Developer account.
+
+## 24-hour cut line
+
+Issues #12 and #13 are the assigned work, so the chat must not be the part that gets dropped.
+
+| Must ship for the demo | Only if time is left |
+| --- | --- |
+| Phase 1 with the ⭐ scenarios, `/api/ai/stream`, demo triggers + reset, device registration | Other scenarios, `GET /api/ai/devices` list |
+| Phase 2 popup + voice + "AI offline" state | Delivery/ack badge "📱 2/2 · ✅ 1" |
+| `POST /api/ai/chat` with fallback (#12) and the `AiChat` panel (#13) | Gemini advice via `alert-update`, briefing, `AiSummaryCard` |
+| iPhone: register + listen + local notification | ntfy.sh, APNs |
+
+If the clock runs short, build the #12/#13 chat with fallback before Phase 2 polish.

@@ -147,3 +147,20 @@ Problems already present at start or after a reset are sent as `alert-update` (l
 ## 7. Health
 
 `GET /api/ai/health` → `{ ok, cabin: Status, activeAlerts, devices, streams }`. The web uses it to show "AI live / AI offline".
+
+## 8. Fit with the existing contract (read before coding)
+
+- **Crew rules reuse the one status engine** (ADR-0001): vital status and multi-day trends come from
+  `web/src/domain/thresholds.ts` (`getStatus`, `getTrendStatus`), which `backend/server.mjs` already imports.
+  `backend/ai/` must import it too, never copy thresholds. `fatigue-isolation` ("2 days") uses the trend rule, not a new one.
+  Only the **cabin** thresholds above are new, and they live in `backend/ai/` (one place, backend only).
+- **`Alert.advice` vs `aiGuidance`**: the packet's `aiGuidance` (AGENTS.md) stays the per-astronaut "AI recommendation"
+  on the iPhone and is not replaced. `Alert.advice` is per alert. Both follow the same rule: the AI writes words, never colors.
+- **Existing routes stay as they are**: `/api/stream`, `/api/packets`, `/api/samples`, `/api/ai/guidance`. The cockpit may open
+  both `/api/stream` (vitals) and `/api/ai/stream` (cabin + alerts).
+- **Chat minimum = issue #12**: `{ crewId, messages }` with no `scope` means `scope: "crew"`; `{ reply, source }` is the
+  minimum response, the other fields are optional for clients.
+- **iPhone notes**: the stream only runs while the app is in the foreground (`URLSession.bytes(for:)` + `.lines`, reconnect
+  on drop). Plain `http://<mac-ip>:8787` on a real device needs `NSAllowsLocalNetworking` (ATS) and an
+  `NSLocalNetworkUsageDescription` in the target's Info settings. Store `deviceId` once in `UserDefaults`.
+- **Language**: `title`, `spokenText` and `advice` follow the UI language decided in ADR-0005 (English until decided).
