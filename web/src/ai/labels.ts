@@ -85,6 +85,7 @@ export const AI_LABELS = {
     'cabin-o2-low': 'Kabin O2 düşük',
     'cabin-hypoxia': 'Kabin kaynaklı hipoksi',
     'cabin-co2-high': 'CO2 yüksek',
+    'cabin-temperature': 'Kabin soğuk (Apollo 13)',
     'cabin-pressure-drop': 'Basınç kaybı',
     'solar-event': 'Güneş fırtınası',
     'power-life-support': 'Güç arızası',

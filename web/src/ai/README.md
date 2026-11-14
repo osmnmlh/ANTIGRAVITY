@@ -13,7 +13,9 @@ Everything is Turkish (ADR-0005); strings live in `labels.ts`. API shapes: `shar
 | `askAi(text)` | anywhere | Sends a question to the chat on screen |
 | `useAiState()` | anywhere | `{ connection, cabin, alerts }`: cabin readings with precomputed status for the cockpit tiles |
 
-## Mounting (web team, 4 lines)
+## Mounting
+
+Ready-made for the web team's `feat/web-body-hologram` App: `docs/ai/web-app-mount.patch` (20 added lines, see `docs/ai/INTEGRATION.md`). Generic version:
 
 ```tsx
 import { AiChat, AiDemoControls, AlertCenter, askAi } from './ai'
