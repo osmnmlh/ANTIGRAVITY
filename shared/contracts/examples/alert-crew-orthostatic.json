@@ -1,5 +1,5 @@
 {
-  "id": "alert-0004",
+  "id": "alert-0002",
   "scope": "crew",
   "crewIds": [
     "crew-2"
@@ -8,13 +8,21 @@
   "scenarioId": "orthostatic",
   "hazardId": "gravityFields",
   "title": "Cmdr. Marcus Chen: düşük tansiyon ve hızlı nabız",
-  "spokenText": "Uyarı. Marcus Chen için tansiyon düşük, büyük tansiyon 85 milimetre cıva, nabız 112 atım.",
+  "spokenText": "Uyarı. Marcus Chen için kan basıncı düşük.",
   "metrics": [
     {
       "kind": "vital",
       "crewId": "crew-2",
       "type": "bloodPressureSys",
       "value": 85,
+      "unit": "mmHg",
+      "status": "red"
+    },
+    {
+      "kind": "vital",
+      "crewId": "crew-2",
+      "type": "bloodPressureDia",
+      "value": 55,
       "unit": "mmHg",
       "status": "red"
     },

@@ -94,11 +94,34 @@ export function speak(text: string, delayMs = 0) {
   window.setTimeout(() => synth.speak(utter), delayMs)
 }
 
-/** Beep, then say it. Does nothing while voice is off. */
+/**
+ * Only the important ones are spoken: a red alert gets the alarm tone and ONE short phrase ("Uyarı. Kan basıncı düşük.").
+ * An amber alert only gets a soft tone. Details are never spoken here; the crew asks for them ("Sesli oku").
+ * Does nothing while voice is off.
+ */
 export function announce(severity: 'red' | 'amber', text: string) {
   if (!enabled) return
   beep(severity)
-  speak(text, severity === 'red' ? 650 : 700)
+  if (severity === 'red') speak(text, 650)
+}
+
+/** Reads a longer text on request (a click is a user gesture, so it works even with the alert voice off). `onEnd` fires when it finishes or is stopped. */
+export function readAloud(text: string, onEnd: () => void): boolean {
+  const synth = window.speechSynthesis
+  if (!synth) return false
+  synth.cancel() // drop the short alert phrase that may still be playing
+  const utter = new SpeechSynthesisUtterance(text)
+  utter.lang = 'tr-TR'
+  const voice = turkishVoice()
+  if (voice) utter.voice = voice
+  utter.onend = onEnd
+  utter.onerror = onEnd
+  synth.speak(utter)
+  return true
+}
+
+export function stopReading() {
+  window.speechSynthesis?.cancel()
 }
 
 export function isVoiceEnabled() {

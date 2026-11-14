@@ -5,7 +5,7 @@ Everything is Turkish (ADR-0005); strings live in `labels.ts`. API shapes: `shar
 
 | Component | Where | What |
 | --- | --- | --- |
-| `<AlertCenter onOpenAstronaut? onAskAi? />` | **once**, top level of `App.tsx` | Top-right dock (AI live/offline, 🔊 voice toggle, 🔔 active alerts). New alert → beep + Turkish speech + popup with why / do now / when to call the flight surgeon, "Anladım", "Astronota git", "AI'a sor" |
+| `<AlertCenter onOpenAstronaut? onAskAi? placement? />` | **once**, top level of `App.tsx` | Status bar (AI live/offline, 🔊 voice toggle, 🔔 active alerts) + popup. `placement`: `bottom-right` (default, never covers the topbar), `top-right`, or `inline` to put it in your own header. New alert → red: tone + one short phrase, amber: tone only. The popup is compact (title + "Anladım", "AI önerisi", "Astronota git", "AI'a sor"); **"AI önerisi"** opens the written steps / why / when to call the flight surgeon and a "Sesli oku" button |
 | `<AiChat />` | cockpit view | Chat about the cabin + whole crew |
 | `<AiChat crewId="crew-1" crewName="Dr. Elena Vance" />` | astronaut detail view | Chat about one astronaut; each context keeps its own history |
 | `<DevicesPanel crewNames? />` | cockpit | Connected phones (live), how many the newest alert reached, who acknowledged |
@@ -49,3 +49,7 @@ tabs simulate two phones; real phones in the same Wi-Fi work too (`backend/ai/te
 Browsers block audio until a click, so voice starts **off**: click "🔇 Sesli uyarılar kapalı" once. The choice is remembered
 in this browser; after a reload the first click anywhere re-enables audio. Speech uses a `tr-TR` voice when the OS has one
 (Windows/macOS/Chrome do).
+
+Deliberately quiet: only a **red** alert is spoken, and only the short `spokenText` ("Uyarı. Kan basıncı düşük."); amber is a soft tone.
+Details and Gemini's interpretation are written in the "AI önerisi" panel and read aloud only when the crew presses "Sesli oku".
+After a dropped connection the page announces the alerts it missed once.
