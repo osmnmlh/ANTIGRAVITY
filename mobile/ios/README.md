@@ -1,5 +1,10 @@
-# mobile/ios/ — iPhone app (iPhone 16 Pro, iOS 18)
+# mobile/ios/ — iPhone + Apple Watch apps
 
-SwiftUI companion app: receives watch samples via WatchConnectivity, stores history, shows trends and guidance, manual entry.
-Create the Xcode project here (`Antigravity.xcodeproj`, iOS App + Watch App targets; watch sources in `/watch`).
+One Xcode project for both: `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj` (Xcode 16+, iPhone 16 Pro / iOS 18, watchOS 11).
+
+- iPhone sources: `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_iOS/`
+- Watch sources: `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_watchOS/`
+- Shared by both targets: `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/`
+- Data contract + status engine: `mobile/ios/Shared/HealthModels.swift`, `Thresholds.swift`. Add both to both targets; status colors come only from `Thresholds.swift`.
+
 Agents: see skills `ios-watch-connectivity`, `watchos-app`.

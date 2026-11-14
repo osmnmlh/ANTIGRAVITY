@@ -10,8 +10,7 @@ description: Git branching, commits, pull requests and merge-conflict handling f
 | Area | Folder | Owners |
 | --- | --- | --- |
 | Web dashboard | `web/` | 2-3 people |
-| iPhone app | `mobile/ios/` | 1-2 people |
-| watchOS app | `watch/` | 1 person |
+| iPhone + watchOS apps (one Xcode project) | `mobile/ios/` | 1-2 people |
 | Data contract / mock | `shared/` | 1 named owner, changes announced |
 | Docs, demo, README | `docs/`, root | demo lead |
 

@@ -9,8 +9,8 @@ iPhone = **hub**: receives watch samples, stores history, shows trends/guidance,
 
 ## Setup
 
-- One Xcode project `mobile/ios/Antigravity.xcodeproj` with targets: iOS app (iOS 18, iPhone 16 Pro), Watch App (sources in `/watch`).
-- Shared files (target membership on both): `HealthSample.swift`, `Thresholds.swift`, `ConnectivityManager.swift`.
+- One Xcode project `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj` with targets: iOS app (iOS 18, iPhone 16 Pro, sources `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_iOS/`) and Watch App (sources `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Antigravity_watchOS/`).
+- Shared files (target membership on both): `mobile/ios/Shared/HealthModels.swift`, `mobile/ios/Shared/Thresholds.swift`, plus `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/` (put `ConnectivityManager.swift` there).
 - Persistence: SwiftData or a JSON file in Documents. Pick the faster one for you; no CloudKit, no backend.
 
 ## WatchConnectivity (one manager, both sides)
@@ -56,6 +56,13 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 
 - Use `sendMessageData` for live (both apps foreground), `transferUserInfo` for guaranteed queued delivery, `updateApplicationContext` for "latest status" phone → watch.
 - Call `activate()` in each app's `init`/`App` body at launch.
+
+## AI recommendation (from backend)
+
+- `AstronautHealthPacket.aiGuidance` (optional) is filled by `backend/` via Gemini. Decode it with `HealthJSONCodec.decoder` and show it as an **"AI recommendation"** card: `summary`, `actions` as bullets, `escalate`, and `disclaimer`. Hide the card when it is `nil`.
+- Get packets from the relay (`GET http://<mac-ip>:8787/api/packets/<crewId>`) or from the bundled `shared/mock/astronaut-packets.json`; always keep the bundled mock as fallback.
+- Plain HTTP to a LAN IP needs `NSAppTransportSecurity` → `NSAllowsLocalNetworking = YES` and a `NSLocalNetworkUsageDescription` in Info.plist. The simulator on the demo Mac can just use `http://localhost:8787`.
+- Never put the Gemini key in the app; color/status still comes from `HealthThresholds`, not from the AI text.
 
 ## Rules
 

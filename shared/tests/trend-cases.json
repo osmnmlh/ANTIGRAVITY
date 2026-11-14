@@ -1,0 +1,93 @@
+[
+  {
+    "name": "bpSys_3day_rising_drift_green_point_becomes_amber",
+    "type": "bloodPressureSys",
+    "samples": [
+      { "id": "t1", "crewId": "crew-1", "type": "bloodPressureSys", "value": 116, "unit": "mmHg", "timestamp": "2026-11-12T08:00:00Z", "source": "manual" },
+      { "id": "t2", "crewId": "crew-1", "type": "bloodPressureSys", "value": 122, "unit": "mmHg", "timestamp": "2026-11-13T08:00:00Z", "source": "manual" },
+      { "id": "t3", "crewId": "crew-1", "type": "bloodPressureSys", "value": 128, "unit": "mmHg", "timestamp": "2026-11-14T08:00:00Z", "source": "manual" }
+    ],
+    "expectedPoint": "green",
+    "expectedTrend": "amber",
+    "expectedEffective": "amber",
+    "expectedDirection": "rising"
+  },
+  {
+    "name": "spo2_3day_falling_drift_green_point_becomes_amber",
+    "type": "spo2",
+    "samples": [
+      { "id": "s1", "crewId": "crew-1", "type": "spo2", "value": 98, "unit": "%", "timestamp": "2026-11-12T08:00:00Z", "source": "watch" },
+      { "id": "s2", "crewId": "crew-1", "type": "spo2", "value": 96, "unit": "%", "timestamp": "2026-11-13T08:00:00Z", "source": "watch" },
+      { "id": "s3", "crewId": "crew-1", "type": "spo2", "value": 95, "unit": "%", "timestamp": "2026-11-14T08:00:00Z", "source": "watch" }
+    ],
+    "expectedPoint": "green",
+    "expectedTrend": "amber",
+    "expectedEffective": "amber",
+    "expectedDirection": "falling"
+  },
+  {
+    "name": "hr_normal_noise_stays_green",
+    "type": "heartRate",
+    "samples": [
+      { "id": "h1", "crewId": "crew-1", "type": "heartRate", "value": 68, "unit": "bpm", "timestamp": "2026-11-10T08:00:00Z", "source": "watch" },
+      { "id": "h2", "crewId": "crew-1", "type": "heartRate", "value": 70, "unit": "bpm", "timestamp": "2026-11-11T08:00:00Z", "source": "watch" },
+      { "id": "h3", "crewId": "crew-1", "type": "heartRate", "value": 72, "unit": "bpm", "timestamp": "2026-11-12T08:00:00Z", "source": "watch" }
+    ],
+    "expectedPoint": "green",
+    "expectedTrend": "green",
+    "expectedEffective": "green",
+    "expectedDirection": "rising"
+  },
+  {
+    "name": "mood_two_consecutive_days_at_3_escalates_to_red",
+    "type": "mood",
+    "samples": [
+      { "id": "m1", "crewId": "crew-1", "type": "mood", "value": 4, "unit": "1-5", "timestamp": "2026-11-12T08:00:00Z", "source": "watch" },
+      { "id": "m2", "crewId": "crew-1", "type": "mood", "value": 3, "unit": "1-5", "timestamp": "2026-11-13T08:00:00Z", "source": "watch" },
+      { "id": "m3", "crewId": "crew-1", "type": "mood", "value": 3, "unit": "1-5", "timestamp": "2026-11-14T08:00:00Z", "source": "watch" }
+    ],
+    "expectedPoint": "amber",
+    "expectedTrend": "red",
+    "expectedEffective": "red",
+    "expectedDirection": "stable"
+  },
+  {
+    "name": "mood_same_day_repeated_3_does_not_false_escalate_to_red",
+    "type": "mood",
+    "samples": [
+      { "id": "ms1", "crewId": "crew-1", "type": "mood", "value": 4, "unit": "1-5", "timestamp": "2026-11-13T08:00:00Z", "source": "watch" },
+      { "id": "ms2", "crewId": "crew-1", "type": "mood", "value": 3, "unit": "1-5", "timestamp": "2026-11-14T08:00:00Z", "source": "watch" },
+      { "id": "ms3", "crewId": "crew-1", "type": "mood", "value": 3, "unit": "1-5", "timestamp": "2026-11-14T16:00:00Z", "source": "watch" }
+    ],
+    "expectedPoint": "amber",
+    "expectedTrend": "green",
+    "expectedEffective": "amber",
+    "expectedDirection": "stable"
+  },
+  {
+    "name": "radiation_steady_baseline_stays_green",
+    "type": "radiationDose",
+    "samples": [
+      { "id": "r1", "crewId": "crew-1", "type": "radiationDose", "value": 1.8, "unit": "mSv", "timestamp": "2026-11-08T08:00:00Z", "source": "mock" },
+      { "id": "r2", "crewId": "crew-1", "type": "radiationDose", "value": 3.6, "unit": "mSv", "timestamp": "2026-11-09T08:00:00Z", "source": "mock" },
+      { "id": "r3", "crewId": "crew-1", "type": "radiationDose", "value": 5.4, "unit": "mSv", "timestamp": "2026-11-10T08:00:00Z", "source": "mock" }
+    ],
+    "expectedPoint": "green",
+    "expectedTrend": "green",
+    "expectedEffective": "green",
+    "expectedDirection": "rising"
+  },
+  {
+    "name": "radiation_solar_spike_turns_amber",
+    "type": "radiationDose",
+    "samples": [
+      { "id": "rs1", "crewId": "crew-1", "type": "radiationDose", "value": 7.2, "unit": "mSv", "timestamp": "2026-11-11T08:00:00Z", "source": "mock" },
+      { "id": "rs2", "crewId": "crew-1", "type": "radiationDose", "value": 9.0, "unit": "mSv", "timestamp": "2026-11-12T08:00:00Z", "source": "mock" },
+      { "id": "rs3", "crewId": "crew-1", "type": "radiationDose", "value": 15.0, "unit": "mSv", "timestamp": "2026-11-13T08:00:00Z", "source": "mock" }
+    ],
+    "expectedPoint": "green",
+    "expectedTrend": "amber",
+    "expectedEffective": "amber",
+    "expectedDirection": "rising"
+  }
+]

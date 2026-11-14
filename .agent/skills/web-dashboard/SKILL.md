@@ -13,6 +13,8 @@ The web app is the **main demo surface**. Optimize for a judge seeing it for 2 m
 - Charts: `recharts`. Styling: plain CSS modules or Tailwind (pick one on day 1, don't mix).
 - State: React state + a small `useHealthData()` hook. No Redux, no backend required.
 - Data: `shared/mock/*.json` loaded at start; manual entries kept in `localStorage`.
+- Optional live data: if `VITE_API_URL` is set, fetch `GET /api/packets` + `GET /api/samples` and subscribe to `GET /api/stream` (SSE `packet` events). On any error or timeout (~2 s) **fall back to `shared/mock/*.json`** silently and show a small "offline / mock data" badge. The demo must never depend on `backend/`.
+- AI recommendation: call `POST /api/ai/guidance {crewId}` (never call Gemini from the browser, never put an API key in `web/`). Show `aiGuidance` with its disclaimer next to, not instead of, the rule-based guidance.
 
 ## Suggested structure
 
