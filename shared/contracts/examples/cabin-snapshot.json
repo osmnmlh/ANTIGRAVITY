@@ -1,16 +1,68 @@
 {
-  "module": "Ares-IV crew cabin",
-  "crewIds": ["crew-1", "crew-2"],
+  "module": "Ares-IV Mars Transit crew cabin",
+  "crewIds": [
+    "crew-1",
+    "crew-2"
+  ],
   "overallStatus": "red",
   "readings": [
-    { "metric": "ppO2", "value": 20.9, "unit": "kPa", "status": "green", "timestamp": "2026-11-14T08:00:00Z" },
-    { "metric": "ppCO2", "value": 2.4, "unit": "mmHg", "status": "green", "timestamp": "2026-11-14T08:00:00Z" },
-    { "metric": "pressure", "value": 101.2, "unit": "kPa", "status": "green", "timestamp": "2026-11-14T08:00:00Z" },
-    { "metric": "temperature", "value": 22.5, "unit": "°C", "status": "green", "timestamp": "2026-11-14T08:00:00Z" },
-    { "metric": "humidity", "value": 48, "unit": "%", "status": "green", "timestamp": "2026-11-14T08:00:00Z" },
-    { "metric": "contaminant", "label": "ammonia", "value": 14, "unit": "ppm", "status": "red", "timestamp": "2026-11-14T08:02:10Z" },
-    { "metric": "radiationRate", "value": 0.5, "unit": "mSv/day", "status": "green", "timestamp": "2026-11-14T08:00:00Z" },
-    { "metric": "lifeSupportPower", "value": "nominal", "unit": "", "status": "green", "timestamp": "2026-11-14T08:00:00Z" }
+    {
+      "metric": "ppO2",
+      "value": 20.9,
+      "unit": "kPa",
+      "status": "green",
+      "timestamp": "2026-11-14T09:15:00.000Z"
+    },
+    {
+      "metric": "ppCO2",
+      "value": 2.4,
+      "unit": "mmHg",
+      "status": "green",
+      "timestamp": "2026-11-14T09:15:00.000Z"
+    },
+    {
+      "metric": "pressure",
+      "value": 101.2,
+      "unit": "kPa",
+      "status": "green",
+      "timestamp": "2026-11-14T09:15:00.000Z"
+    },
+    {
+      "metric": "temperature",
+      "value": 22.5,
+      "unit": "°C",
+      "status": "green",
+      "timestamp": "2026-11-14T09:15:00.000Z"
+    },
+    {
+      "metric": "humidity",
+      "value": 48,
+      "unit": "%",
+      "status": "green",
+      "timestamp": "2026-11-14T09:15:00.000Z"
+    },
+    {
+      "metric": "contaminant",
+      "value": 14,
+      "unit": "ppm",
+      "status": "red",
+      "timestamp": "2026-11-14T09:15:00.000Z",
+      "label": "ammonia"
+    },
+    {
+      "metric": "radiationRate",
+      "value": 0.5,
+      "unit": "mSv/day",
+      "status": "green",
+      "timestamp": "2026-11-14T09:15:00.000Z"
+    },
+    {
+      "metric": "lifeSupportPower",
+      "value": "nominal",
+      "unit": "",
+      "status": "green",
+      "timestamp": "2026-11-14T09:15:00.000Z"
+    }
   ],
-  "updatedAt": "2026-11-14T08:02:10Z"
+  "updatedAt": "2026-11-14T09:15:00.000Z"
 }

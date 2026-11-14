@@ -1,5 +1,5 @@
 {
-  "id": "alert-0008",
+  "id": "alert-0004",
   "scope": "crew",
   "crewIds": [
     "crew-2"
@@ -7,8 +7,8 @@
   "severity": "red",
   "scenarioId": "orthostatic",
   "hazardId": "gravityFields",
-  "title": "Marcus Chen: low blood pressure with a fast heart rate",
-  "spokenText": "Warning. Marcus Chen's blood pressure is low, 85 over 55, and his heart rate is 112.",
+  "title": "Cmdr. Marcus Chen: düşük tansiyon ve hızlı nabız",
+  "spokenText": "Uyarı. Marcus Chen için tansiyon düşük, büyük tansiyon 85 milimetre cıva, nabız 112 atım.",
   "metrics": [
     {
       "kind": "vital",
@@ -27,7 +27,18 @@
       "status": "amber"
     }
   ],
-  "advice": null,
+  "advice": {
+    "why": "Ağırlıksızlıkta vücut sıvıları yer değiştirir ve kalp zayıflar; tansiyon düşebilir ve kalp bunu telafi etmek için hızlanır.",
+    "doNow": [
+      "Uzanın veya bacaklarınızı yükseltip oturun.",
+      "Elektrolitli sıvı için.",
+      "Tansiyonu 5 dakika sonra tekrar ölçün."
+    ],
+    "escalate": "Büyük tansiyon 90'ın altında kalırsa, bayılma veya göğüs ağrısı olursa uçuş cerrahına hemen başvurun. Dünya ile iletişim gecikmesi 20 dakikaya kadar çıkabilir; önce siz harekete geçin.",
+    "source": "fallback",
+    "model": null,
+    "generatedAt": "2026-11-14T09:15:00.000Z"
+  },
   "deliveries": [
     {
       "deviceId": "9b1d2c4e-0000-4000-8000-000000000002",
@@ -38,7 +49,7 @@
   ],
   "cockpitAckedAt": null,
   "state": "active",
-  "createdAt": "2026-11-14T09:15:00Z",
-  "updatedAt": "2026-11-14T09:15:00Z",
-  "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
+  "createdAt": "2026-11-14T09:15:00.000Z",
+  "updatedAt": "2026-11-14T09:15:00.000Z",
+  "disclaimer": "Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir."
 }

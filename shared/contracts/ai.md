@@ -80,7 +80,7 @@ interface Alert {
   state: 'active' | 'resolved';
   createdAt: string;
   updatedAt: string;
-  disclaimer: string;       // 'AI-generated suggestion. Demo software, not a medical device.'
+  disclaimer: string;       // 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir.'
 }
 ```
 
@@ -119,7 +119,7 @@ With `crewId` it receives that astronaut's alerts plus all cabin alerts. A conne
 `POST /api/ai/chat`
 
 ```json
-{ "scope": "crew", "crewId": "crew-1", "messages": [{ "role": "user", "text": "How is she doing right now?" }] }
+{ "scope": "crew", "crewId": "crew-1", "messages": [{ "role": "user", "text": "Astronotun şu anki durumu nasıl?" }] }
 ```
 
 `scope: "cabin"` = cockpit context (cabin + whole crew); `scope: "crew"` needs `crewId`. History stays in the browser; send the
@@ -127,12 +127,12 @@ last ≤ 6 turns, each `text` ≤ 500 chars. Empty `messages` = **briefing** (sh
 
 ```json
 { "reply": "…", "source": "gemini", "escalation": "flightSurgeon",
-  "indicators": ["spo2"], "suggestions": ["What should I do now?", "Is the cabin air the cause?"],
-  "disclaimer": "AI-generated suggestion. Demo software, not a medical device." }
+  "indicators": ["spo2"], "suggestions": ["Şimdi ne yapmalı?", "Sebep kabin havası olabilir mi?"],
+  "disclaimer": "Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir." }
 ```
 
 `escalation` ∈ `none | cmo | flightSurgeon`; if any related status is red it is never `none`. Always HTTP 200 with
-`source: "fallback"` when there is no key, a timeout or an error. Answers come in the user's language.
+`source: "fallback"` when there is no key, a timeout or an error. Answers are Turkish (the model switches only if the user clearly writes in another language).
 
 ## 6. Demo triggers (rehearsal and stage)
 
@@ -163,4 +163,5 @@ Problems already present at start or after a reset are sent as `alert-update` (l
 - **iPhone notes**: the stream only runs while the app is in the foreground (`URLSession.bytes(for:)` + `.lines`, reconnect
   on drop). Plain `http://<mac-ip>:8787` on a real device needs `NSAllowsLocalNetworking` (ATS) and an
   `NSLocalNetworkUsageDescription` in the target's Info settings. Store `deviceId` once in `UserDefaults`.
-- **Language**: `title`, `spokenText` and `advice` follow the UI language decided in ADR-0005 (English until decided).
+- **Language**: the team chose **Turkish for every user-facing text** (web, iPhone, AI). `title`, `spokenText`, `advice`,
+  `disclaimer` and chat replies are Turkish; `spokenText` spells units out for a `tr-TR` voice. Field names and ids stay English.

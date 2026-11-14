@@ -1,15 +1,28 @@
 {
   "request": {
-    "scope": "crew",
     "crewId": "crew-1",
-    "messages": [{ "role": "user", "text": "How is Elena doing right now?" }]
+    "messages": [
+      {
+        "role": "user",
+        "text": "Astronotun şu anki durumu nasıl?"
+      }
+    ]
   },
   "response": {
-    "reply": "Elena's blood oxygen is 89%, which is in the red range, and her heart rate is high at 112 bpm. Everything else is normal. She should stop exertion, sit upright and re-measure in 5 minutes. If it stays below 90%, the crew medical officer should contact the flight surgeon now.",
-    "source": "gemini",
+    "reply": "Dr. Elena Vance: 4 değer dikkat gerektiriyor: kandaki oksijen %89 (KRİTİK); nabız 112 bpm (dikkat); uyku 5.5 saat (dikkat); ruh hali 3/5 (dikkat). Diğer değerler normal. Şimdi: Eforu bırakın ve dik oturun. Sensörün takılışını kontrol edip 5 dakika sonra tekrar ölçün. Uçuş cerrahına hemen başvurun.",
     "escalation": "flightSurgeon",
-    "indicators": ["spo2", "heartRate"],
-    "suggestions": ["What should she do now?", "Could the cabin air be the cause?"],
-    "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
+    "indicators": [
+      "spo2",
+      "heartRate",
+      "sleepHours",
+      "mood"
+    ],
+    "suggestions": [
+      "kandaki oksijen için ne yapmalı?",
+      "Ne zaman uçuş cerrahını aramalıyım?"
+    ],
+    "source": "fallback",
+    "model": null,
+    "disclaimer": "Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir."
   }
 }

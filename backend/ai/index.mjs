@@ -8,26 +8,33 @@
 import { createCabin } from './cabin.mjs';
 import { evaluate } from './rules.mjs';
 import { createAlertStore, createDevices, createHub } from './alerts.mjs';
+import { createChat } from './chat.mjs';
 
-const DISCLAIMER = 'AI-generated suggestion. Demo software, not a medical device.';
+const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir.';
 
 /**
  * @param {object} deps
  * @param {() => object[]} deps.getPackets  Live astronaut packets (shared/mock/astronaut-packets.json shape).
  * @param {(type: string, value: number, packet: object) => 'green'|'amber'|'red'|'missing'} deps.getVitalStatus
- * @param {(type: string, status: string) => { whyInSpace: string, doNow: string[], escalateWhen: string }} [deps.getVitalGuidance]
+ * @param {(type: string, status: string) => { why: string, doNow: string[], escalate: string }} [deps.getVitalGuidance]
+ *        Turkish guidance (web/src/domain/guidance.ts shape; thresholds.ts getGuidance shape also accepted).
+ * @param {(crewId: string, type: string) => string} [deps.getTrendStatus]  Shared multi-day trend rule (getTrendStatus over that crew's samples).
  * @param {(type: string) => string} [deps.vitalLabel]
  * @param {object[]} [deps.hazards]  shared/mock/nasa-hazards.json `hazards`.
  * @param {(samples: object[]) => void} [deps.applySamples]  Stores HealthSamples in the host. Needed only for vital demo scenarios.
+ * @param {{ apiKey?: string, model?: string }} [deps.gemini]  Server-side only. No key = deterministic answers.
  * @param {string[]} [deps.cabinCrewIds]  Who is inside the monitored cabin. Default: crew sharing the first packet's mission.
  */
 export function createAi(deps) {
   const {
     getPackets, getVitalStatus,
     getVitalGuidance = () => null,
+    getTrendStatus = null,
     vitalLabel = (t) => t,
     hazards = [],
     applySamples = null,
+    gemini = {},
+    fetchImpl = fetch,
     now = () => new Date(),
     log = console,
     cooldownMs = 5 * 60_000,
@@ -51,9 +58,9 @@ export function createAi(deps) {
   const vitalGuidance = (type, status) => {
     const g = getVitalGuidance(type, status);
     return {
-      why: g?.whyInSpace ?? 'This reading is outside the safe range for spaceflight.',
-      doNow: g?.doNow?.slice(0, 3) ?? ['Stop exertion and rest.', 'Re-measure in 5 minutes.'],
-      escalate: g?.escalateWhen ?? 'Contact the flight surgeon now if it stays in the red range.',
+      why: g?.why ?? g?.whyInSpace ?? 'Bu değer uzay uçuşu için güvenli aralığın dışında.',
+      doNow: g?.doNow?.slice(0, 3) ?? ['Eforu bırakın ve dinlenin.', '5 dakika sonra tekrar ölçün.'],
+      escalate: g?.escalate ?? g?.escalateWhen ?? 'Kırmızı aralıkta kalırsa uçuş cerrahına hemen başvurun.',
     };
   };
 
@@ -63,6 +70,7 @@ export function createAi(deps) {
       name: p.fullName ?? p.astronautId,
       inCabin: cabinCrewIds.includes(p.astronautId),
       commsDelay: p.mission?.commsDelayMinutes ?? 0,
+      trend: (type) => getTrendStatus?.(p.astronautId, type) ?? null,
       vitals: Object.fromEntries(
         Object.entries(p.measurements ?? {})
           .map(([type, m]) => [type, { value: m?.value, unit: m?.unit ?? '', status: getVitalStatus(type, m?.value, p) }])
@@ -83,6 +91,8 @@ export function createAi(deps) {
     }
     return { created, updated };
   }
+
+  const chat = createChat({ context, activeAlerts: () => store.active(), gemini, disclaimer: DISCLAIMER, log, fetchImpl });
 
   const hello = (c) => ({ cabin: cabin.snapshot(), alerts: hub.filterAlerts(c, store.active()) });
   const resync = () => hub.all('hello', hello);
@@ -157,7 +167,7 @@ export function createAi(deps) {
 
   const ROUTES = [
     ['GET', /^\/api\/ai\/health$/, () => ({
-      ok: true, cabin: cabin.snapshot().overallStatus, activeAlerts: store.active().length,
+      ok: true, gemini: Boolean(gemini.apiKey), cabin: cabin.snapshot().overallStatus, activeAlerts: store.active().length,
       devices: devices.list().length, streams: hub.size(),
     })],
     ['GET', /^\/api\/ai\/cabin$/, () => cabin.snapshot()],
@@ -178,6 +188,7 @@ export function createAi(deps) {
       hub.alert('alert-update', alert);
       return alert;
     }],
+    ['POST', /^\/api\/ai\/chat$/, async (req) => chat(await readBody(req))],
     ['GET', /^\/api\/ai\/devices$/, () => devices.list()],
     ['POST', /^\/api\/ai\/devices$/, async (req) => {
       const device = devices.register(await readBody(req));
@@ -223,6 +234,7 @@ export function createAi(deps) {
   return {
     handle,
     onSamples: () => run(),
+    chat,
     // read-only views for the host or tests
     cabin: () => cabin.snapshot(),
     alerts: (q) => store.list(q),
