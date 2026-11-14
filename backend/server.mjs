@@ -326,6 +326,7 @@ function restoreSnapshotOrInitial(useInitial = false) {
   samples = structuredClone(source.samples);
   if (useInitial || preSimSnapshot) preSimSnapshot = null;
   for (const p of bundle.astronauts) broadcast('packet', withStatus(p));
+  ai.onCabinHint(null); // cabin back to nominal
   ai.onSamples(); // values are back to normal: open alerts resolve
 }
 
@@ -397,6 +398,7 @@ function startIncidentSimulation({ incidentId, crewId = 'crew-1', stepIntervalMs
       source: type === 'heartRate' || type === 'spo2' || type === 'sleepHours' || type === 'mood' ? 'watch' : 'mock',
     }));
     const [updated] = addSamples(batch);
+    ai.onCabinHint(phase.cabinHint); // cabin values of the incident phase -> cabin alerts
     ai.onSamples();
     recordSimulationAlerts(updated, `${phase.missionTimeLabel} · ${phase.title}`);
     broadcast('simulation', simulationPayload());

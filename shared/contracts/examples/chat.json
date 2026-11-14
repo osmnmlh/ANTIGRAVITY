@@ -9,16 +9,11 @@
     ]
   },
   "response": {
-    "reply": "Dr. Elena Vance: 4 değer dikkat gerektiriyor: kandaki oksijen %89 (KRİTİK); nabız 112 bpm (dikkat); uyku 5.5 saat (dikkat); ruh hali 3/5 (dikkat). Diğer değerler normal. Şimdi: Eforu bırakın ve dik oturun. Sensörün takılışını kontrol edip 5 dakika sonra tekrar ölçün. Uçuş cerrahına hemen başvurun.",
-    "escalation": "flightSurgeon",
-    "indicators": [
-      "spo2",
-      "heartRate",
-      "sleepHours",
-      "mood"
-    ],
+    "reply": "Dr. Elena Vance iyi durumda: tüm değerler normal aralıkta. Yeni bir belirti olmadıkça uçuş cerrahına başvurmaya gerek yok.",
+    "escalation": "none",
+    "indicators": [],
     "suggestions": [
-      "kandaki oksijen için ne yapmalı?",
+      "Uyku durumu nasıl?",
       "Ne zaman uçuş cerrahını aramalıyım?"
     ],
     "source": "fallback",

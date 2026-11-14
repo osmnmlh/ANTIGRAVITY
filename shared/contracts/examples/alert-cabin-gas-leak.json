@@ -1,5 +1,5 @@
 {
-  "id": "alert-0003",
+  "id": "alert-0001",
   "scope": "cabin",
   "crewIds": [
     "crew-1",
@@ -9,7 +9,7 @@
   "scenarioId": "cabin-gas-leak",
   "hazardId": "hostileClosedEnvironments",
   "title": "Kabinde gaz salınımı: amonyak 14 ppm",
-  "spokenText": "Uyarı. Kabinde gaz salınımı. Amonyak seviyesi milyonda 14. Maskenizi takın.",
+  "spokenText": "Uyarı. Kabinde gaz salınımı.",
   "metrics": [
     {
       "kind": "cabin",

@@ -20,6 +20,13 @@ Cmdr. Marcus Chen  http://<wifi-ip>:5174/phone.html?crewId=crew-2
 Gemini is on when `backend/.env` contains `GEMINI_API_KEY` (git-ignored; copy `backend/.env.example`). The relay health
 line shows `gemini: true` and the model. Without a key everything still works with the rule-based texts.
 
+## Integrated app (the web team's real UI with the AI mounted)
+
+The web team's `feat/web-body-hologram` is not on main yet, so the integrated UI is built from `main` + their web files + `docs/ai/web-app-mount.patch`
+(recipe in `docs/ai/INTEGRATION.md`). With it, `http://localhost:5174/` is their dashboard (astronaut selector, **Astronotlar** / **Ana üs**) with the AI inside:
+the alert bar bottom-right, the chat under the health view, and in **Ana üs** the cabin chat, connected phones and scenario buttons.
+Their simulation buttons talk to the same relay, so **Apollo 13 / Mir / ISS EVA replays raise the AI alerts** (cabin ones included) and the live simulation stays green.
+
 ## Pages
 
 | Page | What it is |
@@ -31,13 +38,14 @@ line shows `gemini: true` and the model. Without a key everything still works wi
 
 1. **Connection**: cockpit dock says "AI canlı"; the "Bağlı telefonlar" panel is empty.
 2. **Two phones**: open `phone.html?crewId=crew-1` and `?crewId=crew-2` (two tabs, or two real phones). Tap "Bildirimleri başlat" on each. The cockpit panel shows both online.
-3. **Simultaneous notification**: click "Gaz sızıntısı" in the cockpit. Both phones show the red popup and speak within the same second; the cockpit panel shows "2/2 telefona ulaştı". A third phone for `crew-3` (lunar base) gets nothing.
+3. **Simultaneous notification**: click "Gaz sızıntısı" in the cockpit. Both phones show a compact red popup; each plays the alarm tone and says only "Uyarı. Kabinde gaz salınımı." within the same second; the cockpit panel shows "2/2 telefona ulaştı". A third phone for `crew-3` (lunar base) gets nothing. An **amber** alert is only a soft tone, no speech: `curl -X POST localhost:8787/api/ai/cabin -H 'content-type: application/json' -d '{"readings":[{"metric":"ppCO2","value":4}]}'`.
 4. **Acknowledge**: press "Anladım" on one phone. The cockpit panel and the other phone show that ack.
-5. **Gemini interpretation**: about 1.5 s after the alert, the popup gets an "✦ AI yorumu" block and "Gemini yorumladı"; with voice on, the summary is spoken once. Without a key the block never appears and the rule-based advice stays.
+5. **Recommendation on request**: in the popup press "🤖 AI önerisi": the steps, why and when to call the flight surgeon appear in writing (about 1.5 s after the alert Gemini's "✦ AI yorumu" is added). Press "🔊 Sesli oku" to hear the steps; press again to stop. Nothing of this is spoken automatically.
 6. **Correlation**: click "Düşük tansiyon" while the gas alert is active: the interpretation mentions both.
 7. **Chat**: ask "Astronotun şu anki durumu nasıl?" (source badge says Gemini); ask for a medicine dose or a pizza recipe (safe redirect).
-8. **Offline**: stop the relay: dock says "AI çevrimdışı", nothing crashes. Start it again: it reconnects by itself.
-9. **Reset**: "↺ Sıfırla" (or `POST /api/demo/reset`) returns everything to the start.
+8. **Missed alert**: on a phone tab open DevTools → Network → set "Offline" for 10 s, fire a scenario in the cockpit, set it back to online. The phone announces the missed alert once and the cockpit counts it as delivered.
+9. **Offline**: stop the relay: dock says "AI çevrimdışı", nothing crashes. Start it again: it reconnects by itself.
+10. **Reset**: "↺ Sıfırla" (or `POST /api/demo/reset`) returns everything to the start.
 
 ## Real phones
 

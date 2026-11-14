@@ -11,6 +11,19 @@ npm run dev
 
 Run the production type-check and build with `npm run build`.
 
+## Live telemetry
+
+The dashboard loads its shared JSON mock data first, then connects to the optional relay for the latest sample history and Server-Sent Events. New samples from the relay update the charts and health indicators immediately. If the relay is unavailable, the dashboard stays usable with local JSON and browser storage.
+
+Start the relay in another terminal:
+
+```bash
+cd backend
+npm start
+```
+
+By default the web app connects to `http://localhost:8787`. Set `VITE_API_URL` in `web/.env` to use a relay at a different address. Once connected, live telemetry starts automatically for the selected astronaut; selecting another astronaut switches the stream.
+
 ## Demo flow
 
 1. Select the ISS, lunar, or Mars-transit environment. Mars mode highlights the simulated Earth-communication delay and autonomous self-assessment.

@@ -60,7 +60,8 @@ setTimeout(() => {
   console.log(`\n${line}\n ANTIGRAVITY AI test environment\n${line}`);
   console.log(` Relay health   http://localhost:${RELAY_PORT}/api/health   (gemini: true = key found in backend/.env)`);
   if (withWeb) {
-    console.log(` Kokpit         http://localhost:${WEB_PORT}/ai-preview.html`);
+    console.log(` Ana uygulama   http://localhost:${WEB_PORT}/            (web ekibinin arayüzü, AI bileşenleri bağlı)`);
+    console.log(` AI sandbox     http://localhost:${WEB_PORT}/ai-preview.html`);
     console.log(' Telefonlar (aynı Wi-Fi\'daki gerçek telefonda veya yeni sekmede aç):');
     for (const c of crew) console.log(`   ${c.fullName.padEnd(22)} http://${host}:${WEB_PORT}/phone.html?crewId=${c.astronautId}`);
     if (lan.length > 1) console.log(` Diğer ağ adresleri: ${lan.slice(1).map((i) => `${i.address} (${i.name})`).join(', ')}`);

@@ -5,4 +5,21 @@
 //  Created by Emirhan Gökçe on 14.11.2026.
 //
 
-import Foundation
+import SwiftUI
+
+@main
+struct AntigravityWatchApp: App {
+    @StateObject private var coordinator = AlertCoordinator()
+
+    var body: some Scene {
+        WindowGroup {
+            WatchDashboardView(coordinator: coordinator)
+                .onAppear {
+                    coordinator.start()
+                }
+                .onDisappear {
+                    coordinator.stop()
+                }
+        }
+    }
+}

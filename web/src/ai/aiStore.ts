@@ -22,6 +22,10 @@ let state: AiState = { connection: 'connecting', cabin: null, devices: [], alert
 const listeners = new Set<() => void>()
 let source: EventSource | null = null
 let identity: StreamIdentity | null = null
+/** Alerts this page has already received, so a reconnect can tell which ones it missed. Keyed by id + createdAt (ids restart with the server). */
+const seen = new Set<string>()
+let firstHello = true
+const keyOf = (a: Alert) => `${a.id}@${a.createdAt}`
 
 /** Call once, before the first component subscribes, to listen as a phone (phone.html) instead of the cockpit. */
 export function setStreamIdentity(next: StreamIdentity | null) {
@@ -57,9 +61,20 @@ function connect() {
   source.addEventListener('hello', (e) => {
     const data = parse<{ cabin: CabinSnapshot; alerts: Alert[]; devices?: DeviceInfo[] }>(e)
     if (!data) return
-    // Startup / reset: list what exists, but only keep popups that are still active.
+    // Startup / reset: list what exists. After a drop (screen lock, Wi-Fi blip) an alert that is still waiting for this
+    // device and was never seen here is announced now. A phone that opens late gets them too; a cockpit page that
+    // just loaded does not replay old alerts.
     const ids = new Set(data.alerts.map((a) => a.id))
-    set({ connection: 'live', cabin: data.cabin, devices: data.devices ?? state.devices, alerts: data.alerts, incoming: state.incoming.filter((id) => ids.has(id)) })
+    const waiting = (a: Alert) => (identity
+      ? !a.deliveries.find((d) => d.deviceId === identity?.deviceId)?.ackedAt
+      : !a.cockpitAckedAt)
+    const missed = data.alerts.filter((a) => !seen.has(keyOf(a)) && waiting(a) && (identity !== null || !firstHello)).map((a) => a.id)
+    for (const a of data.alerts) seen.add(keyOf(a))
+    firstHello = false
+    set({
+      connection: 'live', cabin: data.cabin, devices: data.devices ?? state.devices, alerts: data.alerts,
+      incoming: [...missed, ...state.incoming.filter((id) => ids.has(id) && !missed.includes(id))],
+    })
   })
   source.addEventListener('cabin', (e) => {
     const cabin = parse<CabinSnapshot>(e)
@@ -72,12 +87,15 @@ function connect() {
   source.addEventListener('alert', (e) => {
     const alert = parse<Alert>(e)
     if (!alert) return
+    seen.add(keyOf(alert))
     upsert(alert)
     set({ incoming: [alert.id, ...state.incoming.filter((id) => id !== alert.id)] })
   })
   source.addEventListener('alert-update', (e) => {
     const alert = parse<Alert>(e)
-    if (alert) upsert(alert)
+    if (!alert) return
+    seen.add(keyOf(alert))
+    upsert(alert)
   })
 }
 

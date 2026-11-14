@@ -11,6 +11,7 @@ import { createAlertStore, createDevices, createHub } from './alerts.mjs';
 import { createChat } from './chat.mjs';
 import { createAdviceWriter } from './advice.mjs';
 import { createNtfy } from './ntfy.mjs';
+import { parseCabinHint } from './cabin-hint.mjs';
 
 const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir.';
 
@@ -130,6 +131,7 @@ export function createAi(deps) {
     'cabin-gas-leak': { cabin: [{ metric: 'contaminant', value: 14, label: 'ammonia' }] },
     'cabin-co2-high': { cabin: [{ metric: 'ppCO2', value: 6.5 }] },
     'cabin-pressure-drop': { cabin: [{ metric: 'pressure', value: 88 }] },
+    'cabin-temperature': { cabin: [{ metric: 'temperature', value: 3.8 }] },
     'solar-event': { cabin: [{ metric: 'radiationRate', value: 12 }] },
     'power-life-support': { cabin: [{ metric: 'lifeSupportPower', value: 'fault' }] },
     'cabin-hypoxia': {
@@ -241,6 +243,12 @@ export function createAi(deps) {
       }
       if (deviceId) devices.touch(deviceId);
       hub.add(req, res, { crewId, deviceId }, hello);
+      if (deviceId) {
+        // A phone that was away (screen lock, Wi-Fi blip) gets the alerts it missed in `hello`: that is its delivery.
+        const caughtUp = store.active().filter((a) => a.deliveries.some((d) => d.deviceId === deviceId && !d.deliveredAt));
+        for (const a of caughtUp) store.delivered(a.id, { deviceId });
+        for (const a of caughtUp) hub.alert('alert-update', a);
+      }
       return true;
     }
     for (const [method, re, fn] of ROUTES) {
@@ -262,6 +270,17 @@ export function createAi(deps) {
   return {
     handle,
     onSamples: () => run(),
+    /**
+     * Cabin text of a historical-incident phase ("ppCO2: 8.2 mmHg · Kabin Sıcaklığı: 3.8 °C"): becomes the cabin readings, the
+     * rest of the cabin is nominal again. `null` / '' = nominal cabin (simulation ended). Raises the cabin alerts like any other change.
+     */
+    onCabinHint: (hint) => {
+      cabin.reset();
+      const readings = parseCabinHint(hint);
+      if (readings.length) cabin.update(readings);
+      hub.all('cabin', () => cabin.snapshot());
+      run();
+    },
     resetDemo, // same as POST /api/ai/demo/reset; the relay calls it from POST /api/demo/reset
     chat,
     /** Resolves when background work (Gemini advice, ntfy) has finished. */

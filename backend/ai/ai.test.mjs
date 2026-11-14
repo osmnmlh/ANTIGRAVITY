@@ -477,7 +477,7 @@ test('ntfy: one notification per affected astronaut topic, only for announced al
   assert.equal(sent[0].url, 'https://ntfy.sh');
   assert.equal(sent[0].body.priority, 5);
   assert.match(sent[0].body.title, /KRİTİK/);
-  assert.match(sent[0].body.message, /Maskenizi takın/);
+  assert.match(sent[0].body.message, /maskenizi hemen takın/i, 'a locked phone shows what to do first');
 
   await call(on.ai, 'POST', '/api/ai/demo/orthostatic');
   await on.ai.idle();
@@ -490,4 +490,107 @@ test('one event is one alert: the orthostatic demo (low systolic AND diastolic, 
   assert.equal(json.created.length, 1);
   const alert = ai.alerts().find((a) => a.id === json.created[0]);
   assert.deepEqual(alert.metrics.map((m) => m.type).sort(), ['bloodPressureDia', 'bloodPressureSys', 'heartRate']);
+});
+
+test('a phone that was away gets the missed alert in `hello` and counts as delivered when it reconnects', async () => {
+  const { ai } = setup();
+  const server = http.createServer(async (req, res) => {
+    if (!(await ai.handle(req, res, new URL(req.url, 'http://x')))) res.writeHead(404).end();
+  });
+  await new Promise((r) => server.listen(0, r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const post = (path, body) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
+
+  await post('/api/ai/devices', { deviceId: 'phone-away', crewId: 'crew-1' }); // registered, but not connected
+  await post('/api/ai/demo/cabin-gas-leak');
+  const gas = () => ai.alerts().find((x) => x.scenarioId === 'cabin-gas-leak');
+  const id = gas().id;
+  assert.equal(gas().deliveries[0].deliveredAt, null, 'nobody was listening');
+
+  const back = openStream(base, 'deviceId=phone-away&crewId=crew-1');
+  await back.ready;
+  await wait(100);
+  const hello = back.events.find((e) => e.ev === 'hello').data;
+  assert.ok(hello.alerts.some((a) => a.id === id), 'the missed alert is listed again');
+  assert.ok(gas().deliveries[0].deliveredAt, 'and the server counts it as delivered');
+  assert.ok(back.events.some((e) => e.ev === 'alert-update' && e.data.id === id && e.data.deliveries[0].deliveredAt));
+  back.close();
+  server.close();
+});
+
+test('a normal radiation sentence ("dozu verebilir") is not mistaken for dosing, a real prescription still is', async () => {
+  const radiation = {
+    ...GOOD_ADVICE,
+    summary: 'Radyasyon seviyesi yükseldi; bir güneş fırtınası birkaç saatte haftalarca alınacak dozu verebilir.',
+  };
+  const ok = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => geminiReply(radiation) });
+  const a = await call(ok.ai, 'POST', '/api/ai/demo/solar-event');
+  await ok.ai.idle();
+  assert.equal(ok.ai.alerts().find((x) => x.id === a.json.created[0]).advice.source, 'gemini');
+
+  for (const bad of ['Ağrı için ilaç alın.', 'Günde 2 tablet için.', '500 mg alın.']) {
+    const no = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => geminiReply({ ...GOOD_ADVICE, doNow: [bad] }) });
+    const b = await call(no.ai, 'POST', '/api/ai/demo/solar-event');
+    await no.ai.idle();
+    assert.equal(no.ai.alerts().find((x) => x.id === b.json.created[0]).advice.source, 'fallback', bad);
+  }
+});
+
+test('high systolic AND diastolic is one "kan basıncı" alert, not two popups', async () => {
+  const { ai, applySamples } = setup();
+  applySamples([
+    { crewId: 'crew-1', type: 'bloodPressureSys', value: 170, timestamp: 't', source: 'mock' },
+    { crewId: 'crew-1', type: 'bloodPressureDia', value: 105, timestamp: 't', source: 'mock' },
+  ]);
+  ai.onSamples();
+  const bp = ai.alerts({ state: 'active' }).filter((a) => a.scenarioId === 'vital-red' && a.crewIds[0] === 'crew-1');
+  assert.equal(bp.length, 1);
+  assert.deepEqual(bp[0].metrics.map((m) => m.type).sort(), ['bloodPressureDia', 'bloodPressureSys']);
+  assert.match(bp[0].spokenText, /kan basıncı kritik/);
+  assert.match(bp[0].title, /170 mmHg \/ 105 mmHg/);
+});
+
+// ---- Incident replay: cabin hints become cabin readings ----
+import { parseCabinHint } from './cabin-hint.mjs';
+
+const INCIDENTS = readJson('../../shared/mock/historical-incidents.json').incidents;
+
+test('cabin hints of the historical incidents are read into cabin readings', () => {
+  const read = (hint) => parseCabinHint(hint).map((r) => `${r.metric}=${r.value}`);
+  assert.deepEqual(read('ppCO2: 8.2 mmHg (Kritik) · Kabin Sıcaklığı: 3.8 °C'), ['ppCO2=8.2', 'temperature=3.8']);
+  assert.deepEqual(read('Ana Güç Düşüyor · O2 Basınç Alarmı'), ['ppO2=17.9', 'lifeSupportPower=degraded']);
+  assert.deepEqual(read('Toksik Kontaminant: 14,5 ppm (Kritik) · Kabin Isısı: 28.4 °C').sort(), ['contaminant=14.5', 'temperature=28.4']);
+  assert.deepEqual(read('ppCO2: 2.3 mmHg · Kabin Sıcaklığı: 21.8 °C · Güç: Nominal'), ['ppCO2=2.3', 'temperature=21.8', 'lifeSupportPower=nominal']);
+  assert.deepEqual(read('EMU Kıyafet Basıncı: 29.6 kPa · PLSS: Nominal'), [], 'a suit is not the cabin');
+  assert.deepEqual(read('ISS Kabin: Nominal · Tıbbi Değerlendirme Stabil'), []);
+  assert.deepEqual(read(null), []);
+  // every phase of every incident is accepted by the cabin (valid metric names and values)
+  const { ai } = setup();
+  for (const incident of INCIDENTS) for (const phase of incident.phases) assert.doesNotThrow(() => ai.onCabinHint(phase.cabinHint), `${incident.id} #${phase.phaseIndex}`);
+});
+
+test('an incident replay raises cabin alerts and they clear when the phase passes (Apollo 13)', () => {
+  const { ai } = setup();
+  const active = () => ai.alerts({ state: 'active' }).filter((a) => a.scope === 'cabin').map((a) => `${a.scenarioId}:${a.severity}`).sort();
+
+  ai.onCabinHint('ppCO2: 2.3 mmHg · Kabin Sıcaklığı: 21.8 °C · Güç: Nominal');
+  assert.deepEqual(active(), []);
+  ai.onCabinHint('Kabin Sıcaklığı: 6.5 °C · Yoğun Yoğuşma · Güç: Kısıtlı');
+  assert.deepEqual(active(), ['cabin-temperature:red', 'power-life-support:amber']);
+  ai.onCabinHint('ppCO2: 8.2 mmHg (Kritik) · Kabin Sıcaklığı: 3.8 °C');
+  assert.deepEqual(active(), ['cabin-co2-high:red', 'cabin-temperature:red'], 'power is nominal again: what the text does not state is normal');
+  const cold = ai.alerts({ state: 'active' }).find((a) => a.scenarioId === 'cabin-temperature');
+  assert.match(cold.title, /Kabin sıcaklığı düşük: 3\.8 °C/);
+  assert.match(cold.spokenText, /Kabin sıcaklığı düşük/);
+  ai.onCabinHint('Kabin Sıcaklığı: 19.5 °C · İletişim & Sistemler Stabil');
+  assert.deepEqual(active(), []);
+  ai.onCabinHint(null);
+  assert.equal(ai.cabin().overallStatus, 'green');
+});
+
+test('the cabin-temperature demo scenario exists and fires', async () => {
+  const { ai } = setup();
+  const { json } = await call(ai, 'POST', '/api/ai/demo/cabin-temperature');
+  assert.equal(json.created.length, 1);
+  assert.equal(ai.alerts().find((a) => a.id === json.created[0]).scenarioId, 'cabin-temperature');
 });
