@@ -50,12 +50,16 @@ struct ActivityRingsChartView: View {
 
     @State private var selectedRingId: String?
 
+    private var isCompact: Bool {
+        ringSize <= 116
+    }
+
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: isCompact ? 14 : 16) {
             ringsCanvas
                 .frame(width: ringSize, height: ringSize)
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: isCompact ? 5 : 10) {
                 ForEach(rings) { ring in
                     legendRow(for: ring)
                 }
@@ -146,37 +150,37 @@ struct ActivityRingsChartView: View {
         return Button {
             toggleSelection(for: ring.id)
         } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 5) {
+            VStack(alignment: .leading, spacing: isCompact ? 1.5 : 2) {
+                HStack(spacing: isCompact ? 4 : 5) {
                     Image(systemName: ring.icon)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: isCompact ? 9.5 : 10, weight: .bold))
                         .foregroundStyle(ring.accentColor)
 
                     Text(ring.title.uppercased(with: Locale(identifier: "tr_TR")))
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: isCompact ? 10.5 : 11, weight: .semibold))
                         .foregroundStyle(ColorTheme.textMuted)
                         .lineLimit(1)
 
                     if let statusText = ring.statusText {
                         Text("• \(statusText)")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: isCompact ? 10 : 10, weight: .semibold))
                             .foregroundStyle(ring.accentColor)
                             .lineLimit(1)
                     } else if isSelected {
                         Text("• %\(percent)")
-                            .font(.system(size: 10, weight: .bold).monospacedDigit())
+                            .font(.system(size: isCompact ? 10 : 10, weight: .bold).monospacedDigit())
                             .foregroundStyle(ring.accentColor)
                     }
                 }
 
                 Text(ring.valueText)
-                    .font(.system(size: 15, weight: .bold, design: .rounded).monospacedDigit())
+                    .font(.system(size: isCompact ? 14.5 : 15, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(ring.accentColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.82)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 3)
+            .padding(.vertical, isCompact ? 2.5 : 3)
             .padding(.horizontal, 6)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)

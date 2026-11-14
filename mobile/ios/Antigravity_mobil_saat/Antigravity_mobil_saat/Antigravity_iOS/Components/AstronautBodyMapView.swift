@@ -539,11 +539,6 @@ private struct IndicatorGuidanceSheet: View {
                         text: guidance.escalateWhen,
                         tint: status == .red ? ColorTheme.statusRed : ColorTheme.statusAmber
                     )
-
-                    Text(Constants.turkishDemoDisclaimer)
-                        .font(.caption2)
-                        .foregroundStyle(ColorTheme.textMuted)
-                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .padding(16)
             }

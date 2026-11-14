@@ -50,13 +50,6 @@ struct DashboardView: View {
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(ColorTheme.accent)
                 }
-
-                Text(Constants.turkishDemoDisclaimer)
-                    .font(.caption2)
-                    .foregroundStyle(ColorTheme.textMuted)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 2)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -155,10 +148,6 @@ struct DashboardView: View {
                 Text(guidance.escalate)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(ColorTheme.textPrimary.opacity(0.9))
-
-                Text(Constants.turkishDemoDisclaimer)
-                    .font(.caption2)
-                    .foregroundStyle(ColorTheme.textMuted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

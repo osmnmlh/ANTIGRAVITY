@@ -14,11 +14,6 @@ struct VitalsView: View {
     private let exerciseGoal: Double = 60
     private let standGoal: Double = 12
 
-    private let hourlyActivityBars: [Double] = [
-        0.25, 0.40, 0.30, 0.72, 0.90, 0.55,
-        0.48, 0.85, 0.95, 0.62, 0.78, 0.88
-    ]
-
     // Iconic Apple Watch Activity ring colors (Move / Exercise / Stand).
     private let moveStartColor = Color(red: 0.980, green: 0.067, blue: 0.310)     // #FA114F
     private let moveEndColor = Color(red: 1.000, green: 0.259, blue: 0.451)       // #FF4273
@@ -27,30 +22,58 @@ struct VitalsView: View {
     private let standStartColor = Color(red: 0.000, green: 0.961, blue: 0.918)    // #00F5EA
     private let standEndColor = Color(red: 0.220, green: 0.741, blue: 0.973)      // #38BDF8
 
+    private let chartRingSize: CGFloat = 112
+    private let chartRingThickness: CGFloat = 11.5
+    private let chartRingSpacing: CGFloat = 3.0
+
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 activityRingsCard
                 vitalsRingsCard
-                stepsCard
+                missionMetricsRingsCard
                 syncSamplesCard
-
-                Text(HealthThresholds.demoDisclaimer + " (Demo yazılımıdır, tıbbi cihaz değildir.)")
-                    .font(.caption2)
-                    .foregroundStyle(ColorTheme.textMuted)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 4)
+                    .padding(.top, 10)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
         }
         .navigationTitle("Vital Veriler")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     // MARK: - Subviews
+
+    private func ringCard(
+        title: String,
+        trailingText: String,
+        trailingColor: Color,
+        rings: [ActivityRingItem]
+    ) -> some View {
+        GlassCardView(cornerRadius: 20, padding: 14) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(ColorTheme.textPrimary)
+
+                    Spacer()
+
+                    Text(trailingText)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(trailingColor)
+                }
+
+                ActivityRingsChartView(
+                    rings: rings,
+                    ringSize: chartRingSize,
+                    ringThickness: chartRingThickness,
+                    ringSpacing: chartRingSpacing
+                )
+            }
+        }
+    }
 
     private var activityRingsCard: some View {
         let moveProgress = max(0, dashboardViewModel.activeCalories / moveGoal)
@@ -87,44 +110,12 @@ struct VitalsView: View {
             )
         ]
 
-        return GlassCardView(cornerRadius: 20, padding: 16) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text("Aktivite")
-                        .font(.headline)
-                        .foregroundStyle(ColorTheme.textPrimary)
-
-                    Spacer()
-
-                    Text("Aktivite Halkaları")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(ColorTheme.textMuted)
-                }
-
-                ActivityRingsChartView(rings: rings)
-
-                Divider()
-                    .overlay(ColorTheme.spaceBorder)
-
-                HStack(spacing: 5) {
-                    ForEach(Array(hourlyActivityBars.enumerated()), id: \.offset) { index, ratio in
-                        GeometryReader { geo in
-                            ZStack(alignment: .bottom) {
-                                Capsule()
-                                    .fill(Color.white.opacity(0.08))
-                                Capsule()
-                                    .fill(
-                                        index % 3 == 0 ? moveStartColor :
-                                            (index % 3 == 1 ? exerciseEndColor : standEndColor)
-                                    )
-                                    .frame(height: max(6, geo.size.height * ratio))
-                            }
-                        }
-                        .frame(height: 36)
-                    }
-                }
-            }
-        }
+        return ringCard(
+            title: "Aktivite",
+            trailingText: "Aktivite Halkaları",
+            trailingColor: ColorTheme.textMuted,
+            rings: rings
+        )
     }
 
     private var vitalsRingsCard: some View {
@@ -169,66 +160,82 @@ struct VitalsView: View {
             )
         ]
 
-        return GlassCardView(cornerRadius: 20, padding: 16) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text("Ölçümler")
-                        .font(.headline)
-                        .foregroundStyle(ColorTheme.textPrimary)
-
-                    Spacer()
-
-                    Text(dashboardViewModel.overallStatus.turkishLabel)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(dashboardViewModel.overallStatus.themeColor)
-                }
-
-                ActivityRingsChartView(rings: rings)
-            }
-        }
+        return ringCard(
+            title: "Ölçümler",
+            trailingText: dashboardViewModel.overallStatus.turkishLabel,
+            trailingColor: dashboardViewModel.overallStatus.themeColor,
+            rings: rings
+        )
     }
 
-    private var stepsCard: some View {
-        let stepGoal = 10_000.0
-        let stepRatio = min(Double(dashboardViewModel.stepCount) / stepGoal, 1.0)
+    private var missionMetricsRingsCard: some View {
+        let sleepValue = dashboardViewModel.indicatorValues[.sleepHours]
+        let sleepProgress = sleepValue.map { normalizedProgress(value: $0, min: 0, max: 9.0) } ?? 0.02
+        let sleepStatus = dashboardViewModel.indicatorStatuses[.sleepHours] ?? .missing
+        let sleepColor = sleepStatus.themeColor
+        let sleepText = sleepValue.map { String(format: "%.1f sa", $0) } ?? "--"
 
-        return GlassCardView(cornerRadius: 20, padding: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "figure.walk")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(exerciseEndColor)
+        let bpValue = dashboardViewModel.indicatorValues[.bloodPressureSys]
+        let bpProgress = bpValue.map { normalizedProgress(value: $0, min: 70, max: 160) } ?? 0.02
+        let bpStatus = dashboardViewModel.bloodPressureStatus
+        let bpColor = bpStatus.themeColor
+        let bpText = dashboardViewModel.bloodPressureText == "--/--"
+            ? "--/--"
+            : "\(dashboardViewModel.bloodPressureText) mmHg"
 
-                    Text("Adım (\(dashboardViewModel.distanceKmText))")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(ColorTheme.textMuted)
-                        .lineLimit(1)
+        let radValue = dashboardViewModel.indicatorValues[.radiationDose]
+        let radProgress = radValue.map {
+            Swift.min(Swift.max($0 / max(dashboardViewModel.radiationBudgetMsv, 1.0), 0.10), 1.2)
+        } ?? 0.02
+        let radStatus = dashboardViewModel.indicatorStatuses[.radiationDose] ?? .missing
+        let radColor = radStatus.themeColor
+        let radText = radValue.map { String(format: "%.1f mSv", $0) } ?? "--"
 
-                    Spacer()
+        let sectionWorst = max(sleepStatus, max(bpStatus, radStatus))
 
-                    Text("\(dashboardViewModel.stepCount)/10000")
-                        .font(.subheadline.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(exerciseEndColor)
-                }
+        let rings: [ActivityRingItem] = [
+            ActivityRingItem(
+                id: "sleepHours",
+                title: "Uyku",
+                valueText: sleepText,
+                statusText: sleepStatus.turkishLabel,
+                icon: "bed.double.fill",
+                progress: sleepProgress,
+                startColor: sleepColor.opacity(0.75),
+                endColor: sleepColor
+            ),
+            ActivityRingItem(
+                id: "bloodPressure",
+                title: "Tansiyon",
+                valueText: bpText,
+                statusText: bpStatus.turkishLabel,
+                icon: "drop.fill",
+                progress: bpProgress,
+                startColor: bpColor.opacity(0.75),
+                endColor: bpColor
+            ),
+            ActivityRingItem(
+                id: "radiationDose",
+                title: "Radyasyon",
+                valueText: radText,
+                statusText: radStatus.turkishLabel,
+                icon: "sun.max.fill",
+                progress: radProgress,
+                startColor: radColor.opacity(0.75),
+                endColor: radColor
+            )
+        ]
 
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule(style: .continuous)
-                            .fill(exerciseEndColor.opacity(0.18))
-
-                        Capsule(style: .continuous)
-                            .fill(exerciseEndColor)
-                            .frame(width: max(10, geo.size.width * stepRatio))
-                    }
-                }
-                .frame(height: 10)
-                .animation(.easeInOut(duration: 0.25), value: stepRatio)
-            }
-        }
+        return ringCard(
+            title: "Uyku, Tansiyon & Radyasyon",
+            trailingText: sectionWorst == .missing ? "Bekleniyor" : sectionWorst.turkishLabel,
+            trailingColor: sectionWorst.themeColor,
+            rings: rings
+        )
     }
 
     private var syncSamplesCard: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             NeonButton(
                 title: dashboardViewModel.isSyncingBackend ? "Gönderiliyor..." : "Ölçümleri Sunucuya Gönder",
                 systemImage: "icloud.and.arrow.up",
@@ -238,6 +245,7 @@ struct VitalsView: View {
                     await dashboardViewModel.sendCurrentVitalsToBackend()
                 }
             }
+            .frame(maxWidth: .infinity)
             .disabled(dashboardViewModel.isSyncingBackend)
 
             if let message = dashboardViewModel.lastSampleSyncMessage {

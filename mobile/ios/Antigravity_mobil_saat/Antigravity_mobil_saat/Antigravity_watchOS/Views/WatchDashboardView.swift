@@ -81,11 +81,6 @@ struct WatchDashboardView: View {
                 Text(lastSyncText)
                     .font(.system(size: 10).monospacedDigit())
                     .foregroundStyle(.secondary)
-
-                Text(Constants.turkishDemoDisclaimer)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
@@ -175,11 +170,6 @@ struct WatchDashboardView: View {
                         .foregroundStyle(.green)
                         .multilineTextAlignment(.center)
                 }
-
-                Text(Constants.turkishDemoDisclaimer)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
