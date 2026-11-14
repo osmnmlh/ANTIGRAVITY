@@ -63,8 +63,7 @@ ANTIGRAVITY/
 ├── .agent/skills/              # 7 skill'in asıl kopyası (Antigravity)
 ├── .claude/skills/             # .agent/skills'e işaret eden kısa dosyalar (Claude Code)
 ├── web/                        # Web dashboard (Vite + React + TS, Playwright)
-├── watch/                      # watchOS uygulaması (SwiftUI, HealthKit)
-├── mobile/ios/                 # iPhone 16 Pro uygulaması (SwiftUI, WatchConnectivity)
+├── mobile/ios/                 # Tek Xcode projesi: iPhone 16 Pro + Apple Watch uygulamaları (SwiftUI, WatchConnectivity)
 ├── shared/                     # Ortak veri sözleşmesi + mock veri
 ├── docs/
 │   ├── Hackathon-Subject.md    # Orijinal yarışma metni (EN)

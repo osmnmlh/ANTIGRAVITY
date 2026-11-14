@@ -1,6 +1,6 @@
 # shared/ — Data contract
 
-The shared data files every client (`web/`, `mobile/ios/`, `watch/`) uses.
+The shared data files every client (`web/`, `mobile/ios/` iPhone + Watch) uses.
 
 ## Files
 

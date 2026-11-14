@@ -23,9 +23,10 @@
 - [ ] Build clickable SVG `BodyMap` (heart, lungs, brain, bones/metabolism) colored by indicator status
 - [ ] Add mission environment switcher (`spacecraft`, `iss`, `lunarBase`, `marsTransit`) and footer disclaimer (`"Demo software, not a medical device."`)
 
-## Phase 3: Apple Watch App (`watch/`)
+## Phase 3: Apple Watch App (`Antigravity_watchOS/` target in `mobile/ios/`)
 
-- [ ] Create `Antigravity.xcodeproj` in `mobile/ios/` with iOS App + Watch App targets sharing `mobile/ios/Shared/`
+- [x] Create Xcode project `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj` with iOS App + Watch App targets (on `features/ios_viewmodel`, not in main yet)
+- [ ] Add `mobile/ios/Shared/HealthModels.swift` + `Thresholds.swift` to both targets
 - [ ] Implement `WatchConnectivity` (`ConnectivityManager.swift`) on Watch and iPhone using `WatchTelemetryData` & `HealthSample`
 - [ ] Implement `HeartRateProvider` protocol (`HealthKit` live `HKWorkoutSession` + `MockHeartRateProvider` for Simulator)
 - [ ] Build Watch Status Glance screen (overall color, current HR, SpO2, last sync time)
