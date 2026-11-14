@@ -241,6 +241,12 @@ export function createAi(deps) {
       }
       if (deviceId) devices.touch(deviceId);
       hub.add(req, res, { crewId, deviceId }, hello);
+      if (deviceId) {
+        // A phone that was away (screen lock, Wi-Fi blip) gets the alerts it missed in `hello`: that is its delivery.
+        const caughtUp = store.active().filter((a) => a.deliveries.some((d) => d.deviceId === deviceId && !d.deliveredAt));
+        for (const a of caughtUp) store.delivered(a.id, { deviceId });
+        for (const a of caughtUp) hub.alert('alert-update', a);
+      }
       return true;
     }
     for (const [method, re, fn] of ROUTES) {

@@ -3,7 +3,7 @@ import { ackAlert } from './api'
 import { aiStore, useAiState } from './aiStore'
 import { AI_LABELS as L } from './labels'
 import type { Alert } from './types'
-import { announce, isVoiceEnabled, speak, toggleVoice, useVoiceEnabled } from './voice'
+import { announce, readAloud, stopReading, toggleVoice, useVoiceEnabled } from './voice'
 import './ai.css'
 
 export interface AlertCenterProps {
@@ -13,16 +13,63 @@ export interface AlertCenterProps {
   onAskAi?: (alert: Alert) => void
   /** Phone mode (phone.html): acknowledge as this device, vibrate, and raise a system notification when the page is hidden. */
   deviceId?: string
+  /**
+   * Where the status bar (AI live/offline, voice, alert count) sits.
+   * `bottom-right` (default) never covers the web topbar; `top-right` is a fixed corner; `inline` renders in the normal
+   * flow so the web team can place it inside their own header.
+   */
+  placement?: 'bottom-right' | 'top-right' | 'inline'
 }
 
 const ICON = { red: '⚠', amber: '!' } as const
+/** Same id can come back after a server restart: createdAt makes the key unique. */
+const keyOf = (a: Alert) => `${a.id}@${a.createdAt}`
 
 function DeliveryBadge({ alert }: { alert: Alert }) {
   const total = alert.deliveries.length
-  if (total === 0) return null // phone fan-out is optional scope: show only when phones are registered
+  if (total === 0) return null // only shown when phones are registered
   const delivered = alert.deliveries.filter((d) => d.deliveredAt).length
   const acked = alert.deliveries.filter((d) => d.ackedAt).length
   return <p className="ai-delivery" data-testid="ai-alert-delivery">{L.delivery(delivered, total, acked)}</p>
+}
+
+/** The written AI recommendation: what the astronaut should do. Opened on request, never forced on the crew. */
+function AdvicePanel({ alert }: { alert: Alert }) {
+  const [reading, setReading] = useState(false)
+  const advice = alert.advice
+  useEffect(() => () => stopReading(), [])
+
+  if (!advice) return <p className="ai-muted">{L.adviceLoading}</p>
+  const steps = advice.doNow.map((step, i) => `${i + 1}. ${step}`).join(' ')
+
+  return (
+    <div className="ai-advice" data-testid="ai-alert-advice">
+      {advice.summary && (
+        <div className="ai-summary" data-testid="ai-alert-summary">
+          <span className="ai-summary-label">✦ {L.summary}</span>
+          <p>{advice.summary}</p>
+        </div>
+      )}
+      <div>
+        <strong>{L.doNow}:</strong>
+        <ol>{advice.doNow.map((step) => <li key={step}>{step}</li>)}</ol>
+      </div>
+      <p><strong>{L.why}:</strong> {advice.why}</p>
+      <p className="ai-escalate"><strong>{L.escalate}:</strong> {advice.escalate}</p>
+      <div className="ai-advice-foot">
+        <button type="button" className="ai-btn" aria-pressed={reading} data-testid="ai-alert-read"
+          onClick={() => {
+            if (reading) { stopReading(); setReading(false) }
+            else setReading(readAloud(`${L.stepsIntro} ${steps} ${advice.escalate}`, () => setReading(false)))
+          }}>
+          {reading ? `⏹ ${L.readStop}` : `🔊 ${L.readAloud}`}
+        </button>
+        <span className="ai-source" data-testid="ai-alert-source" data-source={advice.source}>
+          {L.interpretedBy(advice.source)} · {alert.disclaimer}
+        </span>
+      </div>
+    </div>
+  )
 }
 
 function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi, deviceId }: {
@@ -31,6 +78,7 @@ function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi, deviceId
   onClose: () => void
 } & AlertCenterProps) {
   const [acking, setAcking] = useState(false)
+  const [adviceOpen, setAdviceOpen] = useState(false)
   const crewTarget = alert.scope === 'crew' ? alert.crewIds[0] : undefined
 
   useEffect(() => {
@@ -69,33 +117,12 @@ function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi, deviceId
         </header>
         <h2 id="ai-popup-title" className="ai-popup-title">{alert.title}</h2>
 
-        {alert.advice ? (
-          <div className="ai-advice">
-            {alert.advice.summary && (
-              <div className="ai-summary" data-testid="ai-alert-summary">
-                <span className="ai-summary-label">✦ {L.summary}</span>
-                <p>{alert.advice.summary}</p>
-              </div>
-            )}
-            <p><strong>{L.why}:</strong> {alert.advice.why}</p>
-            <div>
-              <strong>{L.doNow}:</strong>
-              <ol>{alert.advice.doNow.map((step) => <li key={step}>{step}</li>)}</ol>
-            </div>
-            <p className="ai-escalate"><strong>{L.escalate}:</strong> {alert.advice.escalate}</p>
-            <p className="ai-source" data-testid="ai-alert-source" data-source={alert.advice.source}>
-              {L.interpretedBy(alert.advice.source)} · {alert.disclaimer}
-            </p>
-          </div>
-        ) : (
-          <p className="ai-muted">{L.adviceLoading}</p>
-        )}
-
-        <DeliveryBadge alert={alert} />
-
         <footer className="ai-popup-actions">
           <button type="button" className="ai-btn ai-btn-primary" onClick={ack} disabled={acking} data-testid="ai-alert-ack">
             {L.ack}
+          </button>
+          <button type="button" className="ai-btn" aria-expanded={adviceOpen} onClick={() => setAdviceOpen((o) => !o)} data-testid="ai-alert-advice-toggle">
+            🤖 {adviceOpen ? L.aiAdviceHide : L.aiAdvice}
           </button>
           {crewTarget && onOpenAstronaut && (
             <button type="button" className="ai-btn" data-testid="ai-alert-open-astronaut"
@@ -111,6 +138,10 @@ function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi, deviceId
           )}
           {queued > 0 && <span className="ai-muted">{L.moreAlerts(queued)}</span>}
         </footer>
+
+        {adviceOpen ? <AdvicePanel alert={alert} /> : <p className="ai-muted ai-hint">{L.adviceHint}</p>}
+
+        <DeliveryBadge alert={alert} />
       </section>
     </div>
   )
@@ -128,35 +159,23 @@ function notifyPhone(alert: Alert) {
   }
 }
 
-/** Mount once at the top of the app. Listens to /api/ai/stream, speaks and pops up new alerts. */
-export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId }: AlertCenterProps) {
+/** Mount once at the top of the app. Listens to /api/ai/stream, signals new alerts (tone, short phrase for red) and pops them up. */
+export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId, placement = 'bottom-right' }: AlertCenterProps) {
   const { connection, alerts, incoming } = useAiState()
   const voice = useVoiceEnabled()
   const [listOpen, setListOpen] = useState(false)
   const announced = useRef(new Set<string>())
-  const summarySpoken = useRef(new Set<string>())
 
-  // Announce each new alert once, oldest first so the newest is heard last.
+  // Signal each new alert once, oldest first so the newest is heard last.
   useEffect(() => {
     for (const id of [...incoming].reverse()) {
-      if (announced.current.has(id)) continue
       const alert = alerts.find((a) => a.id === id)
-      if (!alert) continue
-      announced.current.add(id)
+      if (!alert || announced.current.has(keyOf(alert))) continue
+      announced.current.add(keyOf(alert))
       announce(alert.severity, alert.spokenText)
       if (deviceId) notifyPhone(alert)
     }
   }, [incoming, alerts, deviceId])
-
-  // Gemini's reading arrives a few seconds later: say it once, but only while that alert is still on screen.
-  const shownId = incoming[0]
-  useEffect(() => {
-    if (!shownId || !isVoiceEnabled()) return
-    const summary = alerts.find((a) => a.id === shownId)?.advice?.summary
-    if (!summary || summarySpoken.current.has(shownId)) return
-    summarySpoken.current.add(shownId)
-    speak(summary, 400)
-  }, [shownId, alerts])
 
   const queue = incoming.map((id) => alerts.find((a) => a.id === id)).filter((a): a is Alert => Boolean(a))
   const current = queue[0]
@@ -164,7 +183,7 @@ export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId }: AlertCenterP
 
   return (
     <>
-      <div className="ai-dock" data-testid="ai-alert-dock">
+      <div className={`ai-dock ai-dock--${placement}`} data-testid="ai-alert-dock">
         <span className={`ai-conn ai-conn-${connection}`} data-testid="ai-connection" title={connection === 'offline' ? L.offlineHint : undefined}>
           <span className="ai-dot" aria-hidden="true" />
           {connection === 'live' ? L.live : connection === 'connecting' ? L.connecting : L.offline}
@@ -193,7 +212,7 @@ export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId }: AlertCenterP
             {alerts.length === 0 && <p className="ai-muted">{L.noAlerts}</p>}
             {alerts.map((a) => (
               <button key={a.id} type="button" className={`ai-list-item ai-sev-${a.severity}`}
-                onClick={() => { announced.current.add(a.id); aiStore.show(a.id); setListOpen(false) }}
+                onClick={() => { announced.current.add(keyOf(a)); aiStore.show(a.id); setListOpen(false) }}
                 data-testid={`ai-alert-item-${a.scenarioId}`}>
                 <span className="ai-sev-chip">{ICON[a.severity]} {L.severity[a.severity]}</span>
                 <span>{a.title}</span>

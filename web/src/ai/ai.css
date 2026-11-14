@@ -101,9 +101,6 @@
 
 /* ---- dock (top right) ---- */
 .ai-dock {
-  position: fixed;
-  top: 12px;
-  right: 16px;
   z-index: 60;
   display: flex;
   align-items: center;
@@ -114,6 +111,10 @@
   background: rgba(7, 13, 22, 0.88);
   backdrop-filter: blur(8px);
 }
+/* Placement: bottom-right never covers the web topbar (default); inline sits in the normal flow of the host's own header. */
+.ai-dock--bottom-right { position: fixed; bottom: 14px; right: 16px; }
+.ai-dock--top-right { position: fixed; top: 12px; right: 16px; }
+.ai-dock--inline { position: relative; display: inline-flex; }
 .ai-voice.is-on { border-color: rgba(82, 230, 178, 0.5); color: #c6f8e6; }
 .ai-count { font-variant-numeric: tabular-nums; }
 .ai-count.has-amber { border-color: var(--ai-amber); }
@@ -273,10 +274,15 @@
 .ai-demo { padding: 12px; border: 1px dashed var(--ai-border); border-radius: 12px; background: var(--ai-surface); }
 .ai-demo-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 
+.ai-dock--bottom-right .ai-list { top: auto; bottom: calc(100% + 8px); }
+.ai-hint { margin-top: 12px; font-size: 12.5px; }
+.ai-advice { margin-top: 12px; }
+.ai-advice-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+
 @media (max-width: 640px) {
-  .ai-dock { top: auto; bottom: 12px; right: 12px; left: 12px; justify-content: space-between; }
+  .ai-dock--bottom-right, .ai-dock--top-right { top: auto; bottom: 12px; right: 12px; left: 12px; justify-content: space-between; }
   .ai-voice span, .ai-conn { font-size: 11px; }
-  .ai-list { top: auto; bottom: calc(100% + 8px); }
+  .ai-dock .ai-list { top: auto; bottom: calc(100% + 8px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

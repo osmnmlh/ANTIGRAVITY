@@ -477,7 +477,7 @@ test('ntfy: one notification per affected astronaut topic, only for announced al
   assert.equal(sent[0].url, 'https://ntfy.sh');
   assert.equal(sent[0].body.priority, 5);
   assert.match(sent[0].body.title, /KRİTİK/);
-  assert.match(sent[0].body.message, /Maskenizi takın/);
+  assert.match(sent[0].body.message, /maskenizi hemen takın/i, 'a locked phone shows what to do first');
 
   await call(on.ai, 'POST', '/api/ai/demo/orthostatic');
   await on.ai.idle();
@@ -490,4 +490,48 @@ test('one event is one alert: the orthostatic demo (low systolic AND diastolic, 
   assert.equal(json.created.length, 1);
   const alert = ai.alerts().find((a) => a.id === json.created[0]);
   assert.deepEqual(alert.metrics.map((m) => m.type).sort(), ['bloodPressureDia', 'bloodPressureSys', 'heartRate']);
+});
+
+test('a phone that was away gets the missed alert in `hello` and counts as delivered when it reconnects', async () => {
+  const { ai } = setup();
+  const server = http.createServer(async (req, res) => {
+    if (!(await ai.handle(req, res, new URL(req.url, 'http://x')))) res.writeHead(404).end();
+  });
+  await new Promise((r) => server.listen(0, r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const post = (path, body) => fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
+
+  await post('/api/ai/devices', { deviceId: 'phone-away', crewId: 'crew-1' }); // registered, but not connected
+  await post('/api/ai/demo/cabin-gas-leak');
+  const gas = () => ai.alerts().find((x) => x.scenarioId === 'cabin-gas-leak');
+  const id = gas().id;
+  assert.equal(gas().deliveries[0].deliveredAt, null, 'nobody was listening');
+
+  const back = openStream(base, 'deviceId=phone-away&crewId=crew-1');
+  await back.ready;
+  await wait(100);
+  const hello = back.events.find((e) => e.ev === 'hello').data;
+  assert.ok(hello.alerts.some((a) => a.id === id), 'the missed alert is listed again');
+  assert.ok(gas().deliveries[0].deliveredAt, 'and the server counts it as delivered');
+  assert.ok(back.events.some((e) => e.ev === 'alert-update' && e.data.id === id && e.data.deliveries[0].deliveredAt));
+  back.close();
+  server.close();
+});
+
+test('a normal radiation sentence ("dozu verebilir") is not mistaken for dosing, a real prescription still is', async () => {
+  const radiation = {
+    ...GOOD_ADVICE,
+    summary: 'Radyasyon seviyesi yükseldi; bir güneş fırtınası birkaç saatte haftalarca alınacak dozu verebilir.',
+  };
+  const ok = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => geminiReply(radiation) });
+  const a = await call(ok.ai, 'POST', '/api/ai/demo/solar-event');
+  await ok.ai.idle();
+  assert.equal(ok.ai.alerts().find((x) => x.id === a.json.created[0]).advice.source, 'gemini');
+
+  for (const bad of ['Ağrı için ilaç alın.', 'Günde 2 tablet için.', '500 mg alın.']) {
+    const no = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => geminiReply({ ...GOOD_ADVICE, doNow: [bad] }) });
+    const b = await call(no.ai, 'POST', '/api/ai/demo/solar-event');
+    await no.ai.idle();
+    assert.equal(no.ai.alerts().find((x) => x.id === b.json.created[0]).advice.source, 'fallback', bad);
+  }
 });

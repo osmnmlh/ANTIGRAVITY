@@ -85,6 +85,11 @@ interface Alert {
 }
 ```
 
+**What is spoken, what is written.** `spokenText` is a *short* phrase without numbers or advice ("Uyarı. Kan basıncı düşük.").
+Clients signal only what matters: **red** = alarm tone + `spokenText`; **amber** = a soft tone, no speech. The detailed recommendation
+(`advice`: summary, steps, why, when to call the flight surgeon) is shown **on request** ("AI önerisi" in the popup) and can be read aloud
+on request ("Sesli oku"); it is never spoken automatically. Phones, ntfy and notifications show `title`; ntfy's body is the first step of `advice.doNow`.
+
 **Two steps, one alert.** The rule engine creates the alert (`title`, `spokenText`, deterministic `advice` with `source: "fallback"`)
 and it is announced immediately. A moment later Gemini interprets the detected values and the same alert is re-sent as
 `alert-update` with `advice.source: "gemini"`, a `summary` and reworded `why` / `doNow` / `escalate`. Gemini never changes
@@ -122,7 +127,7 @@ With `crewId` it receives that astronaut's alerts plus all cabin alerts. A conne
 | event | data |
 | --- | --- |
 | `devices` | `Device[]` (same shape as `GET /api/ai/devices`). Sent to every stream whenever a phone connects, drops or registers: drives "📱 2/3 online" in the cockpit |
-| `hello` | `{ cabin: CabinSnapshot, alerts: Alert[], devices: Device[] }` (active ones). Sent on connect **and again after a demo reset**: replace all state |
+| `hello` | `{ cabin: CabinSnapshot, alerts: Alert[], devices: Device[] }` (active ones). Sent on connect **and again after a demo reset**: replace all state. A client that reconnects after a drop should announce the alerts in it that it has not seen and that this device has not acknowledged (the server marks them delivered when the stream reconnects) |
 | `cabin` | `CabinSnapshot` |
 | `alert` | `Alert` (new: notify, beep, speak, popup) |
 | `alert-update` | `Alert` (advice arrived, delivery/ack changed, resolved: replace by `id`, do **not** re-notify) |

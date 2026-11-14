@@ -19,7 +19,7 @@ export function createNtfy({ topic = process.env.NTFY_TOPIC, server = process.en
         body: JSON.stringify({
           topic: `${topic}-${crewId}`,
           title: `${alert.severity === 'red' ? '🔴 KRİTİK' : '🟠 DİKKAT'} · ${alert.title}`,
-          message: alert.spokenText,
+          message: alert.advice?.doNow?.[0] ?? alert.spokenText, // what to do first; the title says what happened
           priority: alert.severity === 'red' ? 5 : 4,
           tags: [alert.severity === 'red' ? 'rotating_light' : 'warning'],
         }),
