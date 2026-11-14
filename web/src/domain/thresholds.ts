@@ -51,6 +51,10 @@ const SEVERITY_RANK: Record<HealthStatus, number> = {
   red: 3,
 };
 
+/**
+ * Ranges are continuous (lower bound inclusive, upper bound exclusive) so decimal
+ * readings such as 129.5 mmHg or 37.55 °C never fall into a gap between bands.
+ */
 export function getStatus(
   type: HealthIndicatorType,
   value: number | null | undefined,
@@ -63,17 +67,17 @@ export function getStatus(
   switch (type) {
     case 'heartRate':
       if (value >= 50 && value <= 100) return 'green';
-      if ((value >= 40 && value < 50) || (value > 100 && value <= 120)) return 'amber';
+      if (value >= 40 && value <= 120) return 'amber';
       return 'red';
 
     case 'bloodPressureSys':
-      if (value >= 90 && value <= 129) return 'green';
-      if (value >= 130 && value <= 139) return 'amber';
+      if (value >= 90 && value < 130) return 'green';
+      if (value >= 130 && value < 140) return 'amber';
       return 'red';
 
     case 'bloodPressureDia':
-      if (value >= 60 && value <= 79) return 'green';
-      if (value >= 80 && value <= 89) return 'amber';
+      if (value >= 60 && value < 80) return 'green';
+      if (value >= 80 && value < 90) return 'amber';
       return 'red';
 
     case 'spo2':
@@ -82,13 +86,13 @@ export function getStatus(
       return 'red';
 
     case 'bodyTemp':
-      if (value >= 36.1 && value <= 37.5) return 'green';
-      if ((value >= 37.6 && value <= 38.4) || (value >= 35.0 && value <= 36.0)) return 'amber';
+      if (value >= 36.1 && value < 37.6) return 'green';
+      if (value >= 35.0 && value < 38.5) return 'amber';
       return 'red';
 
     case 'bloodGlucose':
-      if (value >= 70 && value <= 125) return 'green';
-      if ((value >= 54 && value <= 69) || (value >= 126 && value <= 180)) return 'amber';
+      if (value >= 70 && value < 126) return 'green';
+      if (value >= 54 && value <= 180) return 'amber';
       return 'red';
 
     case 'sleepHours':
@@ -141,7 +145,8 @@ export function watchTelemetryToSamples(
       id: `${telemetry.userId}-watch-hr-${telemetry.syncTimestamp}`,
       crewId: telemetry.userId,
       type: 'heartRate',
-      value: telemetry.vitals.currentHeartRate,
+      // Thresholds are for resting heart rate; live HR during exercise would raise false alarms.
+      value: telemetry.vitals.restingHeartRate ?? telemetry.vitals.currentHeartRate,
       unit: 'bpm',
       timestamp: telemetry.syncTimestamp,
       source: 'watch',

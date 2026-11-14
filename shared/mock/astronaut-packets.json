@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "disclaimer": "Demo software, not a medical device.",
   "generatedAt": "2026-11-14T08:00:00Z",
   "nasaHazardsSource": "https://www.nasa.gov/hrp/hazards/",
@@ -104,6 +104,20 @@
             "zAxis": 0.03
           }
         }
+      },
+      "aiGuidance": {
+        "generatedAt": "2026-11-14T08:05:00Z",
+        "source": "fallback",
+        "model": null,
+        "overallStatus": "red",
+        "summary": "Your blood oxygen (89%) is below the safe level and your heart rate is raised. Short sleep and a mood of 3 may be adding stress. The red SpO2 reading needs attention first.",
+        "actions": [
+          "Stop exertion, sit upright and check the cabin CO2/O2 readouts.",
+          "Re-measure SpO2 on the Apple Watch in 5 minutes.",
+          "Plan a protected 8-hour sleep window tonight."
+        ],
+        "escalate": "If SpO2 stays below 90% after re-measuring, alert the crew medical officer and contact the flight surgeon now.",
+        "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
       }
     },
     {
@@ -204,6 +218,19 @@
             "zAxis": 0.02
           }
         }
+      },
+      "aiGuidance": {
+        "generatedAt": "2026-11-14T08:05:00Z",
+        "source": "fallback",
+        "model": null,
+        "overallStatus": "green",
+        "summary": "All your readings are in the normal range. Keep your daily routine.",
+        "actions": [
+          "Continue the scheduled exercise countermeasures.",
+          "Keep your current sleep and hydration routine."
+        ],
+        "escalate": "No escalation needed. Contact the flight surgeon if you notice new symptoms.",
+        "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
       }
     },
     {
@@ -306,6 +333,20 @@
             "zAxis": 0.165
           }
         }
+      },
+      "aiGuidance": {
+        "generatedAt": "2026-11-14T08:05:00Z",
+        "source": "fallback",
+        "model": null,
+        "overallStatus": "amber",
+        "summary": "Several readings are slightly outside the normal range: blood pressure, temperature, glucose and SpO2 are in caution, and cumulative radiation has passed 50% of the mission budget.",
+        "actions": [
+          "Rest for 30 minutes, hydrate, then re-measure blood pressure and temperature.",
+          "Check the space-weather alerts and limit time outside shielded quarters.",
+          "Aim for at least 7 hours of sleep tonight."
+        ],
+        "escalate": "Contact the flight surgeon if temperature reaches 38.5 °C, blood pressure reaches 140/90 mmHg, or SpO2 drops below 90%.",
+        "disclaimer": "AI-generated suggestion. Demo software, not a medical device."
       }
     }
   ]

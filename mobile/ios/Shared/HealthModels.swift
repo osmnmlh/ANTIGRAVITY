@@ -98,6 +98,8 @@ struct AstronautHealthPacket: Codable, Identifiable, Sendable {
     let lastUpdated: Date
     let measurements: [String: MeasurementSnapshot]
     let watchTelemetry: WatchTelemetryData?
+    /// AI recommendation from the backend (Gemini). Show as "AI recommendation"; may be nil.
+    let aiGuidance: AiGuidance?
 
     var id: String { astronautId }
 
@@ -141,6 +143,26 @@ struct MeasurementSnapshot: Codable, Sendable {
     let source: SampleSource
 }
 
+// MARK: - AI Guidance (filled by backend, displayed on iPhone)
+
+/// AI recommendation attached to an `AstronautHealthPacket` by the backend (`POST /api/ai/guidance`).
+/// `overallStatus` comes from the deterministic threshold engine; the AI never decides the color.
+struct AiGuidance: Codable, Sendable {
+    enum Source: String, Codable, Sendable {
+        case gemini
+        case fallback
+    }
+
+    let generatedAt: Date
+    let source: Source
+    let model: String?
+    let overallStatus: HealthStatus
+    let summary: String
+    let actions: [String]
+    let escalate: String
+    let disclaimer: String
+}
+
 // MARK: - Apple Watch Telemetry Package
 
 /// Primary telemetry packet sent from Apple Watch to iPhone and Web.
@@ -159,7 +181,8 @@ struct WatchTelemetryData: Codable, Sendable {
             HealthSample(
                 crewId: userId,
                 type: .heartRate,
-                value: vitals.currentHeartRate,
+                // Thresholds are for resting HR; live HR during exercise would raise false alarms.
+                value: vitals.restingHeartRate ?? vitals.currentHeartRate,
                 timestamp: syncTimestamp,
                 source: .watch
             )

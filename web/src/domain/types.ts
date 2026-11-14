@@ -97,6 +97,24 @@ export interface AstronautHealthPacket {
   lastUpdated: string;
   measurements: Partial<Record<HealthIndicatorType, MeasurementSnapshot>>;
   watchTelemetry?: WatchTelemetryData | null;
+  /** AI recommendation produced by the backend (Gemini) and shown on iPhone/Web. */
+  aiGuidance?: AiGuidance | null;
+}
+
+/**
+ * AI recommendation attached to an AstronautHealthPacket.
+ * Created only by the backend (`POST /api/ai/guidance`), which keeps the Gemini key server-side.
+ * `overallStatus` is copied from the deterministic threshold engine; the AI never decides the color.
+ */
+export interface AiGuidance {
+  generatedAt: string; // ISO-8601 UTC
+  source: 'gemini' | 'fallback';
+  model?: string | null;
+  overallStatus: HealthStatus;
+  summary: string;
+  actions: string[];
+  escalate: string;
+  disclaimer: string;
 }
 
 export interface AstronautPacketBundle {

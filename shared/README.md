@@ -6,6 +6,7 @@ The shared data files every client (`web/`, `mobile/ios/`, `watch/`) uses.
 
 - `mock/samples.json`: Time-series `HealthSample[]` array matching the `AGENTS.md` contract (`id`, `crewId`, `type`, `value`, `unit`, `timestamp`, `source`).
 - `mock/astronaut-packets.json`: Crew-level JSON packets (`astronautId`, `fullName`, `role`, `mission`, `activeHazardIds`, `measurements`, and Apple Watch `watchTelemetry`) designed to feed Web, iPhone, and watchOS seamlessly.
+- `mock/astronaut-packets.json` → `aiGuidance`: AI recommendation (`summary`, `actions[]`, `escalate`, `source`, `overallStatus`). Written only by `backend/` (`POST /api/ai/guidance`); mock values use `source: "fallback"`. The iPhone shows it as "AI recommendation".
 - `mock/nasa-hazards.json`: Structured reference dataset of NASA HRP's 5 Hazards of Human Spaceflight (`https://www.nasa.gov/hrp/hazards/`), including health effects, mitigations, reference metrics, and mapped indicators/Watch telemetry fields.
 
 ## Bridging Watch Telemetry to Health Samples

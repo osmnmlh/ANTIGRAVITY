@@ -58,20 +58,22 @@ enum HealthThresholds {
     ) -> HealthStatus {
         guard let value else { return .missing }
 
+        // Ranges are continuous (upper bound exclusive) so decimals like 129.5 never fall into a gap.
+
         switch type {
         case .heartRate:
             if (50...100).contains(value) { return .green }
-            if (40..<50).contains(value) || (100.0001...120).contains(value) { return .amber }
+            if (40...120).contains(value) { return .amber }
             return .red
 
         case .bloodPressureSys:
-            if (90...129).contains(value) { return .green }
-            if (130...139).contains(value) { return .amber }
+            if (90..<130).contains(value) { return .green }
+            if (130..<140).contains(value) { return .amber }
             return .red
 
         case .bloodPressureDia:
-            if (60...79).contains(value) { return .green }
-            if (80...89).contains(value) { return .amber }
+            if (60..<80).contains(value) { return .green }
+            if (80..<90).contains(value) { return .amber }
             return .red
 
         case .spo2:
@@ -80,13 +82,13 @@ enum HealthThresholds {
             return .red
 
         case .bodyTemp:
-            if (36.1...37.5).contains(value) { return .green }
-            if (37.6...38.4).contains(value) || (35.0...36.0).contains(value) { return .amber }
+            if (36.1..<37.6).contains(value) { return .green }
+            if (35.0..<38.5).contains(value) { return .amber }
             return .red
 
         case .bloodGlucose:
-            if (70...125).contains(value) { return .green }
-            if (54...69).contains(value) || (126...180).contains(value) { return .amber }
+            if (70..<126).contains(value) { return .green }
+            if (54...180).contains(value) { return .amber }
             return .red
 
         case .sleepHours:

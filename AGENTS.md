@@ -49,6 +49,15 @@ Canonical files: `.agent/skills/<name>/SKILL.md`.
 
 `type` ∈ `heartRate | bloodPressureSys | bloodPressureDia | spo2 | bodyTemp | bloodGlucose | sleepHours | mood | radiationDose`.
 `source` ∈ `watch | iphone | manual | mock`. Change it only via a PR touching `shared/` and tell the team.
+
+Two files in `shared/mock/` use this contract:
+
+- `samples.json` — `HealthSample[]` history (one record per reading, shape above). Feeds charts.
+- `astronaut-packets.json` — one **packet per astronaut**: profile + mission + latest `measurements` + Apple Watch `watchTelemetry` + `aiGuidance`.
+  `astronautId` in a packet equals `crewId` in samples. Types: `web/src/domain/types.ts`, `mobile/ios/Shared/HealthModels.swift`.
+- `aiGuidance` = `{ generatedAt, source: "gemini"|"fallback", model, overallStatus, summary, actions[], escalate, disclaimer }`.
+  Only the backend writes it (Gemini key stays server-side). iPhone parses it and shows it as **"AI recommendation"**.
+  `overallStatus` comes from the threshold engine — **the AI never decides green/amber/red**.
 Status logic (thresholds → green/amber/red) lives in one place per platform and follows `astronaut-health-domain`.
 
 ## How to work
