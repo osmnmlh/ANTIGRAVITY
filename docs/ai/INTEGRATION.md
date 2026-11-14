@@ -28,7 +28,7 @@ The "Ne anlama geliyor / Uzayda neden önemli / Şimdi ne yapabilirsin / Ne zama
 selected indicator (`useAiIndicatorGuidance`, contract §9) and a line saying who wrote it; with the relay offline it shows the local rule texts as before.
 
 ## Alert voice
-Pre-rendered ElevenLabs clips in `web/public/ai-voice/` (see `web/src/ai/README.md`, "Voice"). Without clips the browser's female Turkish voice is used.
+Pre-rendered ElevenLabs clips (Alice, free plan) in `web/public/ai-voice/`, played slightly dulled (see `web/src/ai/README.md`, "Voice"). A phrase without a clip uses the browser's female Turkish voice.
 
 ## Chat request
 `POST /api/ai/chat` takes `{ crewId, messages: [{role, text}] }` or the one-string shorthand of `docs/rehearsal.md`: `{ crewId, message: "…" }`.
