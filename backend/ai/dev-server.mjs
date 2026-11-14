@@ -17,9 +17,10 @@ const readJson = (p) => JSON.parse(readFileSync(here(p), 'utf8'));
 try { process.loadEnvFile(here('../.env')); } catch { /* backend/.env is optional; no key = fallback answers */ }
 const PORT = Number(process.env.AI_PORT ?? 8788);
 
-const bundle = readJson('../../shared/mock/astronaut-packets.json');
-const hazards = readJson('../../shared/mock/nasa-hazards.json').hazards;
-const samples = readJson('../../shared/mock/samples.json'); // history, feeds the shared trend rule
+const all = readJson('../../shared/mock/all-data.json'); // master dataset, same file the relay reads
+const bundle = { ...all, astronauts: all.astronauts.map(({ sampleHistory: _history, ...packet }) => packet) };
+const hazards = all.nasaHazards;
+const samples = all.samples; // history, feeds the shared trend rule
 const findPacket = (crewId) => bundle.astronauts.find((a) => a.astronautId === crewId);
 
 function applySamples(list) {

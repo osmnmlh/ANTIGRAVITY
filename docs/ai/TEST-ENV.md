@@ -20,12 +20,11 @@ Cmdr. Marcus Chen  http://<wifi-ip>:5174/phone.html?crewId=crew-2
 Gemini is on when `backend/.env` contains `GEMINI_API_KEY` (git-ignored; copy `backend/.env.example`). The relay health
 line shows `gemini: true` and the model. Without a key everything still works with the rule-based texts.
 
-## Integrated app (the web team's real UI with the AI mounted)
+## Integrated app (the web team's UI with the AI mounted, on `shared/mock/all-data.json`)
 
-The web team's `feat/web-body-hologram` is not on main yet, so the integrated UI is built from `main` + their web files + `docs/ai/web-app-mount.patch`
-(recipe in `docs/ai/INTEGRATION.md`). With it, `http://localhost:5174/` is their dashboard (astronaut selector, **Astronotlar** / **Ana üs**) with the AI inside:
-the alert bar bottom-right, the chat under the health view, and in **Ana üs** the cabin chat, connected phones and scenario buttons.
-Their simulation buttons talk to the same relay, so **Apollo 13 / Mir / ISS EVA replays raise the AI alerts** (cabin ones included) and the live simulation stays green.
+`http://localhost:5174/` is the team's dashboard (astronaut selector, **Astronotlar** / **Ana üs**) with the AI inside: the alert bar bottom-right, the chat under the health view,
+and in **Ana üs** the cabin chat, connected phones and scenario buttons. Their simulation buttons talk to the same relay, so the **Apollo 13 / Mir / ISS EVA replays raise the AI
+alerts** (cabin ones included) and the live simulation stays green. Everything starts green (demo script); `POST /api/demo/reset` returns to that.
 
 ## Pages
 

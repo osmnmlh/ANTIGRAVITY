@@ -33,10 +33,13 @@ const RANK = { green: 0, missing: 1, amber: 2, red: 3 };
 
 // ---- In-memory state, loaded from shared mock data on every start ----
 const readJson = (p) => JSON.parse(readFileSync(here(p), 'utf8'));
-const INITIAL_BUNDLE = readJson('../shared/mock/astronaut-packets.json');
-const INITIAL_SAMPLES = readJson('../shared/mock/samples.json');
-const hazards = readJson('../shared/mock/nasa-hazards.json').hazards;
-const incidents = readJson('../shared/mock/historical-incidents.json').incidents;
+// shared/mock/all-data.json is the master dataset: crew packets, NASA hazards, historical incidents and the sample history in one file.
+// `sampleHistory` inside each astronaut only repeats `samples`, so the packet bundle (what /api/packets returns) leaves it out.
+const { astronauts: allAstronauts, nasaHazards, historicalIncidents, samples: allSamples, ...bundleMeta } = readJson('../shared/mock/all-data.json');
+const INITIAL_BUNDLE = { ...bundleMeta, astronauts: allAstronauts.map(({ sampleHistory: _history, ...packet }) => packet) };
+const INITIAL_SAMPLES = allSamples;
+const hazards = nasaHazards;
+const incidents = historicalIncidents;
 
 let bundle = structuredClone(INITIAL_BUNDLE);
 let samples = structuredClone(INITIAL_SAMPLES);
@@ -108,6 +111,13 @@ const ai = createAi({
   hazards,
   applySamples: (list) => addSamples(list), // vital demo scenarios write real samples, so web SSE sees them too
   gemini: { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL },
+  // packet.aiGuidance (the "AI önerisi" of the iPhone) is written by the AI module and kept current; this tells it how to
+  // read the engine's overall status and how to push the changed packet to the clients.
+  getOverallStatus: (packet) => getOverallStatus(packet, samples),
+  onGuidance: (crewId) => {
+    const packet = findPacket(crewId);
+    if (packet) broadcast('packet', withStatus(packet));
+  },
 });
 
 // Rehearsal reset (POST /api/demo/reset and /api/simulation/reset): stop any simulation, reload shared/mock/*.json

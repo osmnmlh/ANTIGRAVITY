@@ -11,9 +11,11 @@ import { createAi } from './index.mjs';
 import { cabinStatus } from './cabin.mjs';
 
 const readJson = (p) => JSON.parse(readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8'));
-const PACKETS = readJson('../../shared/mock/astronaut-packets.json').astronauts;
-const HAZARDS = readJson('../../shared/mock/nasa-hazards.json').hazards;
-const SAMPLES = readJson('../../shared/mock/samples.json');
+// shared/mock/all-data.json is the master dataset the relay and the web use too.
+const ALL = readJson('../../shared/mock/all-data.json');
+const PACKETS = ALL.astronauts.map(({ sampleHistory: _history, ...packet }) => packet);
+const HAZARDS = ALL.nasaHazards;
+const SAMPLES = ALL.samples;
 
 // The demo mock starts all-green (team decision). These tests need a crew-1 that already has problems,
 // so they overlay the earlier "bad morning" values: SpO2 89, HR 112, sleep 5.5, mood 3 two days in a row.
@@ -296,11 +298,16 @@ test('chat fallback: medication and off-topic asks get a safe redirect, never a 
 });
 
 test('chat with Gemini retries once on 503 and keeps the answer from the retry', async () => {
+  // Only the chat prompt is counted: startup also asks Gemini for the per-astronaut recommendations.
+  const isChat = (init) => /Readings with their status/.test(JSON.parse(init.body).systemInstruction.parts[0].text);
   let calls = 0;
   const good = { reply: 'Değerler normal.', escalation: 'none', indicators: [], suggestions: [] };
-  const fetchImpl = async () => (++calls === 1
-    ? { ok: false, status: 503 }
-    : { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(good) }] } }] }) });
+  const fetchImpl = async (_url, init) => {
+    if (!isChat(init)) return { ok: false, status: 404 };
+    return ++calls === 1
+      ? { ok: false, status: 503 }
+      : { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(good) }] } }] }) };
+  };
   const { ai } = setup({ gemini: { apiKey: 'k' }, fetchImpl });
   const r = await ai.chat({ crewId: 'crew-2', messages: [{ role: 'user', text: 'Marcus nasıl?' }] });
   assert.equal(calls, 2);
@@ -308,7 +315,7 @@ test('chat with Gemini retries once on 503 and keeps the answer from the retry',
   assert.equal(r.model, 'gemini-flash-lite-latest');
 
   let hard = 0;
-  const bad = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => (hard++, { ok: false, status: 404 }) });
+  const bad = setup({ gemini: { apiKey: 'k' }, fetchImpl: async (_url, init) => { if (isChat(init)) hard++; return { ok: false, status: 404 }; } });
   assert.equal((await bad.ai.chat({ crewId: 'crew-2', messages: [{ role: 'user', text: 'durum?' }] })).source, 'fallback');
   assert.equal(hard, 1, 'a 404 is not retried');
 });
@@ -553,7 +560,7 @@ test('high systolic AND diastolic is one "kan basıncı" alert, not two popups',
 // ---- Incident replay: cabin hints become cabin readings ----
 import { parseCabinHint } from './cabin-hint.mjs';
 
-const INCIDENTS = readJson('../../shared/mock/historical-incidents.json').incidents;
+const INCIDENTS = ALL.historicalIncidents;
 
 test('cabin hints of the historical incidents are read into cabin readings', () => {
   const read = (hint) => parseCabinHint(hint).map((r) => `${r.metric}=${r.value}`);
@@ -593,4 +600,172 @@ test('the cabin-temperature demo scenario exists and fires', async () => {
   const { json } = await call(ai, 'POST', '/api/ai/demo/cabin-temperature');
   assert.equal(json.created.length, 1);
   assert.equal(ai.alerts().find((a) => a.id === json.created[0]).scenarioId, 'cabin-temperature');
+});
+
+test('chat accepts the one-string form of the rehearsal guide ({ crewId, message })', async () => {
+  const { ai } = setup();
+  const one = await call(ai, 'POST', '/api/ai/chat', { crewId: 'crew-1', message: 'Su an durumum nedir, uçuş cerrahına ne zaman başvurmalıyım?' });
+  assert.equal(one.status, 200);
+  assert.match(one.json.reply, /cerrah/i, 'the question was read, not replaced by a generic briefing');
+  assert.ok(one.json.disclaimer && ['fallback', 'gemini'].includes(one.json.source));
+  const nothing = await call(ai, 'POST', '/api/ai/chat', { crewId: 'crew-1' });
+  assert.equal(nothing.status, 200, 'no message at all = briefing, as before');
+});
+
+test('the AI runs on the master dataset: three crew start green, hazards and incidents are all there', () => {
+  // A fresh read: the fixtures above overlay a "bad morning" on crew-1 and that mutates the shared copy.
+  const fresh = readJson('../../shared/mock/all-data.json');
+  const packets = fresh.astronauts.map(({ sampleHistory: _history, ...packet }) => packet);
+  assert.equal(packets.length, 3);
+  assert.equal(fresh.nasaHazards.length, 5);
+  assert.equal(fresh.historicalIncidents.length, 3);
+  const ai = createAi({
+    getPackets: () => packets,
+    getVitalStatus: (type, value, p) => getStatus(type, value, p.mission?.radiationBudgetMsv),
+    getVitalGuidance: (type) => guidanceByType[type],
+    getTrendStatus: (crewId, type) => getTrendStatus(fresh.samples.filter((x) => x.crewId === crewId), type),
+    vitalLabel: (t) => metricDefinitions[t]?.label ?? t,
+    hazards: fresh.nasaHazards,
+    log: {},
+    ntfy: { topic: '' },
+  });
+  assert.equal(ai.alerts({ state: 'active' }).length, 0, 'a clean start raises no alert (demo script: everyone starts green)');
+  assert.equal(ai.cabin().overallStatus, 'green');
+});
+
+// ---- aiGuidance of every packet: per-indicator Turkish AI recommendation ----
+
+const ALL_TYPES = ['heartRate', 'bloodPressureSys', 'bloodPressureDia', 'spo2', 'bodyTemp', 'bloodGlucose', 'sleepHours', 'mood', 'radiationDose'];
+const gemGuidance = (over = {}) => ({
+  summary: 'Kan oksijenin düşük ve nabzın yüksek; bu birlikte kabin havası ya da eforla ilgili olabilir.',
+  actions: ['Eforu bırak ve dik otur.', '5 dakika sonra tekrar ölç.'],
+  escalate: 'Düşük kalırsa uçuş cerrahına hemen haber ver.',
+  indicators: ALL_TYPES.map((type) => ({
+    type,
+    whatItIs: `${type} ne ölçer: kısa açıklama.`,
+    whyInSpace: `${type} uzayda neden önemli: kısa açıklama.`,
+    doNow: [`${type} için şimdi yapılacak adım.`],
+    escalateWhen: `${type} için ne zaman haber verilmeli.`,
+  })),
+  ...over,
+});
+const geminiGuidanceFetch = (obj, counter) => async (_url, init) => {
+  const system = JSON.parse(init.body).systemInstruction.parts[0].text;
+  if (!/Indicators:/.test(system)) return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(GOOD_ADVICE) }] } }] }) };
+  if (counter) counter.n++;
+  return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(obj) }] } }] }) };
+};
+const guidanceOf = (packets, id) => packets.find((p) => p.astronautId === id).aiGuidance;
+
+test('every packet carries a Turkish AI recommendation from the first moment, with all four texts per indicator', () => {
+  const { packets } = setup();
+  for (const crewId of ['crew-1', 'crew-2', 'crew-3']) {
+    const g = guidanceOf(packets, crewId);
+    assert.equal(g.source, 'fallback');
+    assert.equal(g.disclaimer, 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir.', 'the old English disclaimer is gone');
+    assert.deepEqual(Object.keys(g.indicators).sort(), [...ALL_TYPES].sort());
+    for (const type of ALL_TYPES) {
+      const i = g.indicators[type];
+      assert.ok(i.whatItIs && i.whyInSpace && i.escalateWhen && i.doNow.length > 0, `${crewId} ${type}`);
+      assert.doesNotMatch(Object.values(i).flat().join(' '), /\b(the|your|contact|measures|flight surgeon|heart rate)\b/i, `no English in ${type}`);
+    }
+  }
+  assert.match(guidanceOf(packets, 'crew-2').summary, /Tüm değerlerin normal/);
+});
+
+test('the recommendation follows the situation: a critical value changes summary, steps and escalation without a click', () => {
+  const { ai, packets, applySamples } = setup();
+  const before = guidanceOf(packets, 'crew-2').signature;
+  applySamples([{ crewId: 'crew-2', type: 'spo2', value: 86, timestamp: 't', source: 'mock' }]);
+  ai.onSamples();
+  const g = guidanceOf(packets, 'crew-2');
+  assert.notEqual(g.signature, before);
+  assert.equal(g.overallStatus, 'red');
+  assert.match(g.summary, /dikkat gerektiriyor.*KRİTİK/);
+  assert.match(g.escalate, /cerrah/i);
+  assert.equal(g.indicators.spo2.status, 'red');
+  assert.equal(guidanceOf(packets, 'crew-3').overallStatus, 'green', 'other astronauts are untouched');
+});
+
+test('a normal tick (same statuses) does not regenerate; a status change does; the host is told only then', async () => {
+  const counter = { n: 0 };
+  const told = [];
+  const { ai, applySamples } = setup({ gemini: { apiKey: 'k' }, fetchImpl: geminiGuidanceFetch(gemGuidance(), counter), onGuidance: (id) => told.push(id) });
+  await ai.idle();
+  const startCalls = counter.n;
+  const startTold = told.length;
+  applySamples([{ crewId: 'crew-2', type: 'heartRate', value: 71, timestamp: 't1', source: 'mock' }]); // still green
+  ai.onSamples();
+  await ai.idle();
+  assert.equal(counter.n, startCalls, 'no Gemini call for a value that stays green');
+  assert.equal(told.length, startTold, 'and nobody is notified');
+  applySamples([{ crewId: 'crew-2', type: 'spo2', value: 86, timestamp: 't2', source: 'mock' }]);
+  ai.onSamples();
+  await ai.idle();
+  assert.equal(counter.n, startCalls + 1, 'one call for the one astronaut whose situation changed');
+  assert.ok(told.includes('crew-2'));
+});
+
+test('Gemini writes the recommendation: its texts replace the rule-based ones, statuses stay the engine\'s', async () => {
+  const { ai, packets, applySamples } = setup({ gemini: { apiKey: 'k' }, fetchImpl: geminiGuidanceFetch(gemGuidance()) });
+  applySamples([{ crewId: 'crew-2', type: 'spo2', value: 86, timestamp: 't', source: 'mock' }]);
+  ai.onSamples();
+  assert.equal(guidanceOf(packets, 'crew-2').source, 'fallback', 'the rule-based text is there at once');
+  await ai.idle();
+  const g = guidanceOf(packets, 'crew-2');
+  assert.equal(g.source, 'gemini');
+  assert.equal(g.model, 'gemini-flash-lite-latest');
+  assert.match(g.summary, /Kan oksijenin düşük/);
+  assert.equal(g.overallStatus, 'red', 'the status is still the engine\'s');
+  assert.equal(g.indicators.spo2.status, 'red');
+  assert.match(g.indicators.spo2.doNow[0], /spo2 için şimdi yapılacak adım/);
+});
+
+test('a bad Gemini field falls back by itself; an unsafe or empty answer keeps the rule-based text; red keeps the surgeon sentence', async () => {
+  const mixed = gemGuidance({ escalate: 'Takibe devam et.', indicators: gemGuidance().indicators.map((i) => (i.type === 'mood' ? { ...i, doNow: ['500 mg alın.'] } : i)) });
+  const a = setup({ gemini: { apiKey: 'k' }, fetchImpl: geminiGuidanceFetch(mixed) });
+  a.applySamples([{ crewId: 'crew-2', type: 'spo2', value: 86, timestamp: 't', source: 'mock' }]);
+  a.ai.onSamples();
+  await a.ai.idle();
+  const g = guidanceOf(a.packets, 'crew-2');
+  assert.equal(g.source, 'gemini');
+  assert.doesNotMatch(g.indicators.mood.doNow.join(' '), /500 mg/, 'only the unsafe indicator fell back');
+  assert.match(g.indicators.heartRate.whatItIs, /ne ölçer: kısa açıklama/, 'the others kept Gemini\'s text');
+  assert.match(g.escalate, /uçuş cerrahı/i, 'a red astronaut always gets the flight surgeon sentence');
+
+  for (const bad of [gemGuidance({ summary: '' }), gemGuidance({ actions: [] }), gemGuidance({ summary: 'Ağrı için ilaç al.' })]) {
+    const b = setup({ gemini: { apiKey: 'k' }, fetchImpl: geminiGuidanceFetch(bad) });
+    b.applySamples([{ crewId: 'crew-2', type: 'spo2', value: 86, timestamp: 't', source: 'mock' }]);
+    b.ai.onSamples();
+    await b.ai.idle();
+    assert.equal(guidanceOf(b.packets, 'crew-2').source, 'fallback');
+  }
+  const down = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => ({ ok: false, status: 404 }) });
+  await down.ai.idle();
+  assert.equal(guidanceOf(down.packets, 'crew-1').source, 'fallback');
+  assert.ok(guidanceOf(down.packets, 'crew-1').indicators.spo2.doNow.length > 0, 'the app is never empty');
+});
+
+test('a demo reset brings the same situation back from the cache without asking Gemini again', async () => {
+  const counter = { n: 0 };
+  const { ai, packets } = setup({ gemini: { apiKey: 'k' }, fetchImpl: geminiGuidanceFetch(gemGuidance(), counter) });
+  await ai.idle();
+  const calls = counter.n;
+  for (const p of packets) p.aiGuidance = { source: 'fallback', summary: 'old static demo text' }; // what a reloaded all-data.json brings
+  await call(ai, 'POST', '/api/ai/demo/reset');
+  await ai.idle();
+  assert.equal(counter.n, calls, 'no new Gemini call');
+  for (const p of packets) {
+    assert.equal(p.aiGuidance.source, 'gemini');
+    assert.notEqual(p.aiGuidance.summary, 'old static demo text');
+  }
+});
+
+test('POST /api/ai/guidance (the iPhone calls it) answers with the current recommendation; unknown crew is a 404', async () => {
+  const { ai } = setup({ gemini: { apiKey: 'k' }, fetchImpl: geminiGuidanceFetch(gemGuidance()) });
+  const r = await call(ai, 'POST', '/api/ai/guidance', { crewId: 'crew-1' });
+  assert.equal(r.status, 200);
+  for (const key of ['generatedAt', 'source', 'model', 'overallStatus', 'summary', 'actions', 'escalate', 'disclaimer', 'indicators']) assert.ok(key in r.json, key);
+  assert.ok(Array.isArray(r.json.actions));
+  assert.equal((await call(ai, 'POST', '/api/ai/guidance', { crewId: 'crew-9' })).status, 404);
 });
