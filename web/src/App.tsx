@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import './App.css'
 import { ThreeBodyMap } from './components/ThreeBodyMap'
 import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi } from './ai'
+import './cosmos-shell.css'
 import { astronautProfiles, latestSampleFor, useHealthData } from './data/useHealthData'
 import { guidanceByType } from './domain/guidance'
 import {
@@ -281,13 +282,6 @@ function App() {
         : statusCounts.missing > 0
           ? 'missing'
           : 'green'
-  const readiness = Math.max(
-    0,
-    Math.min(
-      100,
-      100 - statusCounts.red * 24 - statusCounts.amber * 9 - statusCounts.missing * 7,
-    ),
-  )
   const selectedSample = latest[selectedMetric]
   const selectedStatus = statuses[selectedMetric]
   const selectedGuidance = guidanceByType[selectedMetric]
@@ -300,7 +294,6 @@ function App() {
     () => missionTasks.filter((task) => task.assigneeId === selectedCrewId),
     [missionTasks, selectedCrewId],
   )
-  const selectedOpenTaskCount = selectedAstronautTasks.filter((task) => !task.completed).length
 
   useEffect(() => {
     if (connection !== 'connected') return
@@ -525,12 +518,9 @@ function App() {
           <>
         <section className="page-heading">
           <div>
-            <div className="breadcrumb"><span>FLIGHT DECK</span><b>/</b><span>CREW HEALTH</span></div>
             <h1>Mürettebat sağlık görünümü</h1>
-            <p className="page-subtitle">Göstergeyi gör · ne anlama geldiğini anla · sonraki adımı belirle.</p>
           </div>
           <div className="heading-meta">
-            <span className="sync-state"><i /> {connection === 'connected' ? 'SSE AKTİF' : 'YEREL JSON VERİSİ'}</span>
             <button
               className={`simulation-toggle ${simulation.running ? 'is-running' : ''}`}
               data-testid="live-simulation-toggle"
@@ -545,41 +535,15 @@ function App() {
           </div>
         </section>
 
-        <section className="mission-strip" aria-label="Görev bilgileri">
-          <div className="mission-select-wrap">
-            <span className="mission-icon">{activeEnvironment.icon}</span>
-            <div className="mission-environment-info">
-              <span className="eyebrow">GÖREV ORTAMI</span>
-              <strong className="mission-environment-value" data-testid="mission-environment">
-                {activeEnvironment.label}
-              </strong>
-            </div>
-          </div>
-          <div className="mission-context">{activeEnvironment.detail}</div>
-          <div className="latency-block">
-            <span className="latency-icon" aria-hidden="true">↗</span>
-            <span><small>DÜNYA İLETİŞİM GECİKMESİ</small><strong>{activeEnvironment.latency}</strong></span>
-          </div>
-          <div className="readiness-block">
-            <div className="readiness-gauge" style={{ '--readiness': `${readiness}%` } as CSSProperties}>
-              <span>{readiness}</span>
-            </div>
-            <span><small>GÖREV HAZIRLIĞI</small><strong>DEMO SKORU</strong></span>
-          </div>
-        </section>
-
         <section className="astronaut-selector" aria-label="Astronot seçimi">
           <div className="astronaut-selector-heading">
             <div>
-              <span className="eyebrow">MÜRETTEBAT</span>
               <h2>Astronot profili</h2>
             </div>
             <span className="astronaut-selector-note">{selectedAstronaut.role} · {selectedAstronaut.missionName}</span>
           </div>
           <div className="astronaut-select-box">
-            <span className="astronaut-option-avatar" aria-hidden="true">AST</span>
             <label className="astronaut-select-field" htmlFor="astronaut-select">
-              <span className="eyebrow">SEÇİLİ ASTRONOT</span>
               <select
                 id="astronaut-select"
                 data-testid="astronaut-selector"
@@ -605,9 +569,6 @@ function App() {
               <strong>{selectedAstronaut.code}</strong>
               <span>{selectedAstronaut.name}</span>
             </span>
-            <span className={`astronaut-data-state ${crewSamples.length ? 'has-data' : ''}`} data-testid="astronaut-data-state">
-              {crewSamples.length ? 'VERİ HAZIR' : 'VERİ BEKLENİYOR'}
-            </span>
           </div>
         </section>
 
@@ -616,19 +577,13 @@ function App() {
             <summary className="disclosure-summary">
               <span className="disclosure-icon" aria-hidden="true">✓</span>
               <span className="disclosure-copy">
-                <span className="eyebrow">ASTRONOT GÖREVLERİ</span>
                 <strong>{selectedAstronaut.name} · Atanmış görevler</strong>
-                <small>{selectedOpenTaskCount} açık görev · {selectedAstronaut.code}</small>
               </span>
               <span className="assigned-task-count">{selectedAstronautTasks.length}</span>
               <span className="disclosure-chevron" aria-hidden="true">⌄</span>
             </summary>
             <div className="disclosure-content">
               <section className="panel assigned-task-panel">
-                <div className="panel-heading">
-                  <div><span className="eyebrow">GÖREV LİSTESİ</span><h2>{selectedAstronaut.name} için görevler</h2></div>
-                  <span className="assigned-task-progress">{selectedOpenTaskCount} AÇIK</span>
-                </div>
                 {selectedAstronautTasks.length ? (
                   <div className="base-task-list" data-testid="astronaut-task-list">
                     {selectedAstronautTasks.map((task) => (
@@ -678,7 +633,6 @@ function App() {
                   <div className="base-empty-state" data-testid="astronaut-tasks-empty">
                     <span>{selectedAstronaut.code}</span>
                     <strong>Henüz atanmış görev yok</strong>
-                    <p>Ana üs görev panosundan {selectedAstronaut.name} için görev oluşturabilirsin.</p>
                     <button
                       className="assigned-task-link"
                       data-testid="go-to-base-tasks"
@@ -694,10 +648,9 @@ function App() {
           </details>
 
           <section className="body-column">
-            <div className="section-label"><span>02</span> DURUM HARİTASI</div>
             <section className="panel body-panel">
               <div className="panel-heading body-heading">
-                <div><span className="eyebrow">MÜRETTEBAT / {selectedAstronaut.code}</span><h2>{selectedAstronaut.name} · Sağlık görünümü</h2></div>
+                <div><h2>{selectedAstronaut.name} · Sağlık görünümü</h2></div>
                 <div className="body-heading-tools">
                   <button
                     className="map-reset-button"
@@ -707,12 +660,10 @@ function App() {
                   >
                     GENEL GÖRÜNÜM
                   </button>
-                  <span className="map-live"><i /> GÜNCEL</span>
                 </div>
               </div>
               <section className={`overview-panel ${getStatusTone(overallStatus)}`} data-testid="overall-status">
                 <div className="overview-copy">
-                  <span className="eyebrow">GENEL SAĞLIK DURUMU</span>
                   <h2>{overallStatus === 'green' ? 'Tüm göstergeler nominal' : overallStatus === 'amber' ? 'Takip gereken göstergeler var' : overallStatus === 'red' ? 'Kritik gösterge tespit edildi' : 'Ölçüm bekleniyor'}</h2>
                   <p>{statusDescriptions[overallStatus]}</p>
                 </div>
@@ -737,7 +688,6 @@ function App() {
                 <aside className="map-indicators" aria-label="Mürettebat sağlık göstergeleri">
                   <div className="map-indicators-heading">
                     <span className="eyebrow">CANLI GÖSTERGELER</span>
-                    <span>{metricOrder.length} ÖLÇÜM</span>
                   </div>
                   <div className="map-indicator-list">
                     {metricOrder.map((type, index) => {
@@ -763,7 +713,6 @@ function App() {
                   </div>
                 </aside>
               </div>
-              <div className="map-instruction"><span>↖</span> Bir bölgeye dokunarak ölçümü ve rehberi aç</div>
             </section>
           </section>
 
@@ -771,7 +720,6 @@ function App() {
             <summary className="disclosure-summary">
               <span className={`disclosure-icon status-${selectedStatus}`} aria-hidden="true">◎</span>
               <span className="disclosure-copy">
-                <span className="eyebrow">SEÇİLİ GÖSTERGE · {metricDefinitions[selectedMetric].shortLabel.toLocaleUpperCase('tr-TR')}</span>
                 <strong>{formatValue(selectedMetric, selectedSample?.value)} {metricDefinitions[selectedMetric].displayUnit} · Rehber ve eğilim</strong>
                 <small>{selectedGuidance.hazard}</small>
               </span>
@@ -780,10 +728,6 @@ function App() {
             </summary>
             <div className="disclosure-content">
             <section className="panel guidance-panel" data-testid="guidance-panel">
-              <div className="guidance-topline">
-                <span className="eyebrow">SEÇİLİ GÖSTERGE</span>
-                <StatusBadge status={selectedStatus} />
-              </div>
               <div className="metric-readout">
                 <div>
                   <h2>{metricDefinitions[selectedMetric].label}</h2>
@@ -848,23 +792,17 @@ function App() {
           <>
             <section className="base-welcome">
               <div>
-                <div className="breadcrumb"><span>FLIGHT DECK</span><b>/</b><span>ANA ÜS</span></div>
                 <h1>Görev kontrol merkezi</h1>
-                <p className="page-subtitle">Mürettebatı takip et · görevleri ata · önemli bilgileri ilet.</p>
               </div>
-              <div className="base-link-state"><i /> SİMÜLE EDİLMİŞ YER İSTASYONU</div>
             </section>
 
             <section className="base-summary" aria-label="Görev merkezi özeti">
               <article className="base-summary-card">
-                <span className="eyebrow">MÜRETTEBAT</span>
                 <strong>{crewOverview.length}<small> ASTRONOT</small></strong>
-                <span>Görev kadrosu</span>
               </article>
               <article className={`base-summary-card ${automaticHealthAlerts.length ? 'has-critical' : ''}`}>
                 <span className="eyebrow">KRİTİK SAĞLIK UYARISI</span>
                 <strong>{automaticHealthAlerts.length}<small> AÇIK</small></strong>
-                <span>Demo eşiklerine göre</span>
               </article>
               <article className="base-summary-card">
                 <span className="eyebrow">AÇIK GÖREVLER</span>
@@ -874,14 +812,12 @@ function App() {
               <article className={`base-summary-card ${unacknowledgedMessageCount ? 'has-warning' : ''}`}>
                 <span className="eyebrow">ONAY BEKLEYEN MESAJ</span>
                 <strong>{unacknowledgedMessageCount}<small> MESAJ</small></strong>
-                <span>Simüle edilmiş iletim</span>
               </article>
             </section>
 
             <section className="base-roster panel">
               <div className="panel-heading">
-                <div><span className="eyebrow">MÜRETTEBAT DURUMU</span><h2>Görev ekibi</h2></div>
-                <span className="base-updated"><i /> SON VERİ: 08:00 UTC</span>
+                <div><h2>Görev ekibi</h2></div>
               </div>
               <div className="base-roster-list">
                 {crewOverview.map((astronaut) => (
@@ -923,7 +859,7 @@ function App() {
               <div className="base-operations-column">
                 <section className="panel base-operation-panel">
                   <div className="panel-heading">
-                    <div><span className="eyebrow">UÇUŞ OPERASYONLARI</span><h2>Görev ata</h2></div>
+                    <div><h2>Görev ata</h2></div>
                     <span className="base-panel-symbol">＋</span>
                   </div>
                   <form className="base-form" onSubmit={handleCreateTask} data-testid="task-form">
@@ -988,7 +924,7 @@ function App() {
 
                 <section className="panel base-operation-panel">
                   <div className="panel-heading">
-                    <div><span className="eyebrow">GÖREV PANOSU</span><h2>Atanmış işler <small>{missionTasks.length}</small></h2></div>
+                    <div><h2>Atanmış işler <small>{missionTasks.length}</small></h2></div>
                   </div>
                   {missionTasks.length ? (
                     <div className="base-task-list">
@@ -1044,10 +980,9 @@ function App() {
               <div className="base-operations-column">
                 <section className="panel base-operation-panel base-alert-panel">
                   <div className="panel-heading">
-                    <div><span className="eyebrow">MÜRETTEBAT İLETİŞİMİ</span><h2>Uyarı ve bilgilendirme</h2></div>
+                    <div><h2>Uyarı ve bilgilendirme</h2></div>
                     <span className="base-panel-symbol alert-symbol">!</span>
                   </div>
-                  <p className="base-panel-intro">Önemli görev bilgisini bir astronota veya tüm mürettebata ilet.</p>
                   <form className="base-form" onSubmit={handleSendCrewMessage} data-testid="crew-message-form">
                     <label className="field-label" htmlFor="alert-title">Konu</label>
                     <input
