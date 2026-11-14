@@ -18,7 +18,7 @@ Option 2. Decide at hour ~14 whether there is time for option 3; never put the k
 
 ## Decision
 Accepted (2026-11-14, osmnmlh): **option 3.** The web (Ahmetzkn, Omerozcan71) is on Vercel; the relay runs on **Render**
-(free web service, `render.yaml` at the repo root) at one HTTPS URL. The web (`VITE_API_URL`), both iPhones and any
+(free web service, `render.yaml` at the repo root) at one HTTPS URL: `https://antigravity-backend-8lv8.onrender.com`. The web (`VITE_API_URL`), both iPhones and any
 laptop browser (Windows or Mac) use that same URL, so every client shares one in-RAM state and SSE stream.
 The Gemini key lives only in Render's environment settings. Free Render sleeps after 15 min idle: open `/api/health`
 a few minutes before the demo. Plan B: `cd backend && npm start` on one laptop on a phone hotspot (see `backend/README.md`).

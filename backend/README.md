@@ -1,4 +1,4 @@
-# backend/ — optional relay (mock only)
+# backend/ — relay (mock data in RAM, no database)
 
 One file, no dependencies, no database. Loads `shared/mock/*.json` into RAM on start (restart = reset to mock).
 Status colors are computed with `web/src/domain/thresholds.ts` (same engine as the web dashboard).
@@ -60,7 +60,7 @@ curl -s -X POST localhost:8787/api/ai/guidance -d '{"crewId":"crew-1"}' | grep -
 
 1. Render → **New → Blueprint** → this repo. `render.yaml` creates `antigravity-backend` (free, Node 22, deploys `main`).
 2. In the service's **Environment** tab set `GEMINI_API_KEY`. The key lives only there (and in a local `backend/.env` for Plan B).
-3. Use the service URL (`https://antigravity-backend-xxxx.onrender.com`) everywhere:
+3. Use the service URL (`https://antigravity-backend-8lv8.onrender.com`) everywhere:
    - Vercel: env var `VITE_API_URL=<url>`, then redeploy the web.
    - iPhones: the base URL constant in the app (HTTPS, so no ATS exception needed).
 4. Before the demo: open `<url>/api/health` (free Render sleeps after 15 min idle, first request ~50 s), then `POST <url>/api/demo/reset`.
@@ -69,6 +69,6 @@ Plan B (no internet or Render down): `npm start` on one laptop (Windows or Mac) 
 
 ## Demo tips
 
-- Safest: run the relay on the demo Mac; web and the iPhone **simulator** use `http://localhost:8787`.
-- Real iPhone: same Wi-Fi as the Mac, use `http://<mac-ip>:8787` (venue Wi-Fi may block device-to-device traffic; use a phone hotspot).
-- Quick check: `curl -X POST localhost:8787/api/samples -H 'content-type: application/json' -d '{"crewId":"crew-2","type":"spo2","value":88,"source":"watch"}'`
+- Primary (ADR-0006): everyone uses the Render URL `https://antigravity-backend-8lv8.onrender.com`. Wake it a few minutes early with `/api/health`, then `POST /api/demo/reset`.
+- Plan B: relay on one laptop on a phone hotspot; the web and the iPhone **simulator** on that laptop use `http://localhost:8787`, real iPhones use `http://<laptop-ip>:8787` (venue Wi-Fi may block device-to-device traffic).
+- Quick check: `curl -X POST https://antigravity-backend-8lv8.onrender.com/api/samples -H 'content-type: application/json' -d '{"crewId":"crew-2","type":"spo2","value":88,"source":"watch"}'` (then `POST /api/demo/reset`)

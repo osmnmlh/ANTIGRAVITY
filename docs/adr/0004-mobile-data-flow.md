@@ -22,11 +22,11 @@ Real HealthKit on a real Watch is slow to set up and fragile on stage; the simul
 
 ## Recommendation
 2 + b, and forward samples only as a stretch goal. Every screen must still work in airplane mode with bundled data.
-Simulator talks to `http://localhost:8787`; a real device needs the Mac's IP (see `backend/README.md`).
+Simulator talks to `http://localhost:8787`; a real device needs the Mac's IP (see `backend/README.md`). _(Superseded by the Decision below: everyone uses the Render URL.)_
 
 ## Decision
 Accepted (2026-11-14, osmnmlh): **2 + forward samples.** Two real iPhones each show one astronaut and read
-`https://<render-url>/api/packets/:crewId` plus `/api/ai/stream?deviceId=…&crewId=…` (HTTPS, so no ATS exception or
+`https://antigravity-backend-8lv8.onrender.com/api/packets/:crewId` plus `/api/ai/stream?deviceId=…&crewId=…` (HTTPS, so no ATS exception or
 Local Network permission). The Apple Watch SE 3 simulates one astronaut's vitals, sends them to its paired iPhone over
 WatchConnectivity, and that iPhone forwards them with `POST /api/samples`; the web and the other iPhone see them via SSE.
 The Watch never talks to the backend directly. If the backend is unreachable, the app silently uses its bundled JSON (ADR-0002).

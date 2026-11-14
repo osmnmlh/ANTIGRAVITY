@@ -60,8 +60,10 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 ## AI recommendation (from backend)
 
 - `AstronautHealthPacket.aiGuidance` (optional) is filled by `backend/` via Gemini. Decode it with `HealthJSONCodec.decoder` and show it as an **"AI recommendation"** card: `summary`, `actions` as bullets, `escalate`, and `disclaimer`. Hide the card when it is `nil`.
-- Get packets from the relay (`GET http://<mac-ip>:8787/api/packets/<crewId>`) or from the bundled `shared/mock/astronaut-packets.json`; always keep the bundled mock as fallback.
-- Plain HTTP to a LAN IP needs `NSAppTransportSecurity` → `NSAllowsLocalNetworking = YES` and a `NSLocalNetworkUsageDescription` in Info.plist. The simulator on the demo Mac can just use `http://localhost:8787`.
+- Base URL in one constant (ADR-0004): `https://antigravity-backend-8lv8.onrender.com` (HTTPS, no ATS exception). Get packets with `GET /api/packets/<crewId>`, alerts with `GET /api/ai/stream?deviceId=…&crewId=…` (SSE) + a local notification, report `POST /api/ai/alerts/:id/delivered|ack`, forward Watch samples with `POST /api/samples`. Contract: `shared/contracts/ai.md`.
+- Always keep the bundled `shared/mock/astronaut-packets.json` as a silent fallback (ADR-0002, no "offline" badge, no "Gemini/fallback" label).
+- Plan B only (laptop relay on a hotspot): plain HTTP to a LAN IP needs `NSAppTransportSecurity` → `NSAllowsLocalNetworking = YES` and a `NSLocalNetworkUsageDescription` in Info.plist; the simulator can use `http://localhost:8787`.
+- UI text is Turkish (ADR-0005).
 - Never put the Gemini key in the app; color/status still comes from `HealthThresholds`, not from the AI text.
 
 ## Rules

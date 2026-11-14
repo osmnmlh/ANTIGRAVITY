@@ -27,4 +27,5 @@ There is **one** `web/src/domain/types.ts` and **one** `web/src/domain/threshold
 (`healthTypes`, `metricDefinitions`, `isHealthSample`, `statusLabels`, `statusDescriptions`, `DEMO_MISSION_DOSE_BUDGET_MSV`)
 are kept unchanged, PR #2/#3's packet, Watch, hazard and `aiGuidance` types and `getOverallStatus` / `getGuidance` /
 `watchTelemetryToSamples` were added, and there is a single `getStatus`. Default dose budget is 200 mSv on web and Swift.
-`guidance.ts` (Turkish dashboard text) and `getGuidance` (English, used by the backend fallback) both stay until ADR-0005 decides the language.
+ADR-0005 then picked Turkish: `guidance.ts` (Turkish) is now the only guidance text in use, by the dashboard and by the backend fallback
+(`backend/server.mjs`, `backend/ai/`). The English `getGuidance` in `thresholds.ts` has no callers left.
