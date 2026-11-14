@@ -494,15 +494,13 @@ function App() {
           </span>
         </a>
         <div className="topbar-center">
-          {connection === 'connected' && (
-            <>
-              <span className={`live-indicator is-${connection}`} data-testid="data-connection">
-                <i />
-                {simulation.running ? 'CANLI AKIŞ' : 'BACKEND BAĞLI'}
-              </span>
-              <span className="topbar-divider" />
-            </>
-          )}
+          <span className={`live-indicator is-${connection}`} data-testid="data-connection">
+            <i />
+            {connection === 'connected'
+              ? simulation.running ? 'CANLI AKIŞ' : 'BACKEND BAĞLI'
+              : connection === 'connecting' ? 'BAĞLANIYOR' : 'JSON YEDEK VERİ'}
+          </span>
+          <span className="topbar-divider" />
           <span className="mission-day">GÖREV GÜNÜ <b>120</b></span>
         </div>
         <div className="crew-profile">
@@ -550,9 +548,7 @@ function App() {
             <p className="page-subtitle">Göstergeyi gör · ne anlama geldiğini anla · sonraki adımı belirle.</p>
           </div>
           <div className="heading-meta">
-            {connection === 'connected' && (
-              <span className="sync-state"><i /> SSE AKTİF</span>
-            )}
+            <span className="sync-state"><i /> {connection === 'connected' ? 'SSE AKTİF' : 'YEREL JSON VERİSİ'}</span>
             <button
               className={`simulation-toggle ${simulation.running ? 'is-running' : ''}`}
               data-testid="live-simulation-toggle"

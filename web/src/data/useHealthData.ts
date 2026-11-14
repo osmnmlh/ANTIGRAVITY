@@ -10,8 +10,8 @@ import {
   type HealthType,
 } from '../domain/types'
 
-const storageKey = 'antigravity.health-samples.v4'
-const legacyStorageKey = 'antigravity.health-samples.v3'
+const storageKey = 'antigravity.health-samples.v3'
+const legacyStorageKey = 'antigravity.health-samples.v2'
 const apiBaseUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:8787').replace(/\/$/, '')
 export type HealthDataConnection = 'connecting' | 'connected' | 'offline'
 export interface SimulationStatus {
@@ -134,8 +134,7 @@ export function useHealthData() {
   useEffect(() => {
     let active = true
     const controller = new AbortController()
-    let stream: EventSource | null = null
-
+    const stream = new EventSource(`${apiBaseUrl}/api/stream`)
     const updateSimulation = (payload: unknown) => {
       if (!active) return
       if (
@@ -144,7 +143,7 @@ export function useHealthData() {
         typeof (payload as Record<string, unknown>).mode !== 'string' ||
         typeof (payload as Record<string, unknown>).running !== 'boolean'
       ) {
-        return
+        throw new Error('Telemetry stream returned an invalid simulation state.')
       }
       const status = payload as Record<string, unknown>
       setSimulation({
@@ -154,84 +153,67 @@ export function useHealthData() {
       })
     }
 
-    async function connect() {
-      try {
-        const healthRes = await fetch(`${apiBaseUrl}/api/health`, { signal: controller.signal })
-        if (!healthRes.ok) throw new Error(`Health check returned HTTP ${healthRes.status}`)
-
-        const samplesRes = await fetch(`${apiBaseUrl}/api/samples`, { signal: controller.signal })
-        if (!samplesRes.ok) throw new Error(`Telemetry API returned HTTP ${samplesRes.status}`)
-        const payload: unknown = await samplesRes.json()
+    fetch(`${apiBaseUrl}/api/samples`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Telemetry API returned HTTP ${response.status}.`)
+        const payload: unknown = await response.json()
         if (!Array.isArray(payload) || !payload.every(isHealthSample)) {
           throw new Error('Telemetry API returned an invalid health sample list.')
         }
-
         if (!active) return
         setSamples((current) => mergeSamples(current, payload))
         apiConnected.current = true
         setConnection('connected')
-
-        stream = new EventSource(`${apiBaseUrl}/api/stream`)
-
-        stream.addEventListener('hello', (event) => {
-          if (!active) return
-          apiConnected.current = true
-          setConnection('connected')
-          try {
-            const data: unknown = JSON.parse((event as MessageEvent<string>).data)
-            if (data && typeof data === 'object') {
-              updateSimulation((data as Record<string, unknown>).simulation)
-            }
-          } catch {
-            // silent fallback
-          }
-        })
-
-        stream.addEventListener('sample', (event) => {
-          if (!active) return
-          try {
-            const sample: unknown = JSON.parse((event as MessageEvent<string>).data)
-            if (!isHealthSample(sample)) return
-            apiConnected.current = true
-            setConnection('connected')
-            setSamples((current) => mergeSamples(current, [sample]))
-          } catch {
-            // silent fallback
-          }
-        })
-
-        stream.addEventListener('simulation', (event) => {
-          if (!active) return
-          try {
-            const data: unknown = JSON.parse((event as MessageEvent<string>).data)
-            updateSimulation(data)
-          } catch {
-            // silent fallback
-          }
-        })
-
-        stream.addEventListener('error', () => {
-          if (!active) return
-          apiConnected.current = false
-          setConnection('offline')
-          stream?.close()
-          stream = null
-        })
-      } catch {
-        if (!active) return
+      })
+      .catch((error: unknown) => {
+        if (!active || (error instanceof DOMException && error.name === 'AbortError')) return
         apiConnected.current = false
         setConnection('offline')
-      }
-    }
+      })
 
-    void connect()
+    stream.addEventListener('hello', (event) => {
+      if (!active) return
+      apiConnected.current = true
+      setConnection('connected')
+      try {
+        const payload: unknown = JSON.parse((event as MessageEvent<string>).data)
+        if (!payload || typeof payload !== 'object') throw new Error('Telemetry stream returned an invalid hello event.')
+        updateSimulation((payload as Record<string, unknown>).simulation)
+      } catch (error) {
+        console.error('Could not process the telemetry stream hello event.', error)
+      }
+    })
+    stream.addEventListener('sample', (event) => {
+      try {
+        const sample: unknown = JSON.parse((event as MessageEvent<string>).data)
+        if (!isHealthSample(sample)) throw new Error('Telemetry stream returned an invalid health sample.')
+        if (!active) return
+        apiConnected.current = true
+        setConnection('connected')
+        setSamples((current) => mergeSamples(current, [sample]))
+      } catch (error) {
+        console.error('Could not process a telemetry stream sample.', error)
+      }
+    })
+    stream.addEventListener('simulation', (event) => {
+      try {
+        const payload: unknown = JSON.parse((event as MessageEvent<string>).data)
+        updateSimulation(payload)
+      } catch (error) {
+        console.error('Could not process a telemetry stream simulation update.', error)
+      }
+    })
+    stream.addEventListener('error', () => {
+      if (!active) return
+      apiConnected.current = false
+      setConnection('offline')
+    })
 
     return () => {
       active = false
       apiConnected.current = false
       controller.abort()
-      stream?.close()
-      stream = null
+      stream.close()
     }
   }, [])
 
@@ -244,7 +226,8 @@ export function useHealthData() {
       body: JSON.stringify(nextSamples),
     }).then((response) => {
       if (!response.ok) throw new Error(`Telemetry API returned HTTP ${response.status}.`)
-    }).catch(() => {
+    }).catch((error: unknown) => {
+      console.error('Could not send health samples to the telemetry API.', error)
       apiConnected.current = false
       setConnection('offline')
     })
@@ -266,7 +249,8 @@ export function useHealthData() {
         throw new Error('Telemetry API returned an invalid health sample list.')
       }
       setSamples(payload)
-    }).catch(() => {
+    }).catch((error: unknown) => {
+      console.error('Could not reset telemetry API samples.', error)
       apiConnected.current = false
       setConnection('offline')
     })
