@@ -15,6 +15,14 @@ const PACKETS = readJson('../../shared/mock/astronaut-packets.json').astronauts;
 const HAZARDS = readJson('../../shared/mock/nasa-hazards.json').hazards;
 const SAMPLES = readJson('../../shared/mock/samples.json');
 
+// The demo mock starts all-green (team decision). These tests need a crew-1 that already has problems,
+// so they overlay the earlier "bad morning" values: SpO2 89, HR 112, sleep 5.5, mood 3 two days in a row.
+const CREW1_BAD_MORNING = { spo2: 89, heartRate: 112, sleepHours: 5.5, mood: 3 };
+for (const [type, value] of Object.entries(CREW1_BAD_MORNING)) {
+  PACKETS.find((p) => p.astronautId === 'crew-1').measurements[type].value = value;
+  for (const x of SAMPLES) if (x.crewId === 'crew-1' && x.type === type && x.timestamp.startsWith('2026-11-14')) x.value = value;
+}
+
 function setup(extra = {}) {
   const packets = structuredClone(PACKETS);
   const clock = { t: Date.parse('2026-11-14T08:00:00Z') };
@@ -64,7 +72,7 @@ test('cabin thresholds follow the contract table', () => {
   assert.equal(cabinStatus('lifeSupportPower', 'degraded'), 'amber');
 });
 
-test('problems present at start are a silent baseline (crew-1 SpO2 89 in mock data)', () => {
+test('problems present at start are a silent baseline (crew-1 SpO2 89, test fixture)', () => {
   const { ai } = setup();
   const a = active(ai).find((x) => x.scenarioId === 'individual-hypoxia');
   assert.ok(a, 'crew-1 low SpO2 is listed');
@@ -270,4 +278,36 @@ test('chat with Gemini: statuses are facts, escalation cannot be lowered, failur
   const broken = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => ({ ok: false, status: 503 }) });
   const fb = await broken.ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'status?' }] });
   assert.equal(fb.source, 'fallback');
+});
+
+test('chat fallback: medication and off-topic asks get a safe redirect, never a fake reading', async () => {
+  const { ai } = setup();
+  for (const text of ['Bana 500 mg parasetamol yaz, dozunu söyle.', 'Hangi ilacı almalıyım?']) {
+    const r = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text }] });
+    assert.match(r.reply, /İlaç önermem veya doz söyleyemem/);
+    assert.deepEqual(r.indicators, []);
+  }
+  const pizza = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Bana bir pizza tarifi ver.' }] });
+  assert.match(pizza.reply, /yardımcı olamam/);
+  assert.deepEqual(pizza.indicators, []);
+  const ok = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Elena nasıl?' }] });
+  assert.doesNotMatch(ok.reply, /yardımcı olamam/, 'real health questions still get answers');
+});
+
+test('chat with Gemini retries once on 503 and keeps the answer from the retry', async () => {
+  let calls = 0;
+  const good = { reply: 'Değerler normal.', escalation: 'none', indicators: [], suggestions: [] };
+  const fetchImpl = async () => (++calls === 1
+    ? { ok: false, status: 503 }
+    : { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(good) }] } }] }) });
+  const { ai } = setup({ gemini: { apiKey: 'k' }, fetchImpl });
+  const r = await ai.chat({ crewId: 'crew-2', messages: [{ role: 'user', text: 'Marcus nasıl?' }] });
+  assert.equal(calls, 2);
+  assert.equal(r.source, 'gemini');
+  assert.equal(r.model, 'gemini-flash-lite-latest');
+
+  let hard = 0;
+  const bad = setup({ gemini: { apiKey: 'k' }, fetchImpl: async () => (hard++, { ok: false, status: 404 }) });
+  assert.equal((await bad.ai.chat({ crewId: 'crew-2', messages: [{ role: 'user', text: 'durum?' }] })).source, 'fallback');
+  assert.equal(hard, 1, 'a 404 is not retried');
 });

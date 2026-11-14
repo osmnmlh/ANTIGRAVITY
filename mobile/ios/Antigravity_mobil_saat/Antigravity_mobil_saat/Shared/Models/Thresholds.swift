@@ -233,7 +233,7 @@ enum HealthThresholds {
         }
         return byDay
             .sorted { $0.key < $1.key }
-            .map { (dayStart: $0.key, value: $1.value) }
+            .map { (dayStart: $0.key, value: $0.value) }
     }
 
     private static func utcDayDiff(_ dayA: Date, _ dayB: Date) -> Int {

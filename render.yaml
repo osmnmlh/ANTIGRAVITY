@@ -1,0 +1,19 @@
+# Render Blueprint for the ANTIGRAVITY relay (ADR-0006: web on Vercel, backend on Render over HTTPS).
+# Render dashboard → New → Blueprint → pick this repo. Then set GEMINI_API_KEY in the service's Environment tab.
+# The whole repo is deployed because server.mjs imports web/src/domain/*.ts and shared/mock/*.json.
+services:
+  - type: web
+    name: antigravity-backend
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: node --version
+    startCommand: node --experimental-strip-types backend/server.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: GEMINI_MODEL
+        value: gemini-flash-lite-latest
+      - key: GEMINI_API_KEY
+        sync: false   # entered by hand in the Render dashboard, never committed

@@ -18,7 +18,7 @@ AGENTS.md says status logic lives in **one place per platform**.
 
 ## Recommendation
 Option 1. Merge order: #3 → #2 → `main`, then #4 rebases on `main`. Thresholds/types live in
-`web/src/domain/` (mirrored in `mobile/ios/Shared/Thresholds.swift`); UI wording stays with the web team.
+`web/src/domain/` (mirrored in `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/Thresholds.swift`); UI wording stays with the web team.
 Threshold numbers change only via a PR that edits both TS and Swift.
 
 ## Decision

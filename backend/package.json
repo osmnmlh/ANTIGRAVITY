@@ -5,6 +5,7 @@
   "type": "module",
   "engines": { "node": ">=22.6" },
   "scripts": {
-    "start": "node --experimental-strip-types server.mjs"
+    "start": "node --experimental-strip-types server.mjs",
+    "test": "node --experimental-strip-types --test ai/ai.test.mjs"
   }
 }

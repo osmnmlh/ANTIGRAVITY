@@ -234,6 +234,7 @@ export function createAi(deps) {
   return {
     handle,
     onSamples: () => run(),
+    resetDemo, // same as POST /api/ai/demo/reset; the relay calls it from POST /api/demo/reset
     chat,
     // read-only views for the host or tests
     cabin: () => cabin.snapshot(),

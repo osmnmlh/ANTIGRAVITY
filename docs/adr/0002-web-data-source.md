@@ -1,6 +1,6 @@
 # 0002. Web data source: mock first, backend optional
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-14
 - Affects: web (Ahmetzkn, Omerozcan71), backend (osmnmlh)
 
@@ -19,4 +19,6 @@ Option 3. One small data hook owns the switch, so components never know where da
 No new libraries (plain `fetch` + `EventSource`).
 
 ## Decision
-_To be filled by the team._
+Accepted (2026-11-14, osmnmlh): option 3, but the switch is **silent**: no "live / offline" badge and no "AI / fallback" label in the UI.
+If the backend or Gemini is down, clients quietly use the mock JSON / deterministic text. The demo disclaimer stays visible.
+The backend still sets `aiGuidance.source` (`gemini` | `fallback`) for logs and debugging.
