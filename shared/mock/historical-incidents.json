@@ -1,0 +1,393 @@
+{
+  "schemaVersion": "1.0.0",
+  "disclaimer": "Demo software, not a medical device.",
+  "nasaHazardsSource": "https://www.nasa.gov/hrp/hazards/",
+  "incidents": [
+    {
+      "id": "apollo-13",
+      "title": "Apollo 13 — Oksijen Tankı Patlaması, CO2 Birikimi ve Soğuk Kabin Krizi",
+      "dateLabel": "13–17 Nisan 1970",
+      "missionName": "Apollo 13 (Odyssey & Aquarius Ay Modülü)",
+      "crewReference": "James Lovell, Fred Haise, Jack Swigert",
+      "nasaHazardIds": [
+        "hostileClosedEnvironments",
+        "distanceFromEarth",
+        "isolationConfinement"
+      ],
+      "historicalOutcome": "Yer ekibinin geliştirdiği kare-yuvarlak LiOH filtre adaptörü (mailbox) sayesinde kabin CO2 seviyesi düşürüldü ve üç astronot soğuk kabin ile uyku yoksunluğuna rağmen Dünya'ya sağ salim döndü.",
+      "phases": [
+        {
+          "phaseIndex": 0,
+          "missionTimeLabel": "T+55:40",
+          "title": "Nominal Seyir (Patlama Öncesi)",
+          "eventDescription": "Ay'a gidiş yolunda mürettebat ölçümleri ve kabin sistemleri normal sınırlar içinde.",
+          "durationMs": 3500,
+          "cabinHint": "ppCO2: 2.3 mmHg · Kabin Sıcaklığı: 21.8 °C · Güç: Nominal",
+          "metrics": {
+            "heartRate": 72,
+            "bloodPressureSys": 118,
+            "bloodPressureDia": 76,
+            "spo2": 98,
+            "bodyTemp": 36.6,
+            "bloodGlucose": 95,
+            "sleepHours": 7.4,
+            "mood": 4,
+            "radiationDose": 12.0
+          }
+        },
+        {
+          "phaseIndex": 1,
+          "missionTimeLabel": "T+55:55",
+          "title": "O2 Tankı #2 Patlaması ve İlk Şok",
+          "eventDescription": "Servis modülü oksijen tankı patladı. Akut stres nedeniyle nabız ve tansiyon hızla yükseliyor.",
+          "durationMs": 4000,
+          "cabinHint": "Ana Güç Düşüyor · O2 Basınç Alarmı",
+          "metrics": {
+            "heartRate": 116,
+            "bloodPressureSys": 142,
+            "bloodPressureDia": 90,
+            "spo2": 96,
+            "bodyTemp": 36.5,
+            "bloodGlucose": 112,
+            "sleepHours": 7.4,
+            "mood": 2,
+            "radiationDose": 12.2
+          }
+        },
+        {
+          "phaseIndex": 2,
+          "missionTimeLabel": "T+68:00",
+          "title": "Aquarius'a Geçiş ve Isıtma Kesintisi",
+          "eventDescription": "Enerji tasarrufu için kabin ısıtması kapatıldı. Soğuk ortam vücut sıcaklığını düşürüyor, uyku kesildi.",
+          "durationMs": 4000,
+          "cabinHint": "Kabin Sıcaklığı: 6.5 °C · Yoğun Yoğuşma · Güç: Kısıtlı",
+          "metrics": {
+            "heartRate": 104,
+            "bloodPressureSys": 136,
+            "bloodPressureDia": 86,
+            "spo2": 94,
+            "bodyTemp": 35.8,
+            "bloodGlucose": 86,
+            "sleepHours": 4.0,
+            "mood": 2,
+            "radiationDose": 12.8
+          }
+        },
+        {
+          "phaseIndex": 3,
+          "missionTimeLabel": "T+84:00",
+          "title": "CO2 Birikimi ve Soğuk Kabin Zirvesi",
+          "eventDescription": "2 kişilik modülde 3 kişi nedeniyle CO2 yükseldi; hiperkapni stresi, hipotermi riski ve ağır uyku yoksunluğu zirvede.",
+          "durationMs": 4500,
+          "cabinHint": "ppCO2: 8.2 mmHg (Kritik) · Kabin Sıcaklığı: 3.8 °C",
+          "metrics": {
+            "heartRate": 118,
+            "bloodPressureSys": 138,
+            "bloodPressureDia": 88,
+            "spo2": 91,
+            "bodyTemp": 35.3,
+            "bloodGlucose": 78,
+            "sleepHours": 2.8,
+            "mood": 2,
+            "radiationDose": 13.5
+          }
+        },
+        {
+          "phaseIndex": 4,
+          "missionTimeLabel": "T+96:00",
+          "title": "LiOH Mailbox Adaptörü Devrede",
+          "eventDescription": "El yapımı filtre adaptörü CO2'yi düşürmeye başladı. Solunum ve nabız kademeli olarak dengeleniyor.",
+          "durationMs": 4000,
+          "cabinHint": "ppCO2: 3.1 mmHg (Düşüyor) · Zorunlu Dinlenme Başladı",
+          "metrics": {
+            "heartRate": 94,
+            "bloodPressureSys": 128,
+            "bloodPressureDia": 82,
+            "spo2": 95,
+            "bodyTemp": 35.7,
+            "bloodGlucose": 84,
+            "sleepHours": 4.5,
+            "mood": 3,
+            "radiationDose": 14.1
+          }
+        },
+        {
+          "phaseIndex": 5,
+          "missionTimeLabel": "T+142:54",
+          "title": "Atmosfere Giriş ve Güvenli Dönüş",
+          "eventDescription": "Komuta modülü ısıtıldı ve mürettebat güvenli dönüş koridoruna girdi. Yaşam bulguları toparlanıyor.",
+          "durationMs": 3500,
+          "cabinHint": "Kabin Sıcaklığı: 19.5 °C · İletişim & Sistemler Stabil",
+          "metrics": {
+            "heartRate": 84,
+            "bloodPressureSys": 122,
+            "bloodPressureDia": 78,
+            "spo2": 97,
+            "bodyTemp": 36.3,
+            "bloodGlucose": 92,
+            "sleepHours": 5.5,
+            "mood": 4,
+            "radiationDose": 14.6
+          }
+        }
+      ]
+    },
+    {
+      "id": "mir-1997-fire",
+      "title": "Mir Uzay İstasyonu — Oksijen Jeneratörü Yangını ve Toksik Duman",
+      "dateLabel": "24 Şubat 1997",
+      "missionName": "Mir Uzay İstasyonu (Kvant-1 Modülü)",
+      "crewReference": "Jerry Linenger (NASA) ve Mir-22/23 Kozmonotları",
+      "nasaHazardIds": [
+        "hostileClosedEnvironments",
+        "isolationConfinement"
+      ],
+      "historicalOutcome": "Mürettebat koruyucu solunum maskeleri ve yangın söndürücülerle 14 dakikalık yoğun alevi durdurdu; yaşam destek filtreleri toksik dumanı temizleyerek ekibin güvenliğini sağladı.",
+      "phases": [
+        {
+          "phaseIndex": 0,
+          "missionTimeLabel": "T+00:00",
+          "title": "Normal İstasyon Operasyonu",
+          "eventDescription": "Altı kişilik mürettebat için rutin oksijen desteği öncesi hayati bulgular normal.",
+          "durationMs": 3500,
+          "cabinHint": "Partikül / Duman: 0.2 ppm · Kabin: Nominal",
+          "metrics": {
+            "heartRate": 70,
+            "bloodPressureSys": 115,
+            "bloodPressureDia": 74,
+            "spo2": 98,
+            "bodyTemp": 36.5,
+            "bloodGlucose": 94,
+            "sleepHours": 7.2,
+            "mood": 4,
+            "radiationDose": 28.0
+          }
+        },
+        {
+          "phaseIndex": 1,
+          "missionTimeLabel": "T+00:02",
+          "title": "Kvant-1 Alev Püskürmesi ve Duman",
+          "eventDescription": "Katı yakıtlı Vika oksijen jeneratörü kontrolsüz alev aldı; modüllere yoğun duman yayılıyor.",
+          "durationMs": 4000,
+          "cabinHint": "Duman / Kontaminant: 6.4 ppm (Amber) · Kaçış Yolu Riskli",
+          "metrics": {
+            "heartRate": 126,
+            "bloodPressureSys": 148,
+            "bloodPressureDia": 94,
+            "spo2": 93,
+            "bodyTemp": 37.1,
+            "bloodGlucose": 124,
+            "sleepHours": 7.2,
+            "mood": 2,
+            "radiationDose": 28.0
+          }
+        },
+        {
+          "phaseIndex": 2,
+          "missionTimeLabel": "T+00:08",
+          "title": "Yoğun Toksik Duman ve Yangın Müdahalesi Zirvesi",
+          "eventDescription": "Görüş sıfıra yaklaştı. Yoğun duman maruziyeti ve yüksek efor altında SpO2 kritik eşiğin altına düştü.",
+          "durationMs": 4500,
+          "cabinHint": "Toksik Kontaminant: 14.5 ppm (Kritik) · Kabin Isısı: 28.4 °C",
+          "metrics": {
+            "heartRate": 138,
+            "bloodPressureSys": 154,
+            "bloodPressureDia": 98,
+            "spo2": 87,
+            "bodyTemp": 37.9,
+            "bloodGlucose": 136,
+            "sleepHours": 7.2,
+            "mood": 1,
+            "radiationDose": 28.1
+          }
+        },
+        {
+          "phaseIndex": 3,
+          "missionTimeLabel": "T+00:18",
+          "title": "Yangın Söndürüldü · Solunum Maskesi",
+          "eventDescription": "Alevler söndürüldü ancak istasyonda duman sürüyor. Ekip oksijen maskesiyle solunumunu koruyor.",
+          "durationMs": 4000,
+          "cabinHint": "Kontaminant: 4.8 ppm (Düşüyor) · Filtreler Tam Kapasitede",
+          "metrics": {
+            "heartRate": 114,
+            "bloodPressureSys": 136,
+            "bloodPressureDia": 86,
+            "spo2": 92,
+            "bodyTemp": 37.6,
+            "bloodGlucose": 118,
+            "sleepHours": 5.8,
+            "mood": 2,
+            "radiationDose": 28.1
+          }
+        },
+        {
+          "phaseIndex": 4,
+          "missionTimeLabel": "T+02:30",
+          "title": "Hava Filtreleme ve Kısmi İyileşme",
+          "eventDescription": "Kabin havası büyük ölçüde temizlendi. Kalp hızı ve oksijen satürasyonu normale yaklaşıyor.",
+          "durationMs": 4000,
+          "cabinHint": "Kontaminant: 0.9 ppm · Maskeler Kısmen Çıkarıldı",
+          "metrics": {
+            "heartRate": 92,
+            "bloodPressureSys": 124,
+            "bloodPressureDia": 79,
+            "spo2": 96,
+            "bodyTemp": 37.0,
+            "bloodGlucose": 102,
+            "sleepHours": 6.0,
+            "mood": 3,
+            "radiationDose": 28.2
+          }
+        },
+        {
+          "phaseIndex": 5,
+          "missionTimeLabel": "T+06:00",
+          "title": "İstasyon Güvenli ve Stabil",
+          "eventDescription": "Hava kalitesi nominal seviyeye döndü, mürettebat tıbbi kontrol sonrası stabil durumda.",
+          "durationMs": 3500,
+          "cabinHint": "Kontaminant: 0.2 ppm · Kabin: Nominal",
+          "metrics": {
+            "heartRate": 76,
+            "bloodPressureSys": 118,
+            "bloodPressureDia": 76,
+            "spo2": 98,
+            "bodyTemp": 36.6,
+            "bloodGlucose": 96,
+            "sleepHours": 7.0,
+            "mood": 4,
+            "radiationDose": 28.3
+          }
+        }
+      ]
+    },
+    {
+      "id": "iss-eva-23-water",
+      "title": "ISS EVA-23 — Luca Parmitano Kask İçi Su Sızıntısı",
+      "dateLabel": "16 Temmuz 2013",
+      "missionName": "Uluslararası Uzay İstasyonu (ISS · EVA-23)",
+      "crewReference": "Luca Parmitano (ESA) ve Chris Cassidy (NASA)",
+      "nasaHazardIds": [
+        "hostileClosedEnvironments",
+        "gravityFields",
+        "isolationConfinement"
+      ],
+      "historicalOutcome": "EVA derhal iptal edildi; astronot sakin kalarak oksijen tüketimini kontrol altında tuttu ve güvenlik halatını takip ederek hava kilidine sağ salim ulaştı.",
+      "phases": [
+        {
+          "phaseIndex": 0,
+          "missionTimeLabel": "EVA +00:30",
+          "title": "Normal Uzay Yürüyüşü (EVA Eforu)",
+          "eventDescription": "İstasyon dışında planlı çalışma sürerken uzay giysisi yaşam destek değerleri normal.",
+          "durationMs": 3500,
+          "cabinHint": "EMU Kıyafet Basıncı: 29.6 kPa · PLSS: Nominal",
+          "metrics": {
+            "heartRate": 88,
+            "bloodPressureSys": 122,
+            "bloodPressureDia": 78,
+            "spo2": 98,
+            "bodyTemp": 36.6,
+            "bloodGlucose": 98,
+            "sleepHours": 7.5,
+            "mood": 5,
+            "radiationDose": 18.0
+          }
+        },
+        {
+          "phaseIndex": 1,
+          "missionTimeLabel": "EVA +00:44",
+          "title": "Kask Arkasında Su Sızıntısı Başladı",
+          "eventDescription": "PLSS soğutma devresi tıkanıklığı nedeniyle kaskın arkasında biriken su hissedildi.",
+          "durationMs": 4000,
+          "cabinHint": "PLSS Nem / Su Uyarısı · EVA İptal Kararı Değerlendiriliyor",
+          "metrics": {
+            "heartRate": 108,
+            "bloodPressureSys": 134,
+            "bloodPressureDia": 84,
+            "spo2": 96,
+            "bodyTemp": 36.7,
+            "bloodGlucose": 104,
+            "sleepHours": 7.5,
+            "mood": 3,
+            "radiationDose": 18.1
+          }
+        },
+        {
+          "phaseIndex": 2,
+          "missionTimeLabel": "EVA +00:52",
+          "title": "Su Göz ve Kulakları Kapladı · İletişim Kesik",
+          "eventDescription": "Mikro yerçekiminde ~1.5 L su yüzeye yapıştı; sesli iletişim kesildi ve görüş ciddi biçimde azaldı.",
+          "durationMs": 4000,
+          "cabinHint": "Sesli İletişim Kaybı · Acil EVA Sonlandırma Başlatıldı",
+          "metrics": {
+            "heartRate": 129,
+            "bloodPressureSys": 146,
+            "bloodPressureDia": 92,
+            "spo2": 91,
+            "bodyTemp": 36.8,
+            "bloodGlucose": 128,
+            "sleepHours": 7.5,
+            "mood": 2,
+            "radiationDose": 18.2
+          }
+        },
+        {
+          "phaseIndex": 3,
+          "missionTimeLabel": "EVA +01:02",
+          "title": "Hava Kilidine Kör Dönüş ve Boğulma Riski Zirvesi",
+          "eventDescription": "Su burun çevresine ulaştı. Astronot yalnızca güvenlik halatını izleyerek hava kilidine ilerliyor.",
+          "durationMs": 4500,
+          "cabinHint": "Acil Solunum Riski · Hava Kilidine 10 Metre",
+          "metrics": {
+            "heartRate": 135,
+            "bloodPressureSys": 150,
+            "bloodPressureDia": 95,
+            "spo2": 88,
+            "bodyTemp": 36.4,
+            "bloodGlucose": 134,
+            "sleepHours": 7.5,
+            "mood": 1,
+            "radiationDose": 18.3
+          }
+        },
+        {
+          "phaseIndex": 4,
+          "missionTimeLabel": "EVA +01:12",
+          "title": "Hava Kilidi Basınçlama ve Kask Çıkarıldı",
+          "eventDescription": "Hava kilidine giriş tamamlandı, basınç eşitlendi ve kask çıkarılarak su temizlendi.",
+          "durationMs": 4000,
+          "cabinHint": "Hava Kilidi Basıncı: 101.3 kPa · Oksijen Desteği Verildi",
+          "metrics": {
+            "heartRate": 106,
+            "bloodPressureSys": 132,
+            "bloodPressureDia": 84,
+            "spo2": 94,
+            "bodyTemp": 36.5,
+            "bloodGlucose": 110,
+            "sleepHours": 7.5,
+            "mood": 3,
+            "radiationDose": 18.3
+          }
+        },
+        {
+          "phaseIndex": 5,
+          "missionTimeLabel": "EVA +01:35",
+          "title": "İstasyon İçinde Güvenli Toparlanma",
+          "eventDescription": "Mürettebat sağlık kontrolü tamamlandı; solunum ve nabız değerleri normale döndü.",
+          "durationMs": 3500,
+          "cabinHint": "ISS Kabin: Nominal · Tıbbi Değerlendirme Stabil",
+          "metrics": {
+            "heartRate": 78,
+            "bloodPressureSys": 118,
+            "bloodPressureDia": 76,
+            "spo2": 98,
+            "bodyTemp": 36.6,
+            "bloodGlucose": 96,
+            "sleepHours": 7.5,
+            "mood": 4,
+            "radiationDose": 18.3
+          }
+        }
+      ]
+    }
+  ]
+}

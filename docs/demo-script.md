@@ -6,31 +6,32 @@ Bu doküman, **10 dakikalık** jüri sunumunun içindeki **yaklaşık 3 dakikal�
 
 ---
 
-## Hazırlık Durumu (14 Kasım, `main` ile karşılaştırma)
+## Hazırlık Durumu (14 Kasım akşamı, `main` ile karşılaştırma)
 
 > Bu senaryo hedef akışı anlatır. Aşağıdaki tablo her adımın bugün `main` üzerinde çalışıp çalışmadığını ve neye bağlı olduğunu gösterir. Sahnede yalnızca ✅ olan şeyleri "canlı" diye gösterin; ⏳ olanlar birleşmeden önce senaryodan çıkarılmalı veya "yol haritası" diye anlatılmalı.
 
 | Adım | Gerekli özellik | Durum | Bağlı olduğu iş / karar |
 | --- | --- | --- | --- |
-| 2 | Web durum kartları, 7 günlük grafik, 3B vücut haritası, eşik + trend renkleri | ✅ Web'de var (yerel mock) | — |
-| 2 | Web'in `GET /api/packets` ile backend'den veri alması (`VITE_API_URL`) | ⏳ Yok, web yalnızca yerel mock kullanıyor | ADR-0002, web ↔ backend bağlantısı |
+| 2 | Web durum kartları, 7 günlük grafik, 3B vücut haritası, eşik + trend renkleri | ✅ Web'de var (yerel mock, yalnızca `crew-1`) | Mürettebat seçici: #10 |
+| 2 | Web'in `GET /api/packets` ile backend'den veri alması (`VITE_API_URL`) | ⏳ Yok, web yalnızca yerel mock kullanıyor | #9, Vercel'de `VITE_API_URL` |
+| 2 | Çok günlük trend eskalasyonunun ekranda görünmesi | ⏳ Tüm mürettebat yeşil başladığı için mock geçmişte trend amber'ı yok; bir senaryo/kaza ile gösterilmeli | #34 |
 | 3 | Web'deki "Senaryo çalıştır" butonları | ✅ Var ama yalnızca yerel: Güneş parçacık olayı ve Uyku yoksunluğu (telefona gitmez) | — |
-| 3 | `POST /api/ai/demo/:scenarioId` ile 11 AI senaryosu (`cabin-gas-leak` vb.) | ✅ `server.mjs` içinde (PR #26) | — |
-| 3 | Uyarının web + iPhone'a SSE ile aynı anda düşmesi (`/api/ai/stream`) | ⏳ Backend tarafı hazır (dev-server), web ve iPhone istemcisi yok | ADR-0007, web `src/ai/`, iOS `NetworkManager` |
-| 3 | Uyarının Apple Watch'a düşmesi | ⏳ AI dağıtımı telefonları hedefliyor; saate iletim iPhone uygulamasına bağlı | ADR-0004 |
+| 3 | `POST /api/ai/demo/:scenarioId` ile 11 AI senaryosu (`cabin-gas-leak` vb.) | ✅ Render'da canlı (`server.mjs` + `backend/ai/`) | — |
+| 3 | Tarihî kaza tekrarı (`apollo-13`, `mir-1997-fire`, `iss-eva-23-water`) | ✅ Backend'de (`POST /api/simulation/incident/start`, #30); web'de tetikleme butonu yok | #9, #34 |
+| 3 | Uyarının web + iPhone'a SSE ile aynı anda düşmesi (`/api/ai/stream`) | ⏳ Backend hazır; web'de `AlertCenter` henüz `App.tsx`'e eklenmedi, iPhone istemcisi yok | #13, #16 |
+| 3 | Uyarının Apple Watch'a düşmesi | ⏳ watchOS hedefi ve WatchConnectivity yok | #17 |
 | 4 | Web'de NASA 5 tehlike gösterimi | ✅ Var (metinler `web/src/domain/guidance.ts` içinde; `nasa-hazards.json` backend AI tarafından kullanılıyor) | — |
-| 4 | `POST /api/ai/guidance` (Gemini + `fallback`) | ✅ `server.mjs` içinde var | Gemini anahtarı yoksa `fallback` |
-| 4 | AI Bot sohbeti `POST /api/ai/chat` | ⏳ Hiçbir yerde yok | ADR-0003 |
-| 4 | iPhone'da **AI recommendation** kartı | ⏳ iOS uygulaması `main`'de değil (`features/ios_viewmodel` branch'inde) | iOS PR'ı |
-| — | Vercel üzerinde canlı web + Render'da HTTPS backend | ⏳ `render.yaml` hazır (PR #26), Render hesabı ve Vercel `VITE_API_URL` ayarı bekliyor | ADR-0006 (kabul: Vercel + Render) |
+| 4 | `POST /api/ai/guidance` ve AI sohbeti `POST /api/ai/chat` (Gemini + sessiz `fallback`) | ✅ Backend'de canlı; web sohbet paneli (`AiChat`) hazır ama `App.tsx`'e eklenmedi | #13 |
+| 4 | iPhone'da **AI recommendation** kartı | ⏳ iPhone ekranları `main`'de (#27), kart ve backend bağlantısı yok; Xcode derlemesi doğrulanmadı | #16 |
+| — | Vercel üzerinde canlı web + Render'da HTTPS backend | ✅ Backend: `https://antigravity-backend-8lv8.onrender.com` · ⏳ Vercel'de `VITE_API_URL` ayarı bekliyor | ADR-0006, #9 |
 
 > **Başlangıç durumu (karar, 14 Kasım):** Tüm astronotlar `shared/mock` verisinde **yeşil** başlar (web ile aynı). Kırmızıya geçiş sahnede senaryo ile yapılır (`POST /api/ai/demo/individual-hypoxia` vb.). Provadan sonra `POST /api/demo/reset` her şeyi yeşile döndürür.
 
 ### Bugün çalışan yedek akış (hiçbir bekleyen işe bağlı değil)
 
 1. `cd web && npm run dev` → durum kartları, grafik, vücut haritası, rehberlik paneli, "Güneş parçacık olayı" ve "Uyku yoksunluğu" senaryoları, "Sıfırla".
-2. Ayrı terminalde `node --experimental-strip-types backend/ai/dev-server.mjs` → `curl -X POST localhost:8788/api/ai/demo/cabin-gas-leak` ile proaktif uyarının deterministik metni ve öneri (`advice`) terminalde/`/api/ai/stream` akışında gösterilebilir.
-3. Telefon/saat adımı, iOS PR'ı birleşene kadar ekran kaydı veya simülatör videosu ile anlatılır.
+2. Ayrı terminalde canlı backend'e: `curl -N "https://antigravity-backend-8lv8.onrender.com/api/ai/stream?deviceId=demo&crewId=crew-1"` açıkken `curl -X POST https://antigravity-backend-8lv8.onrender.com/api/ai/demo/cabin-gas-leak` → proaktif uyarının deterministik metni ve öneri (`advice`) akışta görünür. İnternet yoksa aynısı `cd backend && npm start` ile `localhost:8787` üzerinde.
+3. Telefon/saat adımı, iOS işi birleşene kadar ekran kaydı veya simülatör videosu ile anlatılır.
 
 ---
 
@@ -50,8 +51,8 @@ Bu doküman, **10 dakikalık** jüri sunumunun içindeki **yaklaşık 3 dakikal�
 ## Sahne Öncesi Teknik Hazırlık (Demo Başlamadan 10 Dakika Önce)
 
 1. **Canlı Web (Vercel):** `web/` uygulamasının Vercel dağıtımında `VITE_API_URL` ortam değişkeninin canlı HTTPS backend adresine işaret ettiğini doğrulayın.
-2. **Backend Relay + AI Modülü:** `backend/server.mjs` (varsayılan port `8787`, Node `22.6+`) çalışır durumda Render üzerinde **HTTPS** ile çalışır (ADR-0006). Ücretsiz Render 15 dk boşta kalınca uyur: demodan birkaç dakika önce `https://<render-url>/api/health` açılarak uyandırılır, ardından `POST /api/demo/reset` ile her şey yeşile döner.
-3. **Veri Sıfırlama (Temiz Başlangıç):** Demo öncesi canlı akışı temiz başlangıç durumuna döndürmek için `POST /api/ai/demo/reset` isteğini çalıştırın ve başlangıç sağlık paketlerinin (`GET /api/packets`) yüklendiğini doğrulayın.
+2. **Backend Relay + AI Modülü:** `backend/server.mjs` (varsayılan port `8787`, Node `22.6+`) çalışır durumda Render üzerinde **HTTPS** ile çalışır (ADR-0006). Ücretsiz Render 15 dk boşta kalınca uyur: demodan birkaç dakika önce `https://antigravity-backend-8lv8.onrender.com/api/health` açılarak uyandırılır, ardından `POST /api/demo/reset` ile her şey yeşile döner.
+3. **Veri Sıfırlama (Temiz Başlangıç):** Demo öncesi canlı akışı temiz başlangıç durumuna döndürmek için `POST /api/demo/reset` isteğini çalıştırın (simülasyonu durdurur, mock veriyi yeniden yükler ve AI uyarılarını sıfırlar; `POST /api/ai/demo/reset` yalnızca AI uyarılarını sıfırlar) ve başlangıç sağlık paketlerinin (`GET /api/packets`) yüklendiğini doğrulayın.
 4. **Cihaz Bağlantısı:** iPhone 16 Pro uygulamasının aynı canlı backend URL'sine (`/api/stream` ve `/api/ai/stream` SSE uç noktalarına) bağlı olduğunu ve Apple Watch ile `WatchConnectivity` eşleşmesinin aktif olduğunu test edin.
 5. **Tarayıcı & Ses/Ekran:** Vercel dashboard sekmesi tam ekran hazır, iPhone ekran yansıtması (AirPlay / QuickTime) test edilmiş olmalıdır.
 

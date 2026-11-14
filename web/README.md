@@ -18,7 +18,7 @@ Run the production type-check and build with `npm run build`.
 3. Use a one-click solar-event or sleep-deprivation scenario, or enter a manual measurement.
 4. Select an indicator to see its simulated seven-day trend, related NASA HRP hazard, plain-language context, and next-step guidance. The 3D camera smoothly focuses on that body-map region; its HUD label shows the system, value, and unit. Selected and highest-priority warning regions are labeled, with a control to return to the full-body view.
 
-Health samples keep the shared flat shape and manual entries are stored in browser local storage. The dashboard starts with a nominal demo baseline; scenario buttons add scripted anomalies. The UI currently uses local mock data; it does not sync across devices. The 200 mSv radiation budget is a demo value, not a NASA mission limit. All thresholds and sample values are illustrative, not clinical criteria.
+Health samples keep the shared flat shape and manual entries are stored in browser local storage. The dashboard starts with a nominal demo baseline; scenario buttons add scripted anomalies. The UI currently uses local mock data; it does not sync across devices yet. Live data from `VITE_API_URL` (`https://antigravity-backend-8lv8.onrender.com` on Vercel) is tracked in #9, and mounting the AI alert/chat components from `src/ai/` in #13. The 200 mSv radiation budget is a demo value, not a NASA mission limit. All thresholds and sample values are illustrative, not clinical criteria.
 
 **Demo software, not a medical device.**
 

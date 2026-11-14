@@ -20,7 +20,7 @@ const SAMPLES = readJson('../../shared/mock/samples.json');
 const CREW1_BAD_MORNING = { spo2: 89, heartRate: 112, sleepHours: 5.5, mood: 3 };
 for (const [type, value] of Object.entries(CREW1_BAD_MORNING)) {
   PACKETS.find((p) => p.astronautId === 'crew-1').measurements[type].value = value;
-  SAMPLES.find((x) => x.crewId === 'crew-1' && x.type === type && x.timestamp.startsWith('2026-11-14')).value = value;
+  for (const x of SAMPLES) if (x.crewId === 'crew-1' && x.type === type && x.timestamp.startsWith('2026-11-14')) x.value = value;
 }
 
 function setup(extra = {}) {

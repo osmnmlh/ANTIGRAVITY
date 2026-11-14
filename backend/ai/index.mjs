@@ -268,6 +268,7 @@ export function createAi(deps) {
   return {
     handle,
     onSamples: () => run(),
+    resetDemo, // same as POST /api/ai/demo/reset; the relay calls it from POST /api/demo/reset
     chat,
     /** Resolves when background work (Gemini advice, ntfy) has finished. */
     idle: async () => { while (pending.size) await Promise.allSettled([...pending]); },

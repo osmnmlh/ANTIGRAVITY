@@ -3,6 +3,7 @@
 Short records of decisions that set **boundaries** for everyone's work. They are not specs:
 inside the boundary, each owner (and their agent) decides how to build.
 
+- All seven ADRs (0001-0007) were accepted on 14 Nov 2026; each **Decision** section says what was built.
 - Status flow: `Proposed` → `Accepted` (or `Rejected` / `Superseded by NNNN`).
 - To decide: the team picks an option, edit **Decision** + **Status** in a tiny PR (or ask osmnmlh). Keep it one paragraph.
 - Agents: read the ADRs linked from your issue before coding. A `Proposed` ADR → follow the **Recommendation** until the team decides.
@@ -12,7 +13,7 @@ inside the boundary, each owner (and their agent) decides how to build.
 | --- | --- | --- | --- |
 | [0001](0001-single-domain-layer.md) | One types/thresholds file per platform | Accepted | web, backend, shared |
 | [0002](0002-web-data-source.md) | Web data source: mock first, backend optional | Accepted (silent fallback) | web, backend |
-| [0003](0003-ai-chatbot.md) | AI chatbot: where it lives and its guardrails | Proposed | web, backend, AI |
+| [0003](0003-ai-chatbot.md) | AI chatbot: where it lives and its guardrails | Accepted | web, backend, AI |
 | [0004](0004-mobile-data-flow.md) | iPhone / Watch data flow | Accepted | iOS, watchOS, backend |
 | [0005](0005-ui-language.md) | UI language (Turkish vs English) | Accepted (Turkish) | all clients |
 | [0006](0006-demo-hosting.md) | Demo hosting and submission link | Accepted (Vercel + Render) | web, backend, docs |

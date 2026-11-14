@@ -1,7 +1,7 @@
 # ANTIGRAVITY — Team TODO List
 
 > NASA Space Apps Challenge 2026: *Create Health Monitoring Software for Astronauts on Space Missions*
-> Keep this checklist updated as PRs merge into `main`.
+> Keep this checklist updated as PRs merge into `main`. Each open line points to the GitHub issue that owns it.
 
 ## Phase 1: Shared Data Contract & Threshold Engine (`shared/`, `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat/Shared/Models/`, `web/src/domain/`)
 
@@ -14,34 +14,37 @@
 
 ## Phase 2: Web Dashboard (`web/`) — Main Demo Surface
 
-- [ ] Scaffold Vite + React + TypeScript + `recharts` in `web/` (preserving `web/src/domain/`)
-- [ ] Build `useHealthData()` hook loading `shared/mock/astronaut-packets.json` & `samples.json` with `localStorage` persistence
-- [ ] Build Crew Selector (`crew-1`, `crew-2`, `crew-3`) displaying astronaut ID, full name, role, and overall status banner
-- [ ] Build `StatusCard` grid for all 9 health indicators + Apple Watch activity & environmental telemetry card (color + icon + label, `data-testid` on every card)
-- [ ] Build `TrendChart` (7-day time-series via `recharts`) and `GuidancePanel` (What / Why / Do now / Escalate)
-- [ ] Build `EntryForm` for manual measurements & simulated Watch telemetry import (JSON upload / paste)
-- [ ] Build clickable SVG `BodyMap` (heart, lungs, brain, bones/metabolism) colored by indicator status
-- [ ] Add mission environment switcher (`spacecraft`, `iss`, `lunarBase`, `marsTransit`) and footer disclaimer (`"Demo software, not a medical device."`)
+- [x] Vite + React + TypeScript + `three` dashboard in `web/` (#4); the 3D body map replaced the planned SVG map, no chart library
+- [x] `useHealthData()` hook: `shared/mock/samples.json` + `localStorage` persistence
+- [x] Status cards for the 9 indicators, 7-day trend view, What / Why / Do now / Escalate guidance (Turkish, ADR-0005)
+- [x] 3D body map (`ThreeBodyMap`) colored by indicator status, camera focuses on the selected indicator
+- [x] Manual entry, solar-event and sleep-deprivation scenarios, reset, mission environment switch (ISS / Moon / Mars transit), disclaimer
+- [x] AI components in `web/src/ai/` (`AlertCenter`, `AiChat`, `AiDemoControls`) built (#31)
+- [ ] Live data from the backend via `VITE_API_URL` with silent mock fallback (#9)
+- [ ] Crew selector, Watch telemetry and AI recommendation cards (#10)
+- [ ] Mount `AlertCenter` and `AiChat` in `App.tsx`, hide live/offline and Gemini/fallback labels (#13)
 
-## Phase 3: Apple Watch App (`Antigravity_watchOS/` target in `mobile/ios/`)
+## Phase 3: Backend (`backend/`, Render)
 
-- [x] Create Xcode project `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj` (currently one app target; the Watch App target is still to be added in Xcode)
-- [x] Swift contract + threshold engine live inside the Xcode synchronized folder, duplicate models removed
-- [ ] Implement `WatchConnectivity` (`ConnectivityManager.swift`) on Watch and iPhone using `WatchTelemetryData` & `HealthSample`
-- [ ] Implement `HeartRateProvider` protocol (`HealthKit` live `HKWorkoutSession` + `MockHeartRateProvider` for Simulator)
-- [ ] Build Watch Status Glance screen (overall color, current HR, SpO2, last sync time)
-- [ ] Build Watch 5-second Mood (1–5) & Symptom Check-in screen sending `HealthSample` / `WatchTelemetryData` to iPhone
+- [x] Zero-dependency relay: packets, samples, SSE, `POST /api/ai/guidance` with Gemini + fallback (#3, #7)
+- [x] AI module wired in: proactive alerts, cabin, devices, 11 demo scenarios, `POST /api/ai/chat` (#21, #24, #26)
+- [x] Deployed on Render: `https://antigravity-backend-8lv8.onrender.com`, model `gemini-flash-lite-latest`, loose rate limits (#29, #32)
+- [x] Live and historical-incident simulations over SSE (#30)
+- [ ] Gemini interprets alerts + phone fan-out + ntfy channel (open PR #33)
 
-## Phase 4: iPhone Companion App (`mobile/ios/`)
+## Phase 4: iPhone + Apple Watch (`mobile/ios/`, one Xcode project)
 
-- [ ] Build iPhone Crew & Vitals Dashboard receiving Watch samples via `WCSession`
-- [ ] Build Manual Entry sheet (blood pressure, glucose, body temp, sleep hours)
-- [ ] Build Indicator Detail view with guidance (What / Why / Do now / Escalate)
-- [ ] Add JSON export button (`AstronautHealthPacket` / `WatchTelemetryData`) so iPhone data can be imported directly into the Web Dashboard
+- [x] Xcode project `mobile/ios/Antigravity_mobil_saat/Antigravity_mobil_saat.xcodeproj`; Swift contract + threshold engine in `Shared/Models/`
+- [x] iPhone views: Dashboard with 2D body map, Vitals, Missions, Logbook, glass nav bar (#27)
+- [ ] Confirm `main` builds in Xcode on the iPhone 16 Pro simulator (#16)
+- [ ] Backend base URL constant, packets, AI recommendation card, `/api/ai/stream` alerts, bundled-JSON fallback (#16)
+- [ ] Add the watchOS target in Xcode; WatchConnectivity on both sides (#17)
+- [ ] Watch status glance + 5-second mood check-in sent to the iPhone, forwarded with `POST /api/samples` (#17)
 
 ## Phase 5: Verification & Submission (`web/e2e/`, `docs/`)
 
-- [ ] Write Playwright E2E smoke test in `web/e2e/` (dashboard load, click red SpO2 card -> guidance visible, submit manual entry -> status updates)
-- [ ] Verify paired iPhone 16 Pro + Apple Watch simulator sync end-to-end
-- [ ] Write `docs/demo-script.md` (`[x]` hazırlandı) and capture screenshots in `docs/screenshots/`
-- [ ] Record 3-minute demo video and complete NASA Space Apps submission checklist (`docs/submission-checklist.md` hazırlandı)
+- [x] `docs/demo-script.md` and `docs/submission-checklist.md` (#15, #23, #25)
+- [ ] Align the simulation spec and demo story with `main` (#34)
+- [ ] Demo rehearsal checklist and fresh-clone check (#35)
+- [ ] Playwright smoke test in `web/e2e/` + screenshots in `docs/screenshots/` (#11)
+- [ ] Record the demo video and complete the NASA Space Apps submission
