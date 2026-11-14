@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import './App.css'
 import { ThreeBodyMap } from './components/ThreeBodyMap'
-import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi } from './ai'
+import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi, useAiIndicatorGuidance } from './ai'
 import { astronautProfiles, latestSampleFor, useHealthData } from './data/useHealthData'
 import { guidanceByType } from './domain/guidance'
 import {
@@ -290,7 +290,11 @@ function App() {
   )
   const selectedSample = latest[selectedMetric]
   const selectedStatus = statuses[selectedMetric]
-  const selectedGuidance = guidanceByType[selectedMetric]
+  // AI recommendation of the backend for this indicator (Gemini, or its Turkish rules); the local rule texts when the relay is offline.
+  const aiIndicator = useAiIndicatorGuidance(selectedCrewId, selectedMetric, selectedStatus)
+  const selectedGuidance = aiIndicator
+    ? { ...guidanceByType[selectedMetric], what: aiIndicator.whatItIs, why: aiIndicator.whyInSpace, doNow: aiIndicator.doNow, escalate: aiIndicator.escalateWhen }
+    : guidanceByType[selectedMetric]
   const activeEnvironment = issEnvironment
   const selectedTrendSamples = useMemo(
     () => crewSamples.filter((sample) => sample.type === selectedMetric),
@@ -825,6 +829,9 @@ function App() {
                 <span className="escalation-mark">!</span>
                 <p><strong>{selectedStatus === 'red' ? 'Ekip desteği' : 'Ne zaman haber vermeli?'}</strong><br />{selectedGuidance.escalate}</p>
               </div>
+              <p className="sample-meta" data-testid="guidance-source">
+                {aiIndicator ? (aiIndicator.source === 'gemini' ? '✦ AI önerisi · Gemini' : '✦ AI önerisi · kural tabanlı') : 'Kural tabanlı öneri (AI sunucusu çevrimdışı)'}
+              </p>
               <p className="sample-meta">
                 Kaynak: {selectedSample?.source === 'manual' ? 'Manuel giriş' : selectedSample?.source === 'watch' ? 'Saat simülasyonu' : selectedSample?.source === 'iphone' ? 'Telefon' : 'Demo verisi'}
                 {selectedSample ? ` · ${new Date(selectedSample.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : ''}

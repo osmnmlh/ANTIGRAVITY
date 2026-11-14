@@ -212,6 +212,26 @@ function vitalRed(ctx, c, covered) {
   });
 }
 
+/**
+ * Every phrase a RED alert can speak (amber is a tone only), for pre-rendering voice clips (make-voice-clips.mjs).
+ * Keep in step with the `spoken` / `spokenText` templates above; ai.test.mjs checks the demo scenarios against it.
+ * @param {string[]} crewNames  full names as in the packets ("Cmdr. Marcus Chen")
+ * @param {string[]} vitalLabels  labels of the single-indicator "kritik" alerts (blood pressure is added here)
+ */
+export function spokenPhrases(crewNames, vitalLabels) {
+  const cabin = [
+    'Kabin oksijeni düşük, mürettebatta oksijen düşüşü.', 'Kabin oksijeni düşük.', 'Kabin oksijeni yüksek.', 'Kabinde gaz salınımı.',
+    'Kabinde karbondioksit yüksek.', 'Kabin basıncı düşük.', 'Kabin basıncı yüksek.', 'Kabin sıcaklığı düşük.', 'Kabin sıcaklığı yüksek.',
+    'Radyasyon seviyesi yüksek.', `Yaşam destek gücü ${POWER.fault}.`,
+  ];
+  const crew = crewNames.map(spokenName).flatMap((name) => [
+    `${name} için kan basıncı düşük.`, `${name} için ateş yüksek.`, `${name} için kan oksijeni düşük.`,
+    `${name} için ruh hali iki gündür düşük.`, `${name} için uyku ve ruh hali düşük.`,
+    ...['Kan basıncı', ...vitalLabels].map((label) => `${name} için ${lower(label)} kritik.`),
+  ]);
+  return [...cabin, ...crew].map((text) => `Uyarı. ${text}`);
+}
+
 export function evaluate(ctx) {
   const firings = [];
   const fired = new Set();

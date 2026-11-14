@@ -52,7 +52,12 @@ Browsers block audio until a click, so voice starts **off**: click "🔇 Sesli u
 in this browser; after a reload the first click anywhere re-enables audio. Speech uses a `tr-TR` voice when the OS has one
 (Windows/macOS/Chrome do).
 
-**Which voice:** the page picks the best **female Turkish** voice of the device (Windows "Microsoft Emel", macOS / iOS "Yelda", Chrome "Google Türkçe";
+**ElevenLabs clips (the alert voice):** the short alert phrases are pre-rendered with the team's ElevenLabs voice ("Betül Tuna", id `6GYyziau4Hk8qdg7od5c`)
+by `backend/ai/make-voice-clips.mjs` into `web/public/ai-voice/` (mp3 + `manifest.json`): put `ELEVENLABS_API_KEY` in `backend/.env`, run the script once, commit
+the folder. Generation uses flat, style-free settings and the web plays a clip through a soft low-pass, slightly slower ("hafif donuk", constants `DULL` in `voice.ts`).
+Clips play instantly, need no key or network at runtime and cost no quota. A phrase without a clip, and the "Sesli oku" reading, use the browser voice below.
+
+**Which browser voice:** the page picks the best **female Turkish** voice of the device (Windows "Microsoft Emel", macOS / iOS "Yelda", Chrome "Google Türkçe";
 male voices such as "Microsoft Tolga" come last) and speaks it a little slower and lower than normal. The ⚙ button in the alert bar ("Ses ayarları") lists every
 Turkish voice of the device, has three character presets (**Robotik kadın**, Doğal kadın, Yavaş ve net), sliders for speed and tone and a "Dene" button; the choice is
 kept per device. A browser cannot add real effects to its own speech, so the "robotic" character is only as strong as the device voice allows.
