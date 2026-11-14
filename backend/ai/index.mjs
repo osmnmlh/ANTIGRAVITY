@@ -11,6 +11,7 @@ import { createAlertStore, createDevices, createHub } from './alerts.mjs';
 import { createChat } from './chat.mjs';
 import { createAdviceWriter } from './advice.mjs';
 import { createNtfy } from './ntfy.mjs';
+import { createGuidanceWriter } from './guidance.mjs';
 import { parseCabinHint } from './cabin-hint.mjs';
 
 const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir.';
@@ -27,6 +28,8 @@ const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz 
  * @param {(samples: object[]) => void} [deps.applySamples]  Stores HealthSamples in the host. Needed only for vital demo scenarios.
  * @param {{ apiKey?: string, model?: string }} [deps.gemini]  Server-side only. No key = deterministic answers.
  * @param {{ topic?: string, server?: string }} [deps.ntfy]  Optional push for locked phones (ntfy.sh). Default: env NTFY_TOPIC / NTFY_SERVER, off when unset.
+ * @param {(packet: object) => 'green'|'amber'|'red'|'missing'} [deps.getOverallStatus]  The engine's overall status of a packet (with the multi-day trend). Default: worst vital.
+ * @param {(crewId: string) => void} [deps.onGuidance]  Called after `packet.aiGuidance` of that astronaut was replaced: broadcast the packet to the clients.
  * @param {string[]} [deps.cabinCrewIds]  Who is inside the monitored cabin. Default: crew sharing the first packet's mission.
  */
 export function createAi(deps) {
@@ -34,6 +37,8 @@ export function createAi(deps) {
     getPackets, getVitalStatus,
     getVitalGuidance = () => null,
     getTrendStatus = null,
+    getOverallStatus = null,
+    onGuidance = null,
     vitalLabel = (t) => t,
     hazards = [],
     applySamples = null,
@@ -57,6 +62,9 @@ export function createAi(deps) {
   devices.setOnlineCheck(hub.isOnline);
   const advice = createAdviceWriter({ gemini, hazards, fetchImpl, log, now });
   const ntfy = createNtfy({ ...deps.ntfy, fetchImpl, log });
+  const guidanceWriter = createGuidanceWriter({ gemini, getVitalGuidance: (t, s) => getVitalGuidance(t, s), vitalLabel, fetchImpl, log, now, disclaimer: DISCLAIMER });
+  const guidanceCache = new Map(); // "crewId|signature" → Gemini text: the same situation never spends Gemini quota twice (rehearsal resets)
+  const guidanceBusy = new Map();  // same key → the call in flight
   const pending = new Set(); // background work (Gemini advice, ntfy); idle() lets tests and shutdown wait for it
   const track = (promise) => { pending.add(promise); promise.finally(() => pending.delete(promise)); return promise; };
 
@@ -108,7 +116,61 @@ export function createAi(deps) {
       track(ntfy.send(a));    // locked phones, only when NTFY_TOPIC is set
       track(enrichAlert(a));  // Gemini interpretation arrives a moment later as `alert-update`
     }
+    refreshGuidance();
     return { created, updated };
+  }
+
+  const packetOf = (crewId) => getPackets().find((p) => p.astronautId === crewId);
+
+  function publishGuidance(crewId, guidance) {
+    const packet = packetOf(crewId);
+    if (!packet) return;
+    packet.aiGuidance = guidance;
+    onGuidance?.(crewId);
+  }
+
+  /**
+   * Keeps `packet.aiGuidance` of every astronaut current: the Turkish rule-based text is in place immediately, Gemini's version
+   * replaces it a moment later. Nothing is regenerated unless an indicator's status or the astronaut's active alerts changed
+   * (or `force`), so the 2-second telemetry ticks cost nothing. Resolves when the Gemini calls it started are done.
+   */
+  function refreshGuidance({ crewIds = null, force = false } = {}) {
+    const ctx = context();
+    const waits = [];
+    for (const crew of ctx.crew) {
+      if (crewIds && !crewIds.includes(crew.id)) continue;
+      const packet = packetOf(crew.id);
+      if (!packet) continue;
+      const alerts = store.active().filter((a) => a.crewIds.includes(crew.id));
+      const overall = getOverallStatus ? getOverallStatus(packet) : guidanceWriter.worst(Object.values(crew.vitals).map((v) => v.status));
+      const fb = guidanceWriter.fallback(crew, alerts, overall);
+      const key = `${crew.id}|${fb.signature}`;
+      if (!force && packet.aiGuidance?.signature === fb.signature) {
+        if (guidanceBusy.has(key)) waits.push(guidanceBusy.get(key));
+        continue;
+      }
+      const cached = force ? null : guidanceCache.get(key);
+      if (cached) { publishGuidance(crew.id, cached); continue; }
+      publishGuidance(crew.id, fb);
+      if (!guidanceWriter.enabled) continue;
+      let call = guidanceBusy.get(key);
+      if (!call) {
+        call = guidanceWriter.write(crew, alerts, overall, fb, ctx)
+          .then((g) => {
+            if (g) {
+              guidanceCache.set(key, g);
+              if (guidanceCache.size > 60) guidanceCache.delete(guidanceCache.keys().next().value);
+            }
+            return g;
+          })
+          .finally(() => guidanceBusy.delete(key));
+        guidanceBusy.set(key, call);
+      }
+      waits.push(track(call.then((g) => {
+        if (g && packetOf(crew.id)?.aiGuidance?.signature === fb.signature) publishGuidance(crew.id, g);
+      })));
+    }
+    return Promise.all(waits);
   }
 
   /** Asks Gemini to interpret the detected values; the deterministic advice stays when it cannot. */
@@ -217,6 +279,12 @@ export function createAi(deps) {
       hub.alert('alert-update', alert);
       return alert;
     }],
+    ['POST', /^\/api\/ai\/guidance$/, async (req) => {
+      const { crewId, refresh = false } = await readBody(req);
+      if (!packetOf(crewId)) throw Object.assign(new Error(`unknown crewId: ${crewId}`), { status: 404 });
+      await refreshGuidance({ crewIds: [crewId], force: refresh === true });
+      return packetOf(crewId).aiGuidance;
+    }],
     ['POST', /^\/api\/ai\/chat$/, async (req) => chat(await readBody(req))],
     ['GET', /^\/api\/ai\/devices$/, () => devices.list()],
     ['POST', /^\/api\/ai\/devices$/, async (req) => {
@@ -270,6 +338,7 @@ export function createAi(deps) {
   return {
     handle,
     onSamples: () => run(),
+    refreshGuidance,
     /**
      * Cabin text of a historical-incident phase ("ppCO2: 8.2 mmHg · Kabin Sıcaklığı: 3.8 °C"): becomes the cabin readings, the
      * rest of the cabin is nominal again. `null` / '' = nominal cabin (simulation ended). Raises the cabin alerts like any other change.

@@ -174,7 +174,33 @@ data only. Apps that are open keep using `/api/ai/stream`; this channel only cov
 
 `GET /api/ai/health` → `{ ok, gemini, model, ntfy, cabin: Status, activeAlerts, devices, streams }`. The web uses it to show "AI live / AI offline".
 
-## 9. Fit with the existing contract (read before coding)
+## 9. `packet.aiGuidance`: the AI recommendation of every astronaut ("AI önerisi")
+
+The backend keeps `aiGuidance` of every packet current (it is no longer static mock text): in `GET /api/packets`, in `packet` events of `/api/stream`
+and as the answer of `POST /api/ai/guidance { crewId }`. Turkish only.
+
+```ts
+interface AiGuidance {
+  generatedAt: string; source: 'gemini' | 'fallback'; model: string | null;
+  overallStatus: 'green' | 'amber' | 'red';     // the threshold engine's, never the AI's
+  summary: string; actions: string[]; escalate: string;
+  disclaimer: string;                            // 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz değildir.'
+  indicators: Record<HealthIndicatorType, {      // one entry per indicator: the four texts of the guidance sheet
+    status: 'green' | 'amber' | 'red'; value: number; unit: string;
+    whatItIs: string;       // "Nedir?"
+    whyInSpace: string;     // "Uzayda neden önemli?"
+    doNow: string[];        // "Şimdi ne yapmalı?"
+    escalateWhen: string;   // "Ne zaman uçuş cerrahına başvurmalı?"
+  }>;
+  signature: string;                             // internal: what the text was written for
+}
+```
+
+When a status or the astronaut's active alerts change, the Turkish rule-based version is in place within milliseconds (`source: "fallback"`) and Gemini's version
+replaces it a few seconds later (`source: "gemini"`), each time as a `packet` event. Value ticks that keep every status do not regenerate it. Clients show `indicators[type]`
+instead of any texts of their own; `POST /api/ai/guidance { crewId, refresh: true }` forces a new generation.
+
+## 10. Fit with the existing contract (read before coding)
 
 - **Crew rules reuse the one status engine** (ADR-0001): vital status and multi-day trends come from
   `web/src/domain/thresholds.ts` (`getStatus`, `getTrendStatus`), which `backend/server.mjs` already imports.

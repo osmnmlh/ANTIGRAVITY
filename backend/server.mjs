@@ -111,6 +111,13 @@ const ai = createAi({
   hazards,
   applySamples: (list) => addSamples(list), // vital demo scenarios write real samples, so web SSE sees them too
   gemini: { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL },
+  // packet.aiGuidance (the "AI önerisi" of the iPhone) is written by the AI module and kept current; this tells it how to
+  // read the engine's overall status and how to push the changed packet to the clients.
+  getOverallStatus: (packet) => getOverallStatus(packet, samples),
+  onGuidance: (crewId) => {
+    const packet = findPacket(crewId);
+    if (packet) broadcast('packet', withStatus(packet));
+  },
 });
 
 // Rehearsal reset (POST /api/demo/reset and /api/simulation/reset): stop any simulation, reload shared/mock/*.json
