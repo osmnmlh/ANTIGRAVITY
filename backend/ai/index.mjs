@@ -217,12 +217,7 @@ export function createAi(deps) {
     'infection-suspected': { vitals: () => [['bodyTemp', 38.6], ['heartRate', 108]] },
     'individual-hypoxia': { vitals: () => [['spo2', 86]] },
     'fatigue-isolation': { vitals: () => [['sleepHours', 4.5], ['mood', 2]] },
-    'cabin-overheat': { cabin: [{ metric: 'temperature', value: 31.5 }] },
-    'cabin-humidity-high': { cabin: [{ metric: 'humidity', value: 86 }] },
-    'hypertensive-crisis': { vitals: () => [['bloodPressureSys', 172], ['bloodPressureDia', 108], ['heartRate', 104]] },
     hypoglycemia: { vitals: () => [['bloodGlucose', 52], ['heartRate', 104]] },
-    'eva-exertion': { vitals: () => [['heartRate', 152], ['spo2', 91]] },
-    'radiation-budget': { vitals: () => [['radiationDose', 93]] },
   };
   // Turkish names of the scenarios: the phone and the watch show "Simülasyon başladı: <title>" with them.
   const DEMO_TITLES = {
@@ -238,12 +233,7 @@ export function createAi(deps) {
     'infection-suspected': 'Enfeksiyon şüphesi',
     'individual-hypoxia': 'Kişisel oksijen düşüşü',
     'fatigue-isolation': 'Yorgunluk ve izolasyon',
-    'cabin-overheat': 'Kabin aşırı ısındı',
-    'cabin-humidity-high': 'Kabinde nem çok yüksek',
-    'hypertensive-crisis': 'Yüksek tansiyon',
     hypoglycemia: 'Düşük kan şekeri',
-    'eva-exertion': 'Aşırı efor (uzay yürüyüşü)',
-    'radiation-budget': 'Radyasyon doz bütçesi doluyor',
   };
   // A cabin scenario also moves the vitals of everyone in the cabin, so each astronaut's own parameters visibly react.
   // These stay amber on purpose: the cabin alert already explains them, so they never add a second red alert.
@@ -253,7 +243,6 @@ export function createAi(deps) {
     'cabin-pressure-drop': [['heartRate', 102], ['spo2', 94]],
     'solar-event': [['heartRate', 92]],
     'cabin-hypoxia': [['heartRate', 104]],
-    'cabin-overheat': [['bodyTemp', 37.3], ['heartRate', 98]],
   };
   const restore = new Map(); // "crewId:type" → sample that puts the value back on reset
 

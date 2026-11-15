@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTaskStore } from './tasks.mjs';
+import { createTaskStore, alertTaskItems, MAX_ALERT_TASKS } from './tasks.mjs';
 
 const crewExists = (id) => ['crew-1', 'crew-2'].includes(id);
 const base = { title: 'Kabin kontrolü', assigneeId: 'crew-1' };
@@ -51,4 +51,23 @@ test('alert tasks carry their source and alertId and can be removed together', (
   const removed = store.removeWhere((t) => t.alertId === 'alert-0001');
   assert.equal(removed.length, 2);
   assert.deepEqual(store.list().map((t) => t.title).sort(), ['Başka uyarı', 'Kabin kontrolü']);
+});
+
+
+const advice = { doNow: ['Birinci adım', 'İkinci adım', 'Üçüncü adım'], escalate: 'Uçuş cerrahına başvurun.' };
+
+test('an alert hands out at most 3 tasks; red keeps the surgeon call as the last one', () => {
+  assert.equal(MAX_ALERT_TASKS, 3);
+  const red = alertTaskItems({ severity: 'red', title: 'Uyarı', advice });
+  assert.deepEqual(red.map((t) => t.title), ['Birinci adım', 'İkinci adım', 'Uçuş cerrahına haber ver']);
+  const amber = alertTaskItems({ severity: 'amber', title: 'Uyarı', advice });
+  assert.deepEqual(amber.map((t) => t.title), ['Birinci adım', 'İkinci adım', 'Üçüncü adım']);
+});
+
+test('the room left for an astronaut shrinks the list, and none left means no tasks', () => {
+  const red = { severity: 'red', title: 'Uyarı', advice };
+  assert.deepEqual(alertTaskItems(red, 1).map((t) => t.title), ['Uçuş cerrahına haber ver']);
+  assert.deepEqual(alertTaskItems(red, 0), []);
+  assert.deepEqual(alertTaskItems(red, -2), []);
+  assert.equal(alertTaskItems(red, 10).length, 3, 'never more than the maximum, whatever room is offered');
 });
