@@ -63,9 +63,15 @@ function mergeSamples(current: HealthSample[], incoming: HealthSample[]) {
   return Array.from(samplesByKey.values())
 }
 
+const webAstronautDisplayNames: Record<string, string> = {
+  'crew-1': 'Emirhan Gokce',
+  'crew-2': 'Omer Ozcan',
+  'crew-3': 'Ahmet Ozkan',
+}
+
 export const astronautProfiles = astronautPacketData.astronauts.map((astronaut, index) => ({
   id: astronaut.astronautId,
-  name: astronaut.fullName,
+  name: webAstronautDisplayNames[astronaut.astronautId] ?? astronaut.fullName,
   role: astronaut.role,
   missionName: astronaut.mission.name,
   radiationBudgetMsv: astronaut.mission.radiationBudgetMsv,
