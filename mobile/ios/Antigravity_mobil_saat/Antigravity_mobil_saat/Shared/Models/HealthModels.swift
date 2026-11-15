@@ -33,7 +33,7 @@ enum HealthIndicatorType: String, Codable, CaseIterable, Sendable {
         case .bloodPressureSys: return "Büyük Tansiyon (Sys)"
         case .bloodPressureDia: return "Küçük Tansiyon (Dia)"
         case .spo2: return "Kan Oksijeni (SpO2)"
-        case .bodyTemp: return "Vücut Isısı"
+        case .bodyTemp: return "Vücut Sıcaklığı"
         case .bloodGlucose: return "Kan Şekeri"
         case .sleepHours: return "Uyku Süresi"
         case .mood: return "Ruh Hâli"
