@@ -66,6 +66,12 @@ final class HapticManager: ObservableObject {
         }
     }
 
+    /// Pauses the foreground haptic loop when watchOS backgrounds or suspends the app
+    /// so `isVibrating` does not stay stale when the user raises their wrist again.
+    func pauseForBackground() {
+        stopContinuousAlert()
+    }
+
     private func stopTimer() {
         timer?.invalidate()
         timer = nil

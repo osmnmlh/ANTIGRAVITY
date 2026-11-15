@@ -17,7 +17,7 @@ final class NotificationController: NSObject, ObservableObject, UNUserNotificati
 
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
-    private var lastSentSignature: String?
+    private var hasSentCriticalWarning = false
     private var notifiedTaskIds = Set<String>()
     private var hasConfiguredDelegate = false
 
@@ -38,28 +38,31 @@ final class NotificationController: NSObject, ObservableObject, UNUserNotificati
         }
     }
 
-    /// Posts an immediate ALL CAPS local notification when entering a new warning/critical state.
+    /// Posts a single ALL CAPS local notification only when entering a critical (red) state.
+    /// Non-critical threshold warnings (amber) do not emit notifications; repeated notifications
+    /// during the same critical episode are suppressed until vitals return to normal.
     func sendThresholdWarning(title: String, body: String, signature: String, isCritical: Bool = true) {
-        guard lastSentSignature != signature else { return }
-        lastSentSignature = signature
+        guard isCritical else { return }
+        guard !hasSentCriticalWarning else { return }
+        hasSentCriticalWarning = true
 
         let content = UNMutableNotificationContent()
         content.title = title.uppercased(with: Locale(identifier: "tr_TR"))
         content.body = body.uppercased(with: Locale(identifier: "tr_TR"))
         content.sound = .default
         if #available(watchOS 8.0, *) {
-            content.interruptionLevel = isCritical ? .timeSensitive : .active
+            content.interruptionLevel = .timeSensitive
         }
 
         let request = UNNotificationRequest(
-            identifier: "antigravity.watch.alert.\(UUID().uuidString)",
+            identifier: "antigravity.watch.alert.critical",
             content: content,
             trigger: nil
         )
         UNUserNotificationCenter.current().add(request)
     }
 
-    /// Posts an immediate Watch notification when a new Houston task arrives.
+    /// Posts an immediate single Watch notification when a new Houston task arrives.
     func sendTaskNotification(id: String, title: String, details: String, urgent: Bool) {
         guard notifiedTaskIds.insert(id).inserted else { return }
 
@@ -80,9 +83,9 @@ final class NotificationController: NSObject, ObservableObject, UNUserNotificati
         UNUserNotificationCenter.current().add(request)
     }
 
-    /// Resets deduplication state once all vitals return to green.
+    /// Resets single-alert state once the critical state clears.
     func clearAlertState() {
-        lastSentSignature = nil
+        hasSentCriticalWarning = false
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
 
