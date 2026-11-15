@@ -227,3 +227,119 @@
   color: var(--text-primary);
   font: 500 15px var(--font-body);
 }
+
+/* ---- Live scenario panel: values the relay moves once a second while a scenario plays ---- */
+.scenario-target {
+  margin: 0;
+  color: var(--text-secondary);
+  font: 500 14px/1.4 var(--font-body);
+}
+
+.scenario-target strong {
+  color: var(--text-primary);
+}
+
+.scenario-live {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(var(--accent-telemetry-rgb), 0.35);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+}
+
+.scenario-live > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.scenario-live h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font: 700 20px var(--font-display);
+}
+
+.scenario-live small {
+  color: var(--text-secondary);
+}
+
+.scenario-live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.scenario-live-crew {
+  padding: 12px;
+  border: 1px solid var(--shell-hairline);
+  border-radius: 10px;
+}
+
+.scenario-live-crew > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.scenarios-link.small {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.scenario-live-crew ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scenario-live-crew li {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) auto auto 72px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--status-optimal);
+  border-radius: 6px;
+  background: rgba(var(--accent-telemetry-rgb), 0.04);
+  color: var(--text-primary);
+  font: 500 14px var(--font-body);
+}
+
+.scenario-live-crew li.tone-amber { border-left-color: var(--status-warning); }
+.scenario-live-crew li.tone-red { border-left-color: var(--status-critical); }
+.scenario-live-from { color: var(--text-secondary); font-size: 13px; }
+.scenario-live-value { font: 700 17px var(--font-body); font-variant-numeric: tabular-nums; }
+.scenario-live-crew li.tone-amber .scenario-live-value { color: var(--status-warning); }
+.scenario-live-crew li.tone-red .scenario-live-value { color: var(--status-critical); }
+
+.scenario-spark { width: 72px; height: 24px; }
+.scenario-spark polyline { stroke: var(--status-optimal); }
+.scenario-spark.tone-amber polyline { stroke: var(--status-warning); }
+.scenario-spark.tone-red polyline { stroke: var(--status-critical); }
+
+/* Astronaut workspace: banner while a scenario plays on the selected astronaut */
+.scenario-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  border-left: 4px solid var(--status-critical);
+  border-radius: 10px;
+  background: var(--status-critical-bg);
+  color: var(--text-primary);
+  font: 600 15px/1.4 var(--font-body);
+}

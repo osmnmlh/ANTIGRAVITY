@@ -10,8 +10,6 @@ import './ai.css'
 export interface AlertCenterProps {
   /** Detail view navigation, e.g. (crewId) => setSelected(crewId). Hidden when not given. */
   onOpenAstronaut?: (crewId: string) => void
-  /** Opens the chat about this alert. Hidden when not given. */
-  onAskAi?: (alert: Alert) => void
   /** Phone mode (phone.html): acknowledge as this device, vibrate, and raise a system notification when the page is hidden. */
   deviceId?: string
   /**
@@ -73,7 +71,7 @@ function AdvicePanel({ alert }: { alert: Alert }) {
   )
 }
 
-function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi, deviceId }: {
+function AlertPopup({ alert, queued, onClose, onOpenAstronaut, deviceId }: {
   alert: Alert
   queued: number
   onClose: () => void
@@ -131,12 +129,6 @@ function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi, deviceId
               {L.openAstronaut}
             </button>
           )}
-          {onAskAi && (
-            <button type="button" className="ai-btn" data-testid="ai-alert-ask"
-              onClick={() => { onAskAi(alert); onClose() }}>
-              {L.askAi}
-            </button>
-          )}
           {queued > 0 && <span className="ai-muted">{L.moreAlerts(queued)}</span>}
         </footer>
 
@@ -161,7 +153,7 @@ function notifyPhone(alert: Alert) {
 }
 
 /** Mount once at the top of the app. Listens to /api/ai/stream, signals new alerts (tone, short phrase for red) and pops them up. */
-export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId, placement = 'bottom-right' }: AlertCenterProps) {
+export function AlertCenter({ onOpenAstronaut, deviceId, placement = 'bottom-right' }: AlertCenterProps) {
   const { connection, alerts, incoming } = useAiState()
   const voice = useVoiceEnabled()
   const [listOpen, setListOpen] = useState(false)
@@ -242,7 +234,6 @@ export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId, placement = 'b
           queued={queue.length - 1}
           onClose={() => aiStore.dismiss(current.id)}
           onOpenAstronaut={onOpenAstronaut}
-          onAskAi={onAskAi}
           deviceId={deviceId}
         />
       )}

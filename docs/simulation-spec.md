@@ -29,6 +29,7 @@ Web arayüzünün üst kontrol çubuğunda kullanıcı şu modlar arasında geç
 | `POST` | `/api/simulation/stop` | `{ "reset": true }` → simülasyonu durdurur, özet döner ve tüm paketi simülasyon öncesi duruma geri alır (`reset: false` verilirse son özeti ekranda bırakır) |
 | `POST` | `/api/demo/reset` | Tam sıfırlama (`POST /api/simulation/reset` ile eşdeğer): simülasyonu durdurur, mock paketi ve AI uyarılarını sıfırlar, tüm ekibi yeşile döndürür |
 | `GET` | `/api/stream` | SSE yayını: `hello` (`astronauts`, `simulation`), ardından her adımda `sample`, `packet` ve `simulation` olayları |
+| `POST` | `/api/ai/demo/:id` | Senaryolar sekmesinin vitrin senaryoları (15 sn). Değerler her saniye canlı değişir; `scenario` SSE olayı `/api/stream` ve `/api/ai/stream` üzerinden gider. Ayrıntı: [scenario-live-sync.md](./scenario-live-sync.md) |
 
 ### Veri İzolasyonu ve Ana Ekrana Dönüş Akışı
 

@@ -820,3 +820,38 @@ test('a one-astronaut scenario can be aimed at a chosen astronaut', async () => 
   await call(ai, 'POST', '/api/ai/demo/reset');
   assert.equal(packets[0].measurements.heartRate.value, before);
 });
+
+test('a playing scenario keeps moving its values live, announces itself and hands everything back on reset', async () => {
+  const states = [];
+  const { ai, packets } = setup({ scenarioTickMs: 20, onScenario: (s) => states.push(s) });
+  const before = packets.find((p) => p.astronautId === 'crew-1').measurements.heartRate.value;
+  const { json } = await call(ai, 'POST', '/api/ai/demo/orthostatic', { crewId: 'crew-1' });
+  assert.equal(json.scenario.active, true);
+  assert.equal(json.scenario.simulated, true);
+  assert.deepEqual(json.scenario.crewIds, ['crew-1'], 'a one-astronaut scenario stays on the chosen astronaut');
+  assert.equal(states[0].title, 'Düşük tansiyon ve hızlı nabız', 'the start is announced at once');
+  assert.ok(ai.scenarioLocks().has('crew-1:heartRate'), 'the live jitter must leave the scenario values alone');
+  await new Promise((r) => setTimeout(r, 120));
+  assert.ok(states.length >= 3, 'ticks keep broadcasting the scenario');
+  const hr = packets.find((p) => p.astronautId === 'crew-1').measurements.heartRate.value;
+  assert.ok(hr > 100, `heart rate stays in the scenario band (${hr})`);
+  assert.ok(packets.find((p) => p.astronautId === 'crew-1').measurements.bloodPressureSys.value < 90);
+  const hrTrack = ai.scenario().vitals.find((v) => v.type === 'heartRate');
+  assert.equal(hrTrack.from, before);
+  await call(ai, 'POST', '/api/ai/demo/reset');
+  assert.equal(ai.scenario().active, false);
+  assert.equal(states.at(-1).active, false, 'the end is announced too');
+  assert.equal(packets.find((p) => p.astronautId === 'crew-1').measurements.heartRate.value, before);
+  assert.equal(ai.scenarioLocks().size, 0);
+});
+
+test('a cabin scenario also moves every cabin astronaut, but only to amber (the cabin alert explains it)', async () => {
+  const { ai, packets } = setup({ scenarioTickMs: 0 });
+  const { json } = await call(ai, 'POST', '/api/ai/demo/cabin-gas-leak');
+  assert.deepEqual(json.scenario.crewIds, ['crew-1', 'crew-2']);
+  const hr2 = packets.find((p) => p.astronautId === 'crew-2').measurements.heartRate.value;
+  assert.equal(getStatus('heartRate', hr2), 'amber');
+  assert.ok(!json.scenario.vitals.some((v) => v.crewId === 'crew-3'), 'crew-3 is not in this cabin');
+  assert.ok(json.scenario.cabin.some((c) => c.metric === 'contaminant'));
+  await call(ai, 'POST', '/api/ai/demo/reset');
+});

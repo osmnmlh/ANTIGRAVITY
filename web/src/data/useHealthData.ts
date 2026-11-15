@@ -18,6 +18,41 @@ export interface SimulationStatus {
   running: boolean
   crewId: string | null
 }
+
+/** The demo scenario the relay is playing (SSE `scenario` on /api/stream, started from the Senaryolar tab). */
+export interface ScenarioVital {
+  crewId: string
+  type: HealthType
+  from: number
+  value: number
+  unit: string
+}
+export interface ScenarioCabinReading {
+  metric: string
+  from: number | string | null
+  value: number | string
+  unit: string
+  status: 'green' | 'amber' | 'red'
+}
+export interface ScenarioState {
+  active: boolean
+  id?: string
+  title?: string
+  scope?: 'cabin' | 'crew'
+  crewIds?: string[]
+  startedAt?: string
+  endsAt?: string | null
+  durationMs?: number
+  remainingMs?: number | null
+  progress?: number
+  vitals?: ScenarioVital[]
+  cabin?: ScenarioCabinReading[]
+}
+const IDLE_SCENARIO: ScenarioState = { active: false }
+const asScenario = (payload: unknown): ScenarioState =>
+  payload && typeof payload === 'object' && typeof (payload as ScenarioState).active === 'boolean'
+    ? (payload as ScenarioState)
+    : IDLE_SCENARIO
 // shared/mock/all-data.json is the master dataset (crew packets + sample history + hazards + incidents).
 const astronautPacketData = allData
 const sharedSamples = allData.samples
@@ -134,6 +169,7 @@ export function useHealthData() {
     running: false,
     crewId: null,
   })
+  const [scenario, setScenario] = useState<ScenarioState>(IDLE_SCENARIO)
   const apiConnected = useRef(false)
 
   useEffect(() => {
@@ -192,6 +228,7 @@ export function useHealthData() {
         const payload: unknown = JSON.parse((event as MessageEvent<string>).data)
         if (!payload || typeof payload !== 'object') throw new Error('Telemetry stream returned an invalid hello event.')
         updateSimulation((payload as Record<string, unknown>).simulation)
+        setScenario(asScenario((payload as Record<string, unknown>).scenario))
       } catch (error) {
         console.error('Could not process the telemetry stream hello event.', error)
       }
@@ -214,6 +251,14 @@ export function useHealthData() {
         updateSimulation(payload)
       } catch (error) {
         console.error('Could not process a telemetry stream simulation update.', error)
+      }
+    })
+    stream.addEventListener('scenario', (event) => {
+      try {
+        if (!active) return
+        setScenario(asScenario(JSON.parse((event as MessageEvent<string>).data)))
+      } catch (error) {
+        console.error('Could not process a telemetry stream scenario update.', error)
       }
     })
     stream.addEventListener('error', () => {
@@ -301,6 +346,7 @@ export function useHealthData() {
     resetSamples,
     connection,
     simulation,
+    scenario,
     startLiveSimulation,
     stopLiveSimulation,
   }
