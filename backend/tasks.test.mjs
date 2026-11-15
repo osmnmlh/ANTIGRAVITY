@@ -39,3 +39,16 @@ test('completes, removes and clears', () => {
   store.clear();
   assert.deepEqual(store.list(), []);
 });
+
+test('alert tasks carry their source and alertId and can be removed together', () => {
+  const store = createTaskStore();
+  const manual = store.upsert(base, { crewExists });
+  store.upsert({ ...base, title: 'Maskeni tak', source: 'alert', alertId: 'alert-0001' }, { crewExists });
+  store.upsert({ ...base, title: 'Kapağı kapat', source: 'alert', alertId: 'alert-0001' }, { crewExists });
+  store.upsert({ ...base, title: 'Başka uyarı', source: 'alert', alertId: 'alert-0002' }, { crewExists });
+  assert.equal(manual.source, 'manual');
+  assert.equal(manual.alertId, null);
+  const removed = store.removeWhere((t) => t.alertId === 'alert-0001');
+  assert.equal(removed.length, 2);
+  assert.deepEqual(store.list().map((t) => t.title).sort(), ['Başka uyarı', 'Kabin kontrolü']);
+});
