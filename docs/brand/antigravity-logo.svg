@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <title>AntiGravity</title>
+  <defs>
+    <clipPath id="ag-back"><rect x="0" y="0" width="1024" height="572"/></clipPath>
+    <clipPath id="ag-front"><rect x="0" y="560" width="1024" height="464"/></clipPath>
+    <clipPath id="ag-cross"><rect x="200" y="560" width="620" height="464"/></clipPath>
+    <clipPath id="ag-base"><rect x="0" y="0" width="1024" height="800"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="#0f1013"/>
+  <g transform="rotate(-18 512 560)" fill="none" stroke="#d2ae74" stroke-width="30">
+    <ellipse cx="512" cy="560" rx="410" ry="135" clip-path="url(#ag-back)"/>
+  </g>
+  <g clip-path="url(#ag-base)" fill="none" stroke-linejoin="miter" stroke-miterlimit="10">
+    <path d="M280 840 L512 236 L744 840" stroke="#0f1013" stroke-width="150"/>
+    <path d="M280 840 L512 236 L744 840" stroke="#f0eadf" stroke-width="100"/>
+  </g>
+  <path d="M392 620 H448 L478 556 L516 684 L556 520 L586 620 H632" fill="none" stroke="#d2ae74" stroke-width="34" stroke-linejoin="round" stroke-linecap="round"/>
+  <g transform="rotate(-18 512 560)" fill="none">
+    <ellipse cx="512" cy="560" rx="410" ry="135" stroke="#0f1013" stroke-width="70" clip-path="url(#ag-cross)"/>
+    <ellipse cx="512" cy="560" rx="410" ry="135" stroke="#d2ae74" stroke-width="30" clip-path="url(#ag-front)"/>
+    <circle cx="922" cy="560" r="34" fill="#f0eadf" stroke="#0f1013" stroke-width="20"/>
+  </g>
+</svg>
