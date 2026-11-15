@@ -39,41 +39,42 @@ struct GlassBottomNavBar: View {
     @Namespace private var navAnimation
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(AppTab.allCases) { tab in
-                    let isSelected = (selectedTab == tab)
+        HStack(spacing: 4) {
+            ForEach(AppTab.allCases) { tab in
+                let isSelected = (selectedTab == tab)
 
-                    Button {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                            selectedTab = tab
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: tab.systemImage)
-                                .font(.system(size: 15, weight: .semibold))
-                            Text(tab.title)
-                                .font(.subheadline.weight(isSelected ? .semibold : .medium))
-                                .lineLimit(1)
-                        }
-                        .foregroundStyle(isSelected ? ColorTheme.textPrimary : ColorTheme.textMuted)
-                        .padding(.horizontal, 15)
-                        .padding(.vertical, 10)
-                        .background {
-                            if isSelected {
-                                Capsule(style: .continuous)
-                                    .fill(Color.white.opacity(0.14))
-                                    .matchedGeometryEffect(id: "ACTIVE_NAV_PILL", in: navAnimation)
-                            }
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: tab.systemImage)
+                            .font(.system(size: 18, weight: .semibold))
+                        Text(tab.title)
+                            .font(.caption2.weight(isSelected ? .semibold : .medium))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                    .foregroundStyle(isSelected ? ColorTheme.textPrimary : ColorTheme.textMuted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 4)
+                    .contentShape(Capsule(style: .continuous))
+                    .background {
+                        if isSelected {
+                            Capsule(style: .continuous)
+                                .fill(Color.white.opacity(0.14))
+                                .matchedGeometryEffect(id: "ACTIVE_NAV_PILL", in: navAnimation)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(tab.title)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tab.title)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
         .background {
             Capsule(style: .continuous)
                 .fill(.ultraThinMaterial)

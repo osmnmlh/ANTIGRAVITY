@@ -180,8 +180,6 @@ struct AstronautBodyMapView: View {
                     }
                 }
                 .frame(height: 256)
-
-                selectedFooter
             }
         }
         .sheet(item: $inspectedCallout) { callout in
@@ -294,42 +292,6 @@ struct AstronautBodyMapView: View {
                             )
                     }
             }
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var selectedFooter: some View {
-        let itemStatus = status(for: selected)
-        return Button {
-            inspectedCallout = selected
-        } label: {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(itemStatus.themeColor)
-                    .frame(width: 7, height: 7)
-
-                Text("\(selected.systemTitle) · \(selected.fullTitle):")
-                    .font(.caption2)
-                    .foregroundStyle(ColorTheme.textMuted)
-                    .lineLimit(1)
-
-                Text(formattedValue(for: selected))
-                    .font(.caption2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(ColorTheme.textPrimary)
-
-                Spacer(minLength: 4)
-
-                Text(itemStatus.turkishLabel)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(itemStatus.themeColor)
-
-                Image(systemName: "info.circle")
-                    .font(.caption2)
-                    .foregroundStyle(ColorTheme.accent)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
     }
