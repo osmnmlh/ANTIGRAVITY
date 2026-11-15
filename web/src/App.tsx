@@ -199,19 +199,10 @@ function TrendChart({ type, samples }: { type: HealthType; samples: HealthSample
           <line className="chart-grid-line" key={y} x1="0" x2="280" y1={y} y2={y} />
         ))}
         <path className="chart-area" d={areaPath} />
-        <polyline className="chart-line" points={pointString} />
-        {points.map(({ x, y }, index) => (
-          <circle
-            className={`chart-point ${index === points.length - 1 ? 'chart-point-current' : ''}`}
-            cx={x}
-            cy={y}
-            key={`${x}-${y}`}
-            r={index === points.length - 1 ? 4 : 2}
-          />
-        ))}
+        <polyline className="chart-line" points={pointString} vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="trend-days">
-        {points.map(({ x, date }) => <span key={`${x}-${date}`}>{date}</span>)}
+        {points.map(({ x, date }, index) => <span key={`${index}-${x}-${date}`}>{date}</span>)}
       </div>
     </div>
   )
@@ -231,6 +222,8 @@ function App() {
   const [alertMessage, setAlertMessage] = useState('')
   const [alertRecipient, setAlertRecipient] = useState<AlertRecipient>('all')
   const [alertSeverity, setAlertSeverity] = useState<AlertSeverity>('critical')
+  const [showTaskForm, setShowTaskForm] = useState(false)
+  const [showMessageForm, setShowMessageForm] = useState(false)
   const environment: MissionEnvironment = 'iss'
   const [selectedCrewId, setSelectedCrewId] = useState<(typeof astronautProfiles)[number]['id']>('crew-1')
   const [selectedMetric, setSelectedMetric] = useState<HealthType>('heartRate')
@@ -405,6 +398,7 @@ function App() {
     setTaskTitle('')
     setTaskDetails('')
     setTaskDueAt('')
+    setShowTaskForm(false)
   }
 
   function handleDeleteTask(task: MissionTask) {
@@ -429,6 +423,7 @@ function App() {
     }, ...current])
     setAlertTitle('')
     setAlertMessage('')
+    setShowMessageForm(false)
   }
 
   const currentTime = new Date().toLocaleTimeString('tr-TR', {
@@ -791,28 +786,21 @@ function App() {
         ) : (
           <>
             <section className="base-welcome">
-              <div>
+              <div className="base-welcome-row">
                 <h1>Görev kontrol merkezi</h1>
+                <div className="base-welcome-pills" aria-label="Görev merkezi özeti">
+                  <span className="base-pill">{crewOverview.length} Astronot</span>
+                  <span className="base-pill">{openTaskCount} Açık Görev</span>
+                  <span className={`base-pill ${unacknowledgedMessageCount ? 'is-warning' : ''}`}>
+                    {unacknowledgedMessageCount} Bekleyen Mesaj
+                  </span>
+                  {automaticHealthAlerts.length > 0 && (
+                    <span className="base-pill is-critical">
+                      {automaticHealthAlerts.length} Kritik Uyarı
+                    </span>
+                  )}
+                </div>
               </div>
-            </section>
-
-            <section className="base-summary" aria-label="Görev merkezi özeti">
-              <article className="base-summary-card">
-                <strong>{crewOverview.length}<small> ASTRONOT</small></strong>
-              </article>
-              <article className={`base-summary-card ${automaticHealthAlerts.length ? 'has-critical' : ''}`}>
-                <span className="eyebrow">KRİTİK SAĞLIK UYARISI</span>
-                <strong>{automaticHealthAlerts.length}<small> AÇIK</small></strong>
-              </article>
-              <article className="base-summary-card">
-                <span className="eyebrow">AÇIK GÖREVLER</span>
-                <strong>{openTaskCount}<small> ATANMIŞ</small></strong>
-                <span>{missionTasks.length - openTaskCount} tamamlandı</span>
-              </article>
-              <article className={`base-summary-card ${unacknowledgedMessageCount ? 'has-warning' : ''}`}>
-                <span className="eyebrow">ONAY BEKLEYEN MESAJ</span>
-                <strong>{unacknowledgedMessageCount}<small> MESAJ</small></strong>
-              </article>
             </section>
 
             <section className="base-roster panel">
@@ -855,14 +843,54 @@ function App() {
               <p className="base-disclaimer">Sağlık durumu demo eşikleriyle hesaplanır; klinik değerlendirme değildir.</p>
             </section>
 
+            {automaticHealthAlerts.length > 0 && (
+              <section className="panel base-alerts-banner" aria-label="Açık sağlık uyarıları">
+                <div className="panel-heading">
+                  <div><h2>Açık sağlık uyarıları <small>{automaticHealthAlerts.length}</small></h2></div>
+                </div>
+                <div className="base-health-alert-list">
+                  {automaticHealthAlerts.map(({ id, astronaut, type, value }) => (
+                    <article className="base-health-alert" data-testid={`health-alert-${id}`} key={id}>
+                      <span className="alert-indicator-icon">!</span>
+                      <div>
+                        <strong>{astronaut.name} · {metricDefinitions[type].shortLabel}</strong>
+                        <p>{formatValue(type, value)} {metricDefinitions[type].displayUnit} · Demo eşiği kritik</p>
+                      </div>
+                      <button
+                        data-testid={`alert-open-${astronaut.id}`}
+                        onClick={() => {
+                          setSelectedCrewId(astronaut.id)
+                          setSelectedMetric(type)
+                          setFocusedMetric(type)
+                          setActiveWorkspace('astronauts')
+                        }}
+                        type="button"
+                      >
+                        İNCELE ↗
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section className="base-operations-grid">
-              <div className="base-operations-column">
-                <section className="panel base-operation-panel">
-                  <div className="panel-heading">
-                    <div><h2>Görev ata</h2></div>
-                    <span className="base-panel-symbol">＋</span>
-                  </div>
-                  <form className="base-form" onSubmit={handleCreateTask} data-testid="task-form">
+              <section className="panel base-operation-panel">
+                <div className="panel-heading">
+                  <div><h2>Atanmış işler <small>{missionTasks.length}</small></h2></div>
+                  <button
+                    aria-expanded={showTaskForm}
+                    className={`base-panel-toggle ${showTaskForm ? 'is-open' : ''}`}
+                    data-testid="toggle-task-form"
+                    onClick={() => setShowTaskForm((open) => !open)}
+                    type="button"
+                  >
+                    {showTaskForm ? 'Vazgeç' : '+ Görev ata'}
+                  </button>
+                </div>
+
+                {showTaskForm && (
+                  <form className="base-form base-inline-form" onSubmit={handleCreateTask} data-testid="task-form">
                     <label className="field-label" htmlFor="task-title">Görev adı</label>
                     <input
                       id="task-title"
@@ -880,7 +908,7 @@ function App() {
                       maxLength={400}
                       onChange={(event) => setTaskDetails(event.target.value)}
                       placeholder="Astronota iletilecek kısa görev açıklaması"
-                      rows={3}
+                      rows={2}
                       value={taskDetails}
                     />
                     <div className="base-form-row">
@@ -920,70 +948,74 @@ function App() {
                       <span>Görevi ata</span><b>↗</b>
                     </button>
                   </form>
-                </section>
+                )}
 
-                <section className="panel base-operation-panel">
-                  <div className="panel-heading">
-                    <div><h2>Atanmış işler <small>{missionTasks.length}</small></h2></div>
-                  </div>
-                  {missionTasks.length ? (
-                    <div className="base-task-list">
-                      {missionTasks.map((task) => {
-                        const assignee = astronautProfiles.find(({ id }) => id === task.assigneeId)
-                        return (
-                          <article className={`base-task-card ${task.completed ? 'is-completed' : ''}`} data-testid={`mission-task-${task.id}`} key={task.id}>
-                            <button
-                              aria-label={task.completed ? 'Görevi yeniden aç' : 'Görevi tamamlandı olarak işaretle'}
-                              className="task-complete-toggle"
-                              data-testid={`task-toggle-${task.id}`}
-                              onClick={() => setMissionTasks((current) =>
-                                current.map((item) => item.id === task.id ? { ...item, completed: !item.completed } : item),
-                              )}
-                              type="button"
-                            >
-                              {task.completed ? '✓' : ''}
-                            </button>
-                            <div className="base-task-content">
-                              <div className="base-task-title-line">
-                                <strong>{task.title}</strong>
-                                {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
-                              </div>
-                              {task.details && <p>{task.details}</p>}
-                              <span className="base-task-meta">
-                                {assignee?.name ?? 'Atanmamış'}
-                                {task.dueAt ? ` · ${new Date(task.dueAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
-                              </span>
+                {missionTasks.length ? (
+                  <div className="base-task-list">
+                    {missionTasks.map((task) => {
+                      const assignee = astronautProfiles.find(({ id }) => id === task.assigneeId)
+                      return (
+                        <article className={`base-task-card ${task.completed ? 'is-completed' : ''}`} data-testid={`mission-task-${task.id}`} key={task.id}>
+                          <button
+                            aria-label={task.completed ? 'Görevi yeniden aç' : 'Görevi tamamlandı olarak işaretle'}
+                            className="task-complete-toggle"
+                            data-testid={`task-toggle-${task.id}`}
+                            onClick={() => setMissionTasks((current) =>
+                              current.map((item) => item.id === task.id ? { ...item, completed: !item.completed } : item),
+                            )}
+                            type="button"
+                          >
+                            {task.completed ? '✓' : ''}
+                          </button>
+                          <div className="base-task-content">
+                            <div className="base-task-title-line">
+                              <strong>{task.title}</strong>
+                              {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
                             </div>
-                            <span className={`task-status ${task.completed ? 'done' : ''}`}>{task.completed ? 'TAMAM' : 'AÇIK'}</span>
-                            <button
-                              aria-label={`Görevi sil: ${task.title}`}
-                              className="task-delete-button"
-                              data-testid={`task-delete-${task.id}`}
-                              onClick={() => handleDeleteTask(task)}
-                              type="button"
-                            >
-                              SİL
-                            </button>
-                          </article>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="base-empty-state" data-testid="tasks-empty">
-                      <span>01</span><strong>Henüz görev atanmadı</strong>
-                      <p>İlk görevi oluşturduğunda burada görünecek.</p>
-                    </div>
-                  )}
-                </section>
-              </div>
-
-              <div className="base-operations-column">
-                <section className="panel base-operation-panel base-alert-panel">
-                  <div className="panel-heading">
-                    <div><h2>Uyarı ve bilgilendirme</h2></div>
-                    <span className="base-panel-symbol alert-symbol">!</span>
+                            {task.details && <p>{task.details}</p>}
+                            <span className="base-task-meta">
+                              {assignee?.name ?? 'Atanmamış'}
+                              {task.dueAt ? ` · ${new Date(task.dueAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                            </span>
+                          </div>
+                          <span className={`task-status ${task.completed ? 'done' : ''}`}>{task.completed ? 'TAMAM' : 'AÇIK'}</span>
+                          <button
+                            aria-label={`Görevi sil: ${task.title}`}
+                            className="task-delete-button"
+                            data-testid={`task-delete-${task.id}`}
+                            onClick={() => handleDeleteTask(task)}
+                            type="button"
+                          >
+                            SİL
+                          </button>
+                        </article>
+                      )
+                    })}
                   </div>
-                  <form className="base-form" onSubmit={handleSendCrewMessage} data-testid="crew-message-form">
+                ) : (
+                  <div className="base-empty-state" data-testid="tasks-empty">
+                    <span>01</span><strong>Henüz görev atanmadı</strong>
+                    <p>İlk görevi oluşturduğunda burada görünecek.</p>
+                  </div>
+                )}
+              </section>
+
+              <section className="panel base-operation-panel">
+                <div className="panel-heading">
+                  <div><h2>Mürettebat mesajları <small>{crewMessages.length}</small></h2></div>
+                  <button
+                    aria-expanded={showMessageForm}
+                    className={`base-panel-toggle ${showMessageForm ? 'is-open' : ''}`}
+                    data-testid="toggle-message-form"
+                    onClick={() => setShowMessageForm((open) => !open)}
+                    type="button"
+                  >
+                    {showMessageForm ? 'Vazgeç' : '+ Mesaj gönder'}
+                  </button>
+                </div>
+
+                {showMessageForm && (
+                  <form className="base-form base-inline-form" onSubmit={handleSendCrewMessage} data-testid="crew-message-form">
                     <label className="field-label" htmlFor="alert-title">Konu</label>
                     <input
                       id="alert-title"
@@ -1029,101 +1061,60 @@ function App() {
                       onChange={(event) => setAlertMessage(event.target.value)}
                       placeholder="Mesajı ve atılması gereken adımı açıkça yaz."
                       required
-                      rows={4}
+                      rows={3}
                       value={alertMessage}
                     />
                     <button className="primary-button base-submit alert-submit" data-testid="alert-submit" type="submit">
                       <span>Mesajı gönder · simülasyon</span><b>↗</b>
                     </button>
+                    <p className="base-simulation-note">Bu demo iletimi yalnızca bu tarayıcıda kaydedilir; gerçek iletişim hattı değildir.</p>
                   </form>
-                  <p className="base-simulation-note">Bu demo iletimi yalnızca bu tarayıcıda kaydedilir; gerçek iletişim hattı değildir.</p>
-                </section>
+                )}
 
-                <section className="panel base-operation-panel">
-                  <div className="panel-heading">
-                    <div><span className="eyebrow">UYARI MERKEZİ</span><h2>Açık sağlık uyarıları <small>{automaticHealthAlerts.length}</small></h2></div>
-                  </div>
-                  {automaticHealthAlerts.length ? (
-                    <div className="base-health-alert-list">
-                      {automaticHealthAlerts.map(({ id, astronaut, type, value }) => (
-                        <article className="base-health-alert" data-testid={`health-alert-${id}`} key={id}>
-                          <span className="alert-indicator-icon">!</span>
-                          <div>
-                            <strong>{astronaut.name} · {metricDefinitions[type].shortLabel}</strong>
-                            <p>{formatValue(type, value)} {metricDefinitions[type].displayUnit} · Demo eşiği kritik</p>
+                {crewMessages.length ? (
+                  <div className="base-message-list">
+                    {crewMessages.map((message) => {
+                      const recipient = message.recipientId === 'all'
+                        ? 'Tüm mürettebat'
+                        : astronautProfiles.find(({ id }) => id === message.recipientId)?.name ?? 'Mürettebat'
+                      return (
+                        <article className={`base-message-card severity-${message.severity}`} data-testid={`crew-message-${message.id}`} key={message.id}>
+                          <div className="base-message-topline">
+                            <span className="message-severity">{message.severity === 'critical' ? 'KRİTİK' : message.severity === 'warning' ? 'ÖNEMLİ' : 'BİLGİ'}</span>
+                            <span>{new Date(message.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · SİMÜLE</span>
                           </div>
-                          <button
-                            data-testid={`alert-open-${astronaut.id}`}
-                            onClick={() => {
-                              setSelectedCrewId(astronaut.id)
-                              setSelectedMetric(type)
-                              setFocusedMetric(type)
-                              setActiveWorkspace('astronauts')
-                            }}
-                            type="button"
-                          >
-                            İNCELE ↗
-                          </button>
+                          <strong>{message.title}</strong>
+                          <p>{message.message}</p>
+                          <div className="base-message-footer">
+                            <span>ALICI · {recipient}</span>
+                            <button
+                              className={message.acknowledged ? 'is-acknowledged' : ''}
+                              data-testid={`message-ack-${message.id}`}
+                              disabled={message.acknowledged}
+                              onClick={() => setCrewMessages((current) =>
+                                current.map((item) => item.id === message.id ? { ...item, acknowledged: true } : item),
+                              )}
+                              type="button"
+                            >
+                              {message.acknowledged ? '✓ ONAYLANDI' : 'ALINDI · SİMÜLE ET'}
+                            </button>
+                          </div>
                         </article>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="base-empty-state compact"><strong>Açık kritik sağlık uyarısı yok</strong></div>
-                  )}
-                </section>
-
-                <section className="panel base-operation-panel">
-                  <div className="panel-heading">
-                    <div><span className="eyebrow">GÖNDERİM KAYDI</span><h2>Mürettebat mesajları <small>{crewMessages.length}</small></h2></div>
+                      )
+                    })}
                   </div>
-                  {crewMessages.length ? (
-                    <div className="base-message-list">
-                      {crewMessages.map((message) => {
-                        const recipient = message.recipientId === 'all'
-                          ? 'Tüm mürettebat'
-                          : astronautProfiles.find(({ id }) => id === message.recipientId)?.name ?? 'Mürettebat'
-                        return (
-                          <article className={`base-message-card severity-${message.severity}`} data-testid={`crew-message-${message.id}`} key={message.id}>
-                            <div className="base-message-topline">
-                              <span className="message-severity">{message.severity === 'critical' ? 'KRİTİK' : message.severity === 'warning' ? 'ÖNEMLİ' : 'BİLGİ'}</span>
-                              <span>{new Date(message.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · SİMÜLE</span>
-                            </div>
-                            <strong>{message.title}</strong>
-                            <p>{message.message}</p>
-                            <div className="base-message-footer">
-                              <span>ALICI · {recipient}</span>
-                              <button
-                                className={message.acknowledged ? 'is-acknowledged' : ''}
-                                data-testid={`message-ack-${message.id}`}
-                                disabled={message.acknowledged}
-                                onClick={() => setCrewMessages((current) =>
-                                  current.map((item) => item.id === message.id ? { ...item, acknowledged: true } : item),
-                                )}
-                                type="button"
-                              >
-                                {message.acknowledged ? '✓ ONAYLANDI' : 'ALINDI · SİMÜLE ET'}
-                              </button>
-                            </div>
-                          </article>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="base-empty-state compact" data-testid="messages-empty">
-                      <strong>Henüz mesaj gönderilmedi</strong>
-                      <p>Gönderilen bilgilendirmeler ve onay durumları burada listelenir.</p>
-                    </div>
-                  )}
-                </section>
-              </div>
+                ) : (
+                  <div className="base-empty-state compact" data-testid="messages-empty">
+                    <strong>Henüz mesaj gönderilmedi</strong>
+                    <p>Gönderilen bilgilendirmeler ve onay durumları burada listelenir.</p>
+                  </div>
+                )}
+              </section>
             </section>
 
-            <section className="ai-base-grid" aria-label="AI asistanı ve bildirimler">
-              <AiChat />
-              <div className="ai-base-side">
-                <DevicesPanel crewNames={Object.fromEntries(astronautProfiles.map((astronaut) => [astronaut.id, astronaut.name]))} />
-                <AiDemoControls />
-              </div>
+            <section className="ai-base-side ai-base-panels" aria-label="Bağlı cihazlar ve AI demo kontrolleri">
+              <DevicesPanel crewNames={Object.fromEntries(astronautProfiles.map((astronaut) => [astronaut.id, astronaut.name]))} />
+              <AiDemoControls />
             </section>
 
             <footer className="app-footer">
