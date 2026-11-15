@@ -20,6 +20,7 @@ struct AntigravityApp: App {
 struct MainTabContainerView: View {
     @State private var selectedTab: AppTab = .dashboard
     @StateObject private var dashboardViewModel = DashboardViewModel()
+    @StateObject private var missionViewModel = MissionViewModel()
     @StateObject private var journalViewModel = JournalViewModel()
 
     var body: some View {
@@ -33,7 +34,10 @@ struct MainTabContainerView: View {
                     case .dashboard:
                         NavigationStack {
                             tabBackground {
-                                DashboardView(viewModel: dashboardViewModel) { tab in
+                                DashboardView(
+                                    viewModel: dashboardViewModel,
+                                    missionViewModel: missionViewModel
+                                ) { tab in
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         selectedTab = tab
                                     }
@@ -49,7 +53,7 @@ struct MainTabContainerView: View {
                     case .missions:
                         NavigationStack {
                             tabBackground {
-                                MissionListView(dashboardViewModel: dashboardViewModel)
+                                MissionListView(viewModel: missionViewModel)
                             }
                         }
                     case .journal:
@@ -71,9 +75,19 @@ struct MainTabContainerView: View {
             dashboardViewModel.startAiAlertStream()
             dashboardViewModel.startRelayStream()
             await dashboardViewModel.syncFromBackend()
+            missionViewModel.ingestHoustonDirectives(
+                guidance: dashboardViewModel.latestBackendGuidance,
+                alerts: dashboardViewModel.activeAlerts
+            )
         }
         .onChange(of: journalViewModel.entries) { _, updatedEntries in
             dashboardViewModel.updateJournalEntries(updatedEntries, syncToBackend: true)
+        }
+        .onChange(of: dashboardViewModel.houstonSyncRevision) { _, _ in
+            missionViewModel.ingestHoustonDirectives(
+                guidance: dashboardViewModel.latestBackendGuidance,
+                alerts: dashboardViewModel.activeAlerts
+            )
         }
     }
 

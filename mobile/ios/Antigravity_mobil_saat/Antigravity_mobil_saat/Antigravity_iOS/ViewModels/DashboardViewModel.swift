@@ -9,20 +9,6 @@ import Foundation
 import Combine
 import UserNotifications
 
-struct MissionTask: Identifiable, Equatable {
-    let id: UUID
-    var title: String
-    var detail: String
-    var isCompleted: Bool
-
-    init(id: UUID = UUID(), title: String, detail: String = "Günlük Protokol", isCompleted: Bool = false) {
-        self.id = id
-        self.title = title
-        self.detail = detail
-        self.isCompleted = isCompleted
-    }
-}
-
 class DashboardViewModel: ObservableObject {
 
     // MARK: - @Published Değişkenler
@@ -39,7 +25,9 @@ class DashboardViewModel: ObservableObject {
     @Published var crewId: String = Constants.defaultCrewId
     @Published var astronautPacket: AstronautHealthPacket?
     @Published var aiGuidance: AiGuidance?
+    @Published private(set) var latestBackendGuidance: AiGuidance?
     @Published var activeAlerts: [AiAlert] = []
+    @Published private(set) var houstonSyncRevision: Int = 0
     @Published var lastWatchSyncAt: Date?
     @Published var isSyncingBackend: Bool = false
     @Published var lastSampleSyncMessage: String?
@@ -51,14 +39,6 @@ class DashboardViewModel: ObservableObject {
     @Published private(set) var latestWatchSymptoms: [String] = []
     @Published private(set) var hasSyncedFromBackend: Bool = false
     @Published var radiationBudgetMsv: Double = 100.0
-
-    // Interactive TODO missions shared between MissionListView and DashboardView
-    @Published var missionTasks: [MissionTask] = [
-        MissionTask(title: "Sabah Apple Watch SpO2 & Nabız Ölçümü", detail: "Vital Kontrol • 08:00", isCompleted: true),
-        MissionTask(title: "Kabin CO2 ve Radyasyon Dozu Kontrolü", detail: "Çevresel Güvenlik • 10:30", isCompleted: true),
-        MissionTask(title: "Günlük Direnç / Kardiyo Egzersizi (30 dk)", detail: "Mikro-yerçekimi Önlemi • 13:00", isCompleted: true),
-        MissionTask(title: "Akşam Uyku & Ruh Hali Kaydı", detail: "Davranışsal Sağlık • 21:00", isCompleted: false)
-    ]
 
     // MARK: - Servisler ve Hafıza Yönetimi
     private let telemetryService: TelemetryServiceProtocol
@@ -73,23 +53,6 @@ class DashboardViewModel: ObservableObject {
     private var lastAnalyzedJournalDigest: String = ""
 
     // MARK: - Computed Helpers
-    var completedMissionsCount: Int {
-        missionTasks.filter(\.isCompleted).count
-    }
-
-    var totalMissionsCount: Int {
-        missionTasks.count
-    }
-
-    var missionCompletionRatio: Double {
-        guard totalMissionsCount > 0 else { return 0 }
-        return Double(completedMissionsCount) / Double(totalMissionsCount)
-    }
-
-    var missionCompletionPercent: Int {
-        Int((missionCompletionRatio * 100).rounded())
-    }
-
     var heartRateValue: Double {
         indicatorValues[.heartRate] ?? latestTelemetry?.vitals.currentHeartRate ?? 72
     }
@@ -358,21 +321,6 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
-    func toggleMission(_ task: MissionTask) {
-        guard let index = missionTasks.firstIndex(where: { $0.id == task.id }) else { return }
-        missionTasks[index].isCompleted.toggle()
-    }
-
-    func addMission(title: String, detail: String = "Özel Protokol") {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        missionTasks.append(MissionTask(title: trimmed, detail: detail, isCompleted: false))
-    }
-
-    func deleteMission(_ task: MissionTask) {
-        missionTasks.removeAll { $0.id == task.id }
-    }
-
     // MARK: - Private
     private func seedMockPacketAndInitialTelemetry() {
         // Mirrors crew-1 nominal mock values from shared/mock/astronaut-packets.json
@@ -422,6 +370,7 @@ class DashboardViewModel: ObservableObject {
     private func applyPacket(_ packet: AstronautHealthPacket, fromBackend: Bool = false) {
         if fromBackend {
             hasSyncedFromBackend = true
+            latestBackendGuidance = packet.aiGuidance
         }
         astronautPacket = packet
         aiGuidance = packet.aiGuidance
@@ -435,6 +384,9 @@ class DashboardViewModel: ObservableObject {
             latestTelemetry = watch
         }
         recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
+        if fromBackend {
+            houstonSyncRevision &+= 1
+        }
     }
 
     private func loadBundledNominalPacket() -> AstronautHealthPacket? {
@@ -536,6 +488,7 @@ class DashboardViewModel: ObservableObject {
         case .alertUpdate(let alert):
             upsertAlert(alert)
         }
+        houstonSyncRevision &+= 1
     }
 
     @MainActor
