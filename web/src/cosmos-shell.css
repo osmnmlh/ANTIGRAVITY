@@ -853,3 +853,88 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Live indicators: larger, readable at a glance ---- */
+.map-indicator-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+}
+
+.map-indicators-heading .eyebrow {
+  font: 600 15px var(--font-body);
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.map-indicator-list {
+  gap: 4px;
+}
+
+.map-indicator-card {
+  min-height: 68px;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 11px 12px;
+}
+
+.map-indicator-index {
+  color: var(--text-muted);
+  font: 500 13px var(--font-mono);
+}
+
+.map-indicator-copy {
+  gap: 3px;
+}
+
+.map-indicator-copy > span {
+  color: var(--text-secondary);
+  font: 600 15px var(--font-body);
+}
+
+.map-indicator-copy strong {
+  color: var(--text-primary);
+  font: 700 24px/1.1 var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.map-indicator-copy strong small {
+  color: var(--text-secondary);
+  font: 500 14px var(--font-body);
+  letter-spacing: 0;
+}
+
+.map-indicator-card .status-badge {
+  min-height: 26px;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.map-indicator-card .status-dot {
+  width: 7px;
+  height: 7px;
+  flex-basis: 7px;
+}
+
+@media (max-width: 1100px) {
+  .map-indicator-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Crew roster: row picked in the cockpit ---- */
+.base-roster-row {
+  cursor: pointer;
+}
+
+.base-roster-row.is-selected {
+  border-color: var(--shell-accent-border);
+  background: rgba(var(--accent-telemetry-rgb), 0.08);
+}
+
+/* Body map stays as tall as the (larger) live indicator column. */
+@media (min-width: 1101px) {
+  .map-indicator-layout .body-map-stage {
+    height: 100%;
+    min-height: 700px;
+  }
+}

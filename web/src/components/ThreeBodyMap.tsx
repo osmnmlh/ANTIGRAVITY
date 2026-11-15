@@ -8,7 +8,6 @@ import {
   DirectionalLight,
   Group,
   Line,
-  LineBasicMaterial,
   Material,
   Mesh,
   MeshBasicMaterial,
@@ -76,10 +75,10 @@ const metricSystem: Record<HealthType, string> = {
 }
 
 const statusColor: Record<HealthStatus, string> = {
-  green: '#10b981',
-  amber: '#f59e0b',
-  red: '#ef4444',
-  missing: '#64748b',
+  green: '#34d399',
+  amber: '#fbbf24',
+  red: '#f87171',
+  missing: '#847e75',
 }
 
 const statusText: Record<HealthStatus, string> = {
@@ -97,35 +96,173 @@ function formatValue(type: HealthType, value: number | undefined) {
   return String(value)
 }
 
-function drawAstronautNameplate(canvas: HTMLCanvasElement, name: string, code: string) {
+// Theme tokens from cosmos-shell.css (canvas and three.js cannot read CSS variables).
+const theme = {
+  plate: 'rgba(23, 23, 27, 0.94)',
+  brass: '#d2ae74',
+  brassSoft: 'rgba(210, 174, 116, 0.55)',
+  marble: '#f0eadf',
+  hairline: 'rgba(240, 234, 223, 0.08)',
+}
+
+const nameplateStatusLabel: Record<HealthStatus, string> = {
+  green: 'Stabil',
+  amber: 'Dikkat',
+  red: 'Kritik',
+  missing: 'Veri yok',
+}
+
+const statusRank: Record<HealthStatus, number> = { missing: 0, green: 1, amber: 2, red: 3 }
+
+function worstStatus(statuses: Record<HealthType, HealthStatus>): HealthStatus {
+  let worst: HealthStatus = 'missing'
+  for (const status of Object.values(statuses)) {
+    if (statusRank[status] > statusRank[worst]) worst = status
+  }
+  return worst
+}
+
+// 4.375:1 to match the 1.4 x 0.32 plane, drawn large for crisp text when zoomed.
+const NAMEPLATE_WIDTH = 1120
+const NAMEPLATE_HEIGHT = 256
+const nameplateFonts = [
+  '500 40px "IBM Plex Mono"',
+  '600 38px "Hanken Grotesk"',
+  '700 70px "Plus Jakarta Sans"',
+]
+
+function drawAstronautNameplate(
+  canvas: HTMLCanvasElement,
+  name: string,
+  code: string,
+  status: HealthStatus,
+) {
   const context = canvas.getContext('2d')
   if (!context) {
     console.error('The astronaut nameplate could not acquire a 2D canvas context.')
     return
   }
 
-  context.clearRect(0, 0, canvas.width, canvas.height)
-  context.shadowColor = 'rgba(56, 189, 248, 0.3)'
-  context.shadowBlur = 18
-  context.fillStyle = 'rgba(7, 18, 30, 0.92)'
-  context.strokeStyle = 'rgba(91, 220, 232, 0.78)'
-  context.lineWidth = 2
+  const { width, height } = canvas
+  const accent = statusColor[status]
+  const plateHeight = height - 36
+  context.clearRect(0, 0, width, height)
+
+  // Plate: anthracite with a brass hairline and an engraved inner rule.
+  context.save()
+  context.shadowColor = 'rgba(0, 0, 0, 0.55)'
+  context.shadowBlur = 24
+  context.shadowOffsetY = 6
+  context.fillStyle = theme.plate
   context.beginPath()
-  context.roundRect(5, 5, canvas.width - 10, canvas.height - 10, 20)
+  context.roundRect(12, 12, width - 24, plateHeight, 28)
   context.fill()
-  context.shadowBlur = 0
+  context.restore()
+
+  context.lineWidth = 3
+  context.strokeStyle = theme.brassSoft
+  context.beginPath()
+  context.roundRect(12, 12, width - 24, plateHeight, 28)
   context.stroke()
 
-  context.fillStyle = '#5bdce8'
-  context.fillRect(22, 24, 4, 80)
-  context.textBaseline = 'middle'
-  context.font = '600 19px monospace'
-  context.fillStyle = '#80a9bc'
-  context.fillText(code, 43, 42)
-  context.font = '600 32px sans-serif'
-  context.fillStyle = '#edf7fb'
-  context.fillText(name, 43, 82, canvas.width - 68)
+  context.lineWidth = 2
+  context.strokeStyle = theme.hairline
+  context.beginPath()
+  context.roundRect(26, 26, width - 52, plateHeight - 28, 18)
+  context.stroke()
+
+  // Status emblem: brass ring around a status-colored core with a soft glow.
+  const emblemX = 120
+  const emblemY = 12 + plateHeight / 2
+  const glow = context.createRadialGradient(emblemX, emblemY, 4, emblemX, emblemY, 62)
+  glow.addColorStop(0, `${accent}55`)
+  glow.addColorStop(1, `${accent}00`)
+  context.fillStyle = glow
+  context.beginPath()
+  context.arc(emblemX, emblemY, 62, 0, Math.PI * 2)
+  context.fill()
+
+  context.lineWidth = 3
+  context.strokeStyle = theme.brass
+  context.beginPath()
+  context.arc(emblemX, emblemY, 42, 0, Math.PI * 2)
+  context.stroke()
+  context.fillStyle = accent
+  context.beginPath()
+  context.arc(emblemX, emblemY, 15, 0, Math.PI * 2)
+  context.fill()
+
+  // Hairline divider between emblem and text.
+  context.fillStyle = theme.hairline
+  context.fillRect(204, 52, 2, plateHeight - 80)
+
+  const textX = 240
+  const textRight = width - 64
+  context.textBaseline = 'alphabetic'
+
+  context.font = '500 40px "IBM Plex Mono", Consolas, monospace'
+  context.fillStyle = theme.brass
+  context.textAlign = 'left'
+  context.fillText(code, textX, 94)
+
+  context.font = '600 38px "Hanken Grotesk", "Segoe UI", sans-serif'
+  context.fillStyle = accent
+  context.textAlign = 'right'
+  context.fillText(nameplateStatusLabel[status], textRight, 94)
+
+  context.font = '700 70px "Plus Jakarta Sans", "Segoe UI", sans-serif'
+  context.fillStyle = theme.marble
+  context.textAlign = 'left'
+  context.fillText(name, textX, 176, textRight - textX)
 }
+
+// Scan sheet: a crisp marble-and-brass edge with a ruler of ticks and a glow
+// trailing above it, so the sweep reads as light passing down the body.
+const SCAN_CANVAS_HEIGHT = 128
+const SCAN_EDGE_Y = 122
+
+function drawScanSheet(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext('2d')
+  if (!context) return
+  const { width, height } = canvas
+  context.clearRect(0, 0, width, height)
+
+  const trail = context.createLinearGradient(0, 0, 0, SCAN_EDGE_Y)
+  trail.addColorStop(0, 'rgba(210, 174, 116, 0)')
+  trail.addColorStop(0.7, 'rgba(210, 174, 116, 0.08)')
+  trail.addColorStop(1, 'rgba(210, 174, 116, 0.32)')
+  context.fillStyle = trail
+  context.fillRect(0, 0, width, SCAN_EDGE_Y)
+
+  context.fillStyle = 'rgba(210, 174, 116, 0.75)'
+  context.fillRect(0, SCAN_EDGE_Y - 4, width, 8)
+  context.fillStyle = 'rgba(240, 234, 223, 0.95)'
+  context.fillRect(0, SCAN_EDGE_Y - 1.5, width, 3)
+
+  context.fillStyle = 'rgba(240, 234, 223, 0.6)'
+  for (let x = 16; x < width; x += 24) {
+    const major = (x - 16) % 96 === 0
+    const tick = major ? 16 : 7
+    context.fillRect(x - 1, SCAN_EDGE_Y - tick, 2, tick)
+  }
+
+  // Fade both ends so the sheet has no hard horizontal edge.
+  context.globalCompositeOperation = 'destination-in'
+  const ends = context.createLinearGradient(0, 0, width, 0)
+  ends.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  ends.addColorStop(0.2, 'rgba(0, 0, 0, 1)')
+  ends.addColorStop(0.8, 'rgba(0, 0, 0, 1)')
+  ends.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  context.fillStyle = ends
+  context.fillRect(0, 0, width, height)
+  context.globalCompositeOperation = 'source-over'
+}
+
+const SCAN_SWEEP_MS = 4800
+const SCAN_REST_MS = 1400
+const SCAN_TOP = 2.15
+const SCAN_BOTTOM = -1.6
+const SCAN_SHEET_HEIGHT = 0.5
 
 function FallbackFigure() {
   return (
@@ -274,10 +411,11 @@ export function ThreeBodyMap({
     figureRef.current = figure
     scene.add(figure)
     const nameplateCanvas = document.createElement('canvas')
-    nameplateCanvas.width = 512
-    nameplateCanvas.height = 128
+    nameplateCanvas.width = NAMEPLATE_WIDTH
+    nameplateCanvas.height = NAMEPLATE_HEIGHT
     const nameplateTexture = new CanvasTexture(nameplateCanvas)
     nameplateTexture.colorSpace = 'srgb'
+    nameplateTexture.anisotropy = 4
     nameplateRef.current = { canvas: nameplateCanvas, texture: nameplateTexture }
     const nameplateMaterial = new MeshBasicMaterial({
       map: nameplateTexture,
@@ -373,15 +511,26 @@ export function ThreeBodyMap({
       },
     )
 
-    const scanlineGeometry = new BufferGeometry()
-    scanlineGeometry.setFromPoints([new Vector3(-0.74, 0, 0.16), new Vector3(0.74, 0, 0.16)])
-    const scanline = new Line(scanlineGeometry, new LineBasicMaterial({
-      color: '#38bdf8',
+    const scanCanvas = document.createElement('canvas')
+    scanCanvas.width = 512
+    scanCanvas.height = SCAN_CANVAS_HEIGHT
+    drawScanSheet(scanCanvas)
+    const scanTexture = new CanvasTexture(scanCanvas)
+    scanTexture.colorSpace = 'srgb'
+    const scanMaterial = new MeshBasicMaterial({
+      map: scanTexture,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0,
       depthTest: false,
-    }))
+      depthWrite: false,
+    })
+    // Shift the plane so its origin is the bright edge: position.y is where the light is.
+    const scanGeometry = new PlaneGeometry(2.1, SCAN_SHEET_HEIGHT)
+    scanGeometry.translate(0, SCAN_SHEET_HEIGHT * (SCAN_EDGE_Y / SCAN_CANVAS_HEIGHT - 0.5), 0)
+    const scanline = new Mesh(scanGeometry, scanMaterial)
+    scanline.position.z = 0.16
     scanline.renderOrder = 4
+    scanline.visible = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     scene.add(scanline)
 
     const hotspotMeshes = new Map<HealthType, Mesh>()
@@ -499,7 +648,14 @@ export function ThreeBodyMap({
       figure.rotation.x = MathUtils.damp(figure.rotation.x, targetRotation.x, 2.8, deltaSeconds)
       galaxy.rotation.y += (figure.rotation.y - galaxy.rotation.y) * 0.04 + 0.00012
       galaxy.rotation.x += (figure.rotation.x + 0.5 - galaxy.rotation.x) * 0.04
-      scanline.position.y = 2.2 - ((now % 5600) / 5600) * 3.85
+      if (scanline.visible) {
+        const cycle = now % (SCAN_SWEEP_MS + SCAN_REST_MS)
+        const progress = Math.min(cycle / SCAN_SWEEP_MS, 1)
+        const eased = progress < 0.5 ? 2 * progress * progress : 1 - (-2 * progress + 2) ** 2 / 2
+        scanline.position.y = MathUtils.lerp(SCAN_TOP, SCAN_BOTTOM, eased)
+        const fade = Math.max(0, Math.min(progress / 0.08, (1 - progress) / 0.12, 1))
+        scanMaterial.opacity = cycle < SCAN_SWEEP_MS ? 0.95 * fade : 0
+      }
       figure.updateMatrixWorld()
       focusGoal.set(0, 0.15, 0)
       cameraGoal.set(0, 0.15, 7.1 * zoomRef.current)
@@ -608,12 +764,24 @@ export function ThreeBodyMap({
     }
   }, [])
 
+  const overallStatus = worstStatus(statuses)
   useEffect(() => {
-    const nameplate = nameplateRef.current
-    if (!nameplate) return
-    drawAstronautNameplate(nameplate.canvas, astronautName, astronautCode)
-    nameplate.texture.needsUpdate = true
-  }, [astronautCode, astronautName])
+    let cancelled = false
+    const redraw = () => {
+      const nameplate = nameplateRef.current
+      if (cancelled || !nameplate) return
+      drawAstronautNameplate(nameplate.canvas, astronautName, astronautCode, overallStatus)
+      nameplate.texture.needsUpdate = true
+    }
+    redraw()
+    // Canvas only uses a web font once it is loaded, so load the three faces explicitly.
+    Promise.all(nameplateFonts.map((font) => document.fonts.load(font)))
+      .then(redraw)
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [astronautCode, astronautName, overallStatus])
 
   useEffect(() => {
     const marker = markers.find(({ type }) => type === selected)
