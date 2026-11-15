@@ -6,19 +6,25 @@
 //
 
 import SwiftUI
+import WatchKit
+
+final class WatchAppDelegate: NSObject, WKApplicationDelegate {
+    func applicationDidFinishLaunching() {
+        NotificationController.shared.requestAuthorization()
+        AlertCoordinator.shared.start()
+    }
+}
 
 @main
 struct AntigravityWatchApp: App {
-    @StateObject private var coordinator = AlertCoordinator()
+    @WKApplicationDelegateAdaptor(WatchAppDelegate.self) private var appDelegate
+    @ObservedObject private var coordinator = AlertCoordinator.shared
 
     var body: some Scene {
         WindowGroup {
             WatchDashboardView(coordinator: coordinator)
                 .onAppear {
                     coordinator.start()
-                }
-                .onDisappear {
-                    coordinator.stop()
                 }
         }
     }

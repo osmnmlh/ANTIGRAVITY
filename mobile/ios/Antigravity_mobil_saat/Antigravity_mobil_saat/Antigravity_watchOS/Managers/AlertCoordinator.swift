@@ -13,6 +13,8 @@ import Foundation
 /// and drives continuous wrist haptics via `HapticManager`.
 @MainActor
 final class AlertCoordinator: ObservableObject {
+    static let shared = AlertCoordinator()
+
     private static let turkishLocale = Locale(identifier: "tr_TR")
 
     @Published private(set) var heartRate: Int = 72
@@ -27,7 +29,6 @@ final class AlertCoordinator: ObservableObject {
     @Published private(set) var uppercaseWarningTitle: String?
     @Published private(set) var uppercaseWarningDetail: String?
     @Published private(set) var isMuted: Bool = false
-    @Published private(set) var isSimulatingSpike: Bool = false
     @Published private(set) var lastSyncDate: Date?
     @Published private(set) var lastCheckInMessage: String?
 
@@ -57,7 +58,7 @@ final class AlertCoordinator: ObservableObject {
     ) {
         self.telemetryService = telemetryService ?? MockTelemetryService()
         self.hapticManager = hapticManager ?? HapticManager()
-        self.notificationController = notificationController ?? NotificationController()
+        self.notificationController = notificationController ?? NotificationController.shared
         self.sideEffectsEnabled = sideEffectsEnabled
 
         bindTelemetry()
@@ -68,7 +69,7 @@ final class AlertCoordinator: ObservableObject {
         isRunning = true
         if sideEffectsEnabled {
             ConnectivityManager.shared.onRemoteTelemetryReceived = { [weak self] payload in
-                guard let self, !self.isSimulatingSpike else { return }
+                guard let self else { return }
                 self.lastRemoteSyncDate = payload.timestamp
                 self.remoteOverallStatus = payload.overallStatus
                 self.remoteTelemetryAlertTitle = payload.alertTitle
@@ -84,6 +85,11 @@ final class AlertCoordinator: ObservableObject {
             ConnectivityManager.shared.onAlertReceived = { [weak self] alert in
                 Task { @MainActor [weak self] in
                     self?.applyRemoteAlert(alert)
+                }
+            }
+            ConnectivityManager.shared.onTaskReceived = { [weak self] task in
+                Task { @MainActor [weak self] in
+                    self?.applyRemoteTask(task)
                 }
             }
             ConnectivityManager.shared.activate()
@@ -105,11 +111,28 @@ final class AlertCoordinator: ObservableObject {
     /// Shows (and vibrates for) the alert the paired iPhone is playing; clears it when the iPhone says it is over.
     func applyRemoteAlert(_ alert: WatchAlertPayload) {
         if alert.active {
-            remoteAlertTitle = alert.title.uppercased(with: Self.turkishLocale)
+            let newSeverity: HealthStatus = (alert.severity == "red") ? .red : .amber
+            let upperTitle = alert.title.uppercased(with: Self.turkishLocale)
+            let isNewAlert = (remoteAlertTitle != upperTitle || remoteAlertSeverity != newSeverity)
+
+            remoteAlertTitle = upperTitle
             remoteAlertDetail = alert.detail
-            remoteAlertSeverity = alert.severity == "red" ? .red : .amber
-            if sideEffectsEnabled && !isMuted {
-                hapticManager.startContinuousAlert(urgent: alert.severity == "red")
+            remoteAlertSeverity = newSeverity
+
+            if isNewAlert {
+                isMuted = false
+            }
+
+            if sideEffectsEnabled {
+                notificationController.sendThresholdWarning(
+                    title: upperTitle,
+                    body: alert.detail,
+                    signature: "remote|\(alert.severity)|\(upperTitle.prefix(24))",
+                    isCritical: newSeverity == .red
+                )
+                if !isMuted {
+                    hapticManager.startContinuousAlert(urgent: newSeverity == .red)
+                }
             }
         } else {
             remoteAlertTitle = nil
@@ -118,32 +141,33 @@ final class AlertCoordinator: ObservableObject {
             // The watch's own vitals alert keeps vibrating if it is still active.
             if sideEffectsEnabled && overallStatus != .amber && overallStatus != .red {
                 hapticManager.stopContinuousAlert()
+                notificationController.clearAlertState()
             }
         }
+    }
+
+    /// Notifies and vibrates Apple Watch when iPhone forwards a new Houston web task.
+    func applyRemoteTask(_ task: WatchTaskNotificationPayload) {
+        lastSyncDate = Date()
+        guard sideEffectsEnabled else { return }
+        notificationController.sendTaskNotification(
+            id: task.id,
+            title: task.title,
+            details: task.details,
+            urgent: task.urgent
+        )
+        hapticManager.playTaskAlert(urgent: task.urgent)
     }
 
     func toggleMute() {
         isMuted.toggle()
         guard sideEffectsEnabled else { return }
+        let hasActiveAlert = (overallStatus == .amber || overallStatus == .red || remoteAlertTitle != nil)
+        let isUrgent = (overallStatus == .red || remoteAlertSeverity == .red)
         if isMuted {
             hapticManager.stopContinuousAlert()
-        } else if overallStatus == .amber || overallStatus == .red {
-            hapticManager.startContinuousAlert(urgent: overallStatus == .red)
-        }
-    }
-
-    /// Forces a red-threshold telemetry reading so alerts, ALL CAPS banner,
-    /// notification, and continuous wrist haptics can be verified immediately.
-    func toggleSpikeSimulation() {
-        isSimulatingSpike.toggle()
-        if isSimulatingSpike {
-            isMuted = false
-            applyReadings(heartRate: 138, spo2: 88, bodyTemp: 38.6)
-        } else {
-            applyReadings(heartRate: 74, spo2: 98, bodyTemp: 36.6)
-        }
-        if sideEffectsEnabled {
-            pushCurrentVitalsToPhone()
+        } else if hasActiveAlert {
+            hapticManager.startContinuousAlert(urgent: isUrgent)
         }
     }
 
@@ -211,7 +235,7 @@ final class AlertCoordinator: ObservableObject {
         telemetryService.telemetryPublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] data in
-                guard let self, !self.isSimulatingSpike else { return }
+                guard let self else { return }
                 // Let live Web/iPhone stream drive Watch values while active,
                 // unless offline/idle so standalone Watch simulation stays responsive.
                 if let lastRemote = self.lastRemoteSyncDate, Date().timeIntervalSince(lastRemote) < 10 {
@@ -283,7 +307,8 @@ final class AlertCoordinator: ObservableObject {
                 notificationController.sendThresholdWarning(
                     title: title,
                     body: detail,
-                    signature: signature
+                    signature: signature,
+                    isCritical: highest == .red
                 )
 
                 if !isMuted {
@@ -327,7 +352,6 @@ final class AlertCoordinator: ObservableObject {
         case .amber:
             coordinator.applyReadings(heartRate: 112, spo2: 93, bodyTemp: 37.2)
         case .red:
-            coordinator.isSimulatingSpike = true
             coordinator.applyReadings(heartRate: 138, spo2: 88, bodyTemp: 38.6)
         case .green, .missing:
             coordinator.applyReadings(heartRate: 74, spo2: 98, bodyTemp: 36.6)

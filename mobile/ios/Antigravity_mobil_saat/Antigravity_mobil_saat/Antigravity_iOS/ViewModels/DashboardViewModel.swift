@@ -5,9 +5,8 @@
 //  Created by Emirhan Gökçe on 14.11.2026.
 //
 
-import Foundation
 import Combine
-import UserNotifications
+import Foundation
 
 class DashboardViewModel: ObservableObject {
 
@@ -56,9 +55,13 @@ class DashboardViewModel: ObservableObject {
     private var taskPollTask: Task<Void, Never>?
     private var journalAnalysisTask: Task<Void, Never>?
     private var notifiedAlertIds = Set<String>()
+    private var notifiedWebTaskIds: Set<String> = Set(
+        UserDefaults.standard.stringArray(forKey: "antigravity_notified_web_task_ids") ?? []
+    )
     private var acknowledgedAlertKeys: Set<String> = Set(
         UserDefaults.standard.stringArray(forKey: "antigravity_acknowledged_alert_keys") ?? []
     )
+    private var isReadyForStatusNotifications = false
     private var sampleHistory: [HealthSample] = []
     private var lastBackendPacketAt: Date?
     private var lastWatchForwardAt: Date?
@@ -157,6 +160,7 @@ class DashboardViewModel: ObservableObject {
     init(telemetryService: TelemetryServiceProtocol = MockTelemetryService()) {
         self.telemetryService = telemetryService
         seedMockPacketAndInitialTelemetry()
+        isReadyForStatusNotifications = true
         setupBindings()
         setupWatchConnectivity()
         self.telemetryService.startMonitoring()
@@ -179,7 +183,7 @@ class DashboardViewModel: ObservableObject {
     @MainActor
     func startAiAlertStream() {
         guard aiStreamTask == nil else { return }
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        PhoneAlertCoordinator.shared.configureAndRequestAuthorization()
 
         let targetCrewId = crewId
         let deviceId = Constants.deviceId
@@ -234,12 +238,10 @@ class DashboardViewModel: ObservableObject {
         activeScenario = state.concerns(crewId: targetCrewId) ? state : nil
         guard let current = activeScenario, !wasActive else { return }
 
-        let content = UNMutableNotificationContent()
-        content.title = current.bannerText
-        content.body = "Değerler \(current.remainingSeconds ?? 15) saniye boyunca canlı değişecek (simüle edilmiş veri)."
-        content.sound = .default
-        UNUserNotificationCenter.current().add(
-            UNNotificationRequest(identifier: "antigravity.scenario.\(current.id ?? "demo")", content: content, trigger: nil)
+        PhoneAlertCoordinator.shared.notifyScenarioStarted(
+            id: current.id,
+            bannerText: current.bannerText,
+            remainingSeconds: current.remainingSeconds ?? 15
         )
     }
 
@@ -281,6 +283,7 @@ class DashboardViewModel: ObservableObject {
     @MainActor
     private func applyWebTaskSnapshot(_ tasks: [RemoteWebTask], crewId targetCrewId: String) {
         let mine = tasks.filter { $0.assigneeId == targetCrewId }
+        notifyForNewWebTasks(mine)
         guard !hasSyncedWebTasks || mine != webAssignedTasks else { return }
         webAssignedTasks = mine
         hasSyncedWebTasks = true
@@ -304,8 +307,43 @@ class DashboardViewModel: ObservableObject {
         } else {
             webAssignedTasks.insert(task, at: 0)
         }
+        notifyForNewWebTasks([task])
         hasSyncedWebTasks = true
         notifyMissionSyncNeeded()
+    }
+
+    @MainActor
+    private func notifyForNewWebTasks(_ tasks: [RemoteWebTask]) {
+        var didRecordNewId = false
+        var unnotifiedOpenTasks: [RemoteWebTask] = []
+
+        for task in tasks {
+            guard notifiedWebTaskIds.insert(task.id).inserted else { continue }
+            didRecordNewId = true
+            if !task.completed {
+                unnotifiedOpenTasks.append(task)
+            }
+        }
+
+        if didRecordNewId {
+            let capped = Array(notifiedWebTaskIds.suffix(200))
+            UserDefaults.standard.set(capped, forKey: "antigravity_notified_web_task_ids")
+        }
+
+        for task in unnotifiedOpenTasks.prefix(3) {
+            PhoneAlertCoordinator.shared.notifyHoustonTask(
+                id: task.id,
+                title: task.title,
+                details: task.details,
+                urgent: task.priority == "high"
+            )
+            ConnectivityManager.shared.sendTaskNotificationToWatch(
+                id: task.id,
+                title: task.title,
+                details: task.details,
+                urgent: task.priority == "high"
+            )
+        }
     }
 
     @MainActor
@@ -692,19 +730,15 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
+    @MainActor
     private func notifyLocalAlertIfNeeded(_ alert: AiAlert) {
         guard notifiedAlertIds.insert(alert.id).inserted else { return }
-        let content = UNMutableNotificationContent()
-        content.title = alert.title
-        content.body = alert.spokenText
-        content.sound = .default
-
-        let request = UNNotificationRequest(
-            identifier: "antigravity.ai.alert.\(alert.id)",
-            content: content,
-            trigger: nil
+        PhoneAlertCoordinator.shared.notifyAiAlert(
+            id: alert.id,
+            title: alert.title,
+            spokenText: alert.spokenText,
+            severity: alert.severity
         )
-        UNUserNotificationCenter.current().add(request)
     }
 
     private func applyTelemetry(_ data: WatchTelemetryData) {
@@ -809,6 +843,9 @@ class DashboardViewModel: ObservableObject {
             computed[type] = assessment.effectiveStatus
         }
 
+        let previousOverallStatus = overallStatus
+        let previousIndicatorStatuses = indicatorStatuses
+
         indicatorTrends = trends
         indicatorStatuses = computed
 
@@ -831,7 +868,54 @@ class DashboardViewModel: ObservableObject {
             connectionStatus = "VERİ BEKLENİYOR"
         }
 
+        if isReadyForStatusNotifications {
+            notifyStatusTransitionIfNeeded(
+                previousOverall: previousOverallStatus,
+                previousIndicators: previousIndicatorStatuses,
+                newOverall: worst,
+                newIndicators: computed
+            )
+        }
         reconcileGuidanceWithCurrentState()
+    }
+
+    private func notifyStatusTransitionIfNeeded(
+        previousOverall: HealthStatus,
+        previousIndicators: [HealthIndicatorType: HealthStatus],
+        newOverall: HealthStatus,
+        newIndicators: [HealthIndicatorType: HealthStatus]
+    ) {
+        let enteredCriticalIndicators = HealthIndicatorType.allCases.filter {
+            newIndicators[$0] == .red && previousIndicators[$0] != .red
+        }
+        let enteredWarningIndicators = HealthIndicatorType.allCases.filter {
+            newIndicators[$0] == .amber && previousIndicators[$0] != .amber && previousIndicators[$0] != .red
+        }
+
+        if newOverall == .red,
+           (previousOverall != .red || !enteredCriticalIndicators.isEmpty),
+           !activeAlerts.contains(where: { $0.severity == .red }) {
+            let criticalTypes = HealthIndicatorType.allCases.filter { newIndicators[$0] == .red }
+            let summary = criticalTypes.map { "\($0.displayName) \(formattedGuidanceValue(for: $0))" }
+                .joined(separator: ", ")
+            PhoneAlertCoordinator.shared.notifyStatusEscalation(
+                severity: .red,
+                summary: summary.isEmpty ? "Kritik sağlık eşiği aşıldı." : "\(summary) kritik seviyede!"
+            )
+            return
+        }
+
+        if newOverall == .amber,
+           (previousOverall == .green || previousOverall == .missing || !enteredWarningIndicators.isEmpty),
+           activeAlerts.isEmpty {
+            let warningTypes = HealthIndicatorType.allCases.filter { newIndicators[$0] == .amber }
+            let summary = warningTypes.map { "\($0.displayName) \(formattedGuidanceValue(for: $0))" }
+                .joined(separator: ", ")
+            PhoneAlertCoordinator.shared.notifyStatusEscalation(
+                severity: .amber,
+                summary: summary.isEmpty ? "Sağlık eşiği uyarı seviyesinde." : "\(summary) dikkat gerektiriyor."
+            )
+        }
     }
 
     /// Keeps the Dashboard's AI card and per-indicator sheets consistent whenever local status
