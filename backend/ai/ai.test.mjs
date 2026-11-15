@@ -293,7 +293,7 @@ test('chat fallback: medication and off-topic asks get a safe redirect, never a 
   const pizza = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Bana bir pizza tarifi ver.' }] });
   assert.match(pizza.reply, /yardımcı olamam/);
   assert.deepEqual(pizza.indicators, []);
-  const ok = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Elena nasıl?' }] });
+  const ok = await ai.chat({ crewId: 'crew-1', messages: [{ role: 'user', text: 'Emirhan nasıl?' }] });
   assert.doesNotMatch(ok.reply, /yardımcı olamam/, 'real health questions still get answers');
 });
 
@@ -383,7 +383,7 @@ test('Gemini prompt carries the detected readings, the other abnormal values and
   await ai.idle();
   assert.match(system, /Scenario: cabin-hypoxia\. Severity: red/);
   assert.match(system, /Kabin: Cabin oxygen \(ppO2\) = 18\.6 kPa/);
-  assert.match(system, /Dr\. Elena Vance: .* = 91 % \(amber\)/);
+  assert.match(system, /Emirhan Gokce: .* = 91 % \(amber\)/);
   assert.match(system, /FINAL/);
   assert.match(system, /Safe baseline advice/);
 });
@@ -791,4 +791,32 @@ test('every red alert the demo can raise has its phrase in the voice-clip list',
   for (const incident of INCIDENTS) for (const phase of incident.phases) { ai.onCabinHint(phase.cabinHint); collect(ai); }
   assert.ok(spoken.size >= 15, `collected ${spoken.size}`);
   assert.deepEqual([...spoken].filter((t) => !phrases.has(t)), []);
+});
+
+test('a scenario ends by itself: alerts and vitals return to normal when its time is up', async () => {
+  process.env.DEMO_SCENARIO_MS = '60';
+  try {
+    const { ai, packets } = setup();
+    const before = packets[1].measurements.heartRate.value;
+    const { json } = await call(ai, 'POST', '/api/ai/demo/orthostatic');
+    assert.equal(json.durationMs, 60);
+    assert.ok(json.endsAt);
+    assert.ok(active(ai).some((a) => a.scenarioId === 'orthostatic'));
+    await new Promise((r) => setTimeout(r, 200));
+    assert.equal(packets[1].measurements.heartRate.value, before);
+    assert.ok(!active(ai).some((a) => a.scenarioId === 'orthostatic'));
+  } finally {
+    delete process.env.DEMO_SCENARIO_MS;
+  }
+});
+
+test('a one-astronaut scenario can be aimed at a chosen astronaut', async () => {
+  const { ai, packets } = setup();
+  const before = packets[0].measurements.heartRate.value;
+  await call(ai, 'POST', '/api/ai/demo/orthostatic', { crewId: 'crew-1' });
+  assert.equal(packets[0].measurements.heartRate.value, 112);
+  assert.ok(active(ai).some((a) => a.scenarioId === 'orthostatic' && a.crewIds.includes('crew-1')));
+  assert.equal((await call(ai, 'POST', '/api/ai/demo/orthostatic', { crewId: 'crew-9' })).status, 404);
+  await call(ai, 'POST', '/api/ai/demo/reset');
+  assert.equal(packets[0].measurements.heartRate.value, before);
 });

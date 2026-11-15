@@ -32,7 +32,8 @@ export function sendChat(context: ChatContext, history: ChatMessage[]): Promise<
 export const ackAlert = (id: string, deviceId?: string) =>
   request<Alert>('POST', `/api/ai/alerts/${encodeURIComponent(id)}/ack`, deviceId ? { deviceId } : { by: 'cockpit' })
 export const listScenarios = () => request<string[]>('GET', '/api/ai/demo', undefined, 3_000)
-export const runScenario = (id: string) => request<{ ok: boolean; created: string[] }>('POST', `/api/ai/demo/${encodeURIComponent(id)}`)
+export const runScenario = (id: string, crewId?: string) =>
+  request<{ ok: boolean; created: string[]; durationMs: number; endsAt: string | null }>('POST', `/api/ai/demo/${encodeURIComponent(id)}`, crewId ? { crewId } : undefined)
 export const resetDemo = () => request<{ ok: boolean }>('POST', '/api/ai/demo/reset')
 
 export interface StreamIdentity { deviceId: string; crewId: string; name?: string; platform?: string }

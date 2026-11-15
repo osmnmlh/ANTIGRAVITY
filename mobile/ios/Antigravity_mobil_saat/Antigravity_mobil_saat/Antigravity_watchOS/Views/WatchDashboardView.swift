@@ -43,8 +43,11 @@ struct WatchDashboardView: View {
     private var statusGlancePage: some View {
         ScrollView {
             VStack(spacing: 8) {
-                if let title = coordinator.uppercaseWarningTitle,
-                   let detail = coordinator.uppercaseWarningDetail {
+                if let title = coordinator.remoteAlertTitle,
+                   let detail = coordinator.remoteAlertDetail {
+                    alertCard(title: title, detail: detail, isRemote: true)
+                } else if let title = coordinator.uppercaseWarningTitle,
+                          let detail = coordinator.uppercaseWarningDetail {
                     alertCard(title: title, detail: detail)
                 } else {
                     normalStatusHeader
@@ -177,10 +180,11 @@ struct WatchDashboardView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func alertCard(title: String, detail: String) -> some View {
-        VStack(spacing: 5) {
+    private func alertCard(title: String, detail: String, isRemote: Bool = false) -> some View {
+        let isRed = isRemote ? coordinator.remoteAlertSeverity == .red : coordinator.overallStatus == .red
+        return VStack(spacing: 5) {
             HStack(spacing: 5) {
-                Image(systemName: coordinator.overallStatus == .red ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+                Image(systemName: isRed ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
                     .font(.title3)
                 Text(hapticBadgeText)
                     .font(.system(size: 11, weight: .heavy))
@@ -198,14 +202,14 @@ struct WatchDashboardView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.95))
 
-            Text("Simüle Edilen Veri")
+            Text(isRemote ? "Ana üs uyarısı" : "Simüle Edilen Veri")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.8))
         }
         .frame(maxWidth: .infinity)
         .padding(9)
         .background(
-            coordinator.overallStatus == .red ? Color.red : Color.orange,
+            isRed ? Color.red : Color.orange,
             in: RoundedRectangle(cornerRadius: 14)
         )
     }

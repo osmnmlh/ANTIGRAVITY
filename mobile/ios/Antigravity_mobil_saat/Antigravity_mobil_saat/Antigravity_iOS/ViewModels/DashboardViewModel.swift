@@ -14,12 +14,27 @@ struct MissionTask: Identifiable, Equatable {
     var title: String
     var detail: String
     var isCompleted: Bool
+    /// Set for tasks assigned from the web (Ana üs); these are synced with the relay.
+    var remoteId: String?
 
-    init(id: UUID = UUID(), title: String, detail: String = "Günlük Protokol", isCompleted: Bool = false) {
+    init(id: UUID = UUID(), title: String, detail: String = "Günlük Protokol", isCompleted: Bool = false, remoteId: String? = nil) {
         self.id = id
         self.title = title
         self.detail = detail
         self.isCompleted = isCompleted
+        self.remoteId = remoteId
+    }
+
+    init(remote: RemoteMissionTask) {
+        let note = (remote.details ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = remote.priority == "high" ? "Yüksek öncelik • " : ""
+        self.init(
+            id: UUID(uuidString: remote.id) ?? UUID(),
+            title: remote.title,
+            detail: prefix + (note.isEmpty ? "Ana üsten atandı" : note),
+            isCompleted: remote.completed,
+            remoteId: remote.id
+        )
     }
 }
 
@@ -39,7 +54,9 @@ class DashboardViewModel: ObservableObject {
     @Published var crewId: String = Constants.defaultCrewId
     @Published var astronautPacket: AstronautHealthPacket?
     @Published var aiGuidance: AiGuidance?
-    @Published var activeAlerts: [AiAlert] = []
+    @Published var activeAlerts: [AiAlert] = [] {
+        didSet { forwardActiveAlertToWatch() }
+    }
     @Published var lastWatchSyncAt: Date?
     @Published var isSyncingBackend: Bool = false
     @Published var lastSampleSyncMessage: String?
@@ -223,10 +240,13 @@ class DashboardViewModel: ObservableObject {
             for await event in NetworkManager.shared.streamRelayEvents() {
                 guard let self, !Task.isCancelled else { break }
                 switch event {
-                case .hello(let packets):
+                case .hello(let packets, let tasks):
                     if let mine = packets.first(where: { $0.astronautId == targetCrewId }) {
                         self.applyPacket(mine, fromBackend: true)
                     }
+                    self.replaceRemoteTasks(tasks)
+                case .taskChanged(let action, let task):
+                    self.applyRemoteTaskChange(action: action, task: task)
                 case .packet(let packet):
                     if packet.astronautId == targetCrewId {
                         self.applyPacket(packet, fromBackend: true)
@@ -361,6 +381,35 @@ class DashboardViewModel: ObservableObject {
     func toggleMission(_ task: MissionTask) {
         guard let index = missionTasks.firstIndex(where: { $0.id == task.id }) else { return }
         missionTasks[index].isCompleted.toggle()
+        if let remoteId = missionTasks[index].remoteId {
+            let completed = missionTasks[index].isCompleted
+            Task { await NetworkManager.shared.setTaskCompleted(id: remoteId, completed: completed) }
+        }
+    }
+
+    // MARK: - Tasks assigned from the web (Ana üs)
+
+    /// The relay's list for this astronaut replaces the previously synced tasks; locally added ones stay.
+    @MainActor
+    private func replaceRemoteTasks(_ remote: [RemoteMissionTask]) {
+        let mine = remote.filter { $0.assigneeId == crewId }
+        let localOnly = missionTasks.filter { $0.remoteId == nil }
+        missionTasks = mine.reversed().map(MissionTask.init(remote:)) + localOnly
+    }
+
+    @MainActor
+    private func applyRemoteTaskChange(action: String, task: RemoteMissionTask) {
+        guard task.assigneeId == crewId else { return }
+        if action == "delete" {
+            missionTasks.removeAll { $0.remoteId == task.id }
+            return
+        }
+        let updated = MissionTask(remote: task)
+        if let index = missionTasks.firstIndex(where: { $0.remoteId == task.id }) {
+            missionTasks[index] = updated
+        } else {
+            missionTasks.insert(updated, at: 0)
+        }
     }
 
     func addMission(title: String, detail: String = "Özel Protokol") {
@@ -371,6 +420,9 @@ class DashboardViewModel: ObservableObject {
 
     func deleteMission(_ task: MissionTask) {
         missionTasks.removeAll { $0.id == task.id }
+        if let remoteId = task.remoteId {
+            Task { await NetworkManager.shared.deleteTask(id: remoteId) }
+        }
     }
 
     // MARK: - Private
@@ -536,6 +588,19 @@ class DashboardViewModel: ObservableObject {
         case .alertUpdate(let alert):
             upsertAlert(alert)
         }
+    }
+
+    /// The most serious active alert (a backend scenario or a health alert) is mirrored to the Apple Watch;
+    /// an empty list tells the watch that everything is normal again.
+    private func forwardActiveAlertToWatch() {
+        let top = activeAlerts.first(where: { $0.severity == .red }) ?? activeAlerts.first
+        let payload = WatchAlertPayload(
+            active: top != nil,
+            title: top?.title ?? "",
+            detail: top?.spokenText ?? "",
+            severity: top.map { $0.severity == .red ? "red" : "amber" } ?? "green"
+        )
+        ConnectivityManager.shared.sendAlertState(payload)
     }
 
     @MainActor

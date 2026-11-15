@@ -36,13 +36,33 @@ struct AiChatResponse: Codable, Sendable {
     let escalation: String?
 }
 
+/// A mission task assigned from the web (Ana üs) via `POST /api/tasks`; `assigneeId` is the astronaut's crewId.
+struct RemoteMissionTask: Codable, Sendable, Equatable {
+    let id: String
+    let title: String
+    let details: String?
+    let assigneeId: String
+    let dueAt: String?
+    let priority: String?
+    let completed: Bool
+}
+
+struct RelayTaskPayload: Codable, Sendable {
+    let action: String
+    let task: RemoteMissionTask
+}
+
 struct RelayHelloPayload: Codable, Sendable {
     let astronauts: [AstronautHealthPacket]
+    /// Absent on relays that predate mission tasks.
+    let tasks: [RemoteMissionTask]?
 }
 
 enum RelayStreamEvent: Sendable {
-    case hello([AstronautHealthPacket])
+    /// `tasks` is empty when the relay predates mission tasks.
+    case hello([AstronautHealthPacket], tasks: [RemoteMissionTask])
     case packet(AstronautHealthPacket)
+    case taskChanged(action: String, task: RemoteMissionTask)
 }
 
 enum AiStreamEvent: Sendable {
@@ -287,6 +307,28 @@ final class NetworkManager {
         }
     }
 
+    /// Tells the relay a mission task was (un)completed on this phone: `POST /api/tasks/:id/complete`.
+    func setTaskCompleted(id: String, completed: Bool) async {
+        await postTaskAction(id: id, action: "complete", body: ["completed": completed])
+    }
+
+    /// Removes a mission task on the relay: `POST /api/tasks/:id/delete`.
+    func deleteTask(id: String) async {
+        await postTaskAction(id: id, action: "delete", body: [String: Bool]())
+    }
+
+    private func postTaskAction(id: String, action: String, body: [String: Bool]) async {
+        guard let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(Constants.apiBaseURL)/api/tasks/\(encoded)/\(action)") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONEncoder().encode(body)
+        // Local state already changed; a failed sync is retried implicitly by the next hello on reconnect.
+        _ = try? await session.data(for: request)
+    }
+
     private func postAlertDeviceAction(url: URL, deviceId: String) async throws -> AiAlert {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -306,12 +348,17 @@ final class NetworkManager {
             guard let payload = try? HealthJSONCodec.decoder.decode(RelayHelloPayload.self, from: jsonData) else {
                 return nil
             }
-            return .hello(payload.astronauts)
+            return .hello(payload.astronauts, tasks: payload.tasks ?? [])
         case "packet":
             guard let packet = try? HealthJSONCodec.decoder.decode(AstronautHealthPacket.self, from: jsonData) else {
                 return nil
             }
             return .packet(packet)
+        case "task":
+            guard let payload = try? HealthJSONCodec.decoder.decode(RelayTaskPayload.self, from: jsonData) else {
+                return nil
+            }
+            return .taskChanged(action: payload.action, task: payload.task)
         default:
             return nil
         }
