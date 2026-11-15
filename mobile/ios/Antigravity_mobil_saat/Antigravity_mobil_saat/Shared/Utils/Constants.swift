@@ -87,7 +87,7 @@ enum Constants {
 
     static func taskToggleURL(taskId: String) -> URL? {
         let encoded = taskId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? taskId
-        return URL(string: "\(apiBaseURL)/api/tasks/\(encoded)/toggle")
+        return URL(string: "\(apiBaseURL)/api/tasks/\(encoded)/complete")
     }
 
     static func taskDeleteURL(taskId: String) -> URL? {

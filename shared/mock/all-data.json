@@ -6,7 +6,7 @@
   "astronauts": [
     {
       "astronautId": "crew-1",
-      "fullName": "Dr. Elena Vance",
+      "fullName": "Emirhan Gokce",
       "role": "Mission Commander & Flight Medical Officer",
       "mission": {
         "name": "Ares-IV Mars Transit",
@@ -852,7 +852,7 @@
     },
     {
       "astronautId": "crew-2",
-      "fullName": "Cmdr. Marcus Chen",
+      "fullName": "Omer Ozcan",
       "role": "Flight Engineer",
       "mission": {
         "name": "Ares-IV Mars Transit",
@@ -1696,7 +1696,7 @@
     },
     {
       "astronautId": "crew-3",
-      "fullName": "Dr. Aria Demir",
+      "fullName": "Ahmet Ozkan",
       "role": "Payload & Life Sciences Specialist",
       "mission": {
         "name": "Artemis Lunar South Pole Base",

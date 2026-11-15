@@ -18,6 +18,15 @@ struct RemoteWatchTelemetryPayload: Sendable {
     let timestamp: Date
 }
 
+/// The alert the iPhone shows (a backend scenario or a health alert), mirrored to the paired Apple Watch.
+struct WatchAlertPayload: Equatable, Sendable {
+    let active: Bool
+    let title: String
+    let detail: String
+    /// `red`, `amber` or `green` (nothing active).
+    let severity: String
+}
+
 /// Shared WatchConnectivity bridge syncing `HealthSample` batches between Apple Watch and iPhone.
 final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = ConnectivityManager()
@@ -33,6 +42,33 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     var onSymptomsReceived: (([String]) -> Void)?
     /// Callback triggered on the main queue on Apple Watch whenever iPhone forwards live Web/backend vitals.
     var onRemoteTelemetryReceived: ((RemoteWatchTelemetryPayload) -> Void)?
+    /// Callback triggered on the main queue (Watch side) whenever the iPhone forwards its active alert.
+    var onAlertReceived: ((WatchAlertPayload) -> Void)?
+
+    private var lastSentAlert: WatchAlertPayload?
+
+    /// iPhone -> Watch: the alert that is active right now (or `active == false` when everything is normal again).
+    /// The application context keeps the latest state for a watch that is not reachable; a live message makes it instant.
+    func sendAlertState(_ alert: WatchAlertPayload) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+        guard alert != lastSentAlert else { return }
+        lastSentAlert = alert
+
+        let payload: [String: Any] = [
+            "scenarioAlert": [
+                "active": alert.active,
+                "title": alert.title,
+                "detail": alert.detail,
+                "severity": alert.severity
+            ]
+        ]
+        try? session.updateApplicationContext(payload)
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        }
+    }
 
     /// Sends Watch vital samples alongside reported symptoms to the paired iPhone.
     func sendQuickCheckIn(samples: [HealthSample], symptoms: [String]) {
@@ -170,6 +206,18 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
             handleIncomingData(data)
         } else if let data = payload["sample"] as? Data {
             handleIncomingData(data)
+        }
+
+        if let dict = payload["scenarioAlert"] as? [String: Any], let active = dict["active"] as? Bool {
+            let alert = WatchAlertPayload(
+                active: active,
+                title: dict["title"] as? String ?? "",
+                detail: dict["detail"] as? String ?? "",
+                severity: dict["severity"] as? String ?? "red"
+            )
+            DispatchQueue.main.async { [weak self] in
+                self?.onAlertReceived?(alert)
+            }
         }
 
         if let symptoms = payload["symptoms"] as? [String] {

@@ -350,6 +350,42 @@ struct RemoteWebTask: Codable, Equatable, Sendable, Identifiable {
     let priority: String
     let completed: Bool
     let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, details, assigneeId, dueAt, priority, completed, createdAt
+    }
+
+    init(
+        id: String,
+        title: String,
+        details: String = "",
+        assigneeId: String,
+        dueAt: String = "",
+        priority: String = "normal",
+        completed: Bool = false,
+        createdAt: String = ""
+    ) {
+        self.id = id
+        self.title = title
+        self.details = details
+        self.assigneeId = assigneeId
+        self.dueAt = dueAt
+        self.priority = priority
+        self.completed = completed
+        self.createdAt = createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        details = try container.decodeIfPresent(String.self, forKey: .details) ?? ""
+        assigneeId = try container.decode(String.self, forKey: .assigneeId)
+        dueAt = try container.decodeIfPresent(String.self, forKey: .dueAt) ?? ""
+        priority = try container.decodeIfPresent(String.self, forKey: .priority) ?? "normal"
+        completed = try container.decodeIfPresent(Bool.self, forKey: .completed) ?? false
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+    }
 }
 
 enum HealthJSONCodec {

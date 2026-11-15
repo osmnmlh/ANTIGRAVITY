@@ -31,6 +31,11 @@ final class AlertCoordinator: ObservableObject {
     @Published private(set) var lastSyncDate: Date?
     @Published private(set) var lastCheckInMessage: String?
 
+    /// Alert mirrored from the iPhone (a backend scenario played from the web).
+    @Published private(set) var remoteAlertTitle: String?
+    @Published private(set) var remoteAlertDetail: String?
+    @Published private(set) var remoteAlertSeverity: HealthStatus = .green
+
     let hapticManager: HapticManager
     let notificationController: NotificationController
 
@@ -40,7 +45,7 @@ final class AlertCoordinator: ObservableObject {
     private var lastVitalsPushDate: Date?
     private var lastRemoteSyncDate: Date?
     private var remoteOverallStatus: HealthStatus = .green
-    private var remoteAlertTitle: String?
+    private var remoteTelemetryAlertTitle: String?
     private var isRunning = false
     private let sideEffectsEnabled: Bool
 
@@ -66,7 +71,7 @@ final class AlertCoordinator: ObservableObject {
                 guard let self, !self.isSimulatingSpike else { return }
                 self.lastRemoteSyncDate = payload.timestamp
                 self.remoteOverallStatus = payload.overallStatus
-                self.remoteAlertTitle = payload.alertTitle
+                self.remoteTelemetryAlertTitle = payload.alertTitle
                 self.lastSyncDate = Date()
                 self.applyReadings(
                     heartRate: payload.heartRate,
@@ -75,6 +80,11 @@ final class AlertCoordinator: ObservableObject {
                     remoteStatus: payload.overallStatus,
                     remoteAlertTitle: payload.alertTitle
                 )
+            }
+            ConnectivityManager.shared.onAlertReceived = { [weak self] alert in
+                Task { @MainActor [weak self] in
+                    self?.applyRemoteAlert(alert)
+                }
             }
             ConnectivityManager.shared.activate()
             notificationController.requestAuthorization()
@@ -90,6 +100,26 @@ final class AlertCoordinator: ObservableObject {
         isRunning = false
         telemetryService.stopMonitoring()
         hapticManager.stopContinuousAlert()
+    }
+
+    /// Shows (and vibrates for) the alert the paired iPhone is playing; clears it when the iPhone says it is over.
+    func applyRemoteAlert(_ alert: WatchAlertPayload) {
+        if alert.active {
+            remoteAlertTitle = alert.title.uppercased(with: Self.turkishLocale)
+            remoteAlertDetail = alert.detail
+            remoteAlertSeverity = alert.severity == "red" ? .red : .amber
+            if sideEffectsEnabled && !isMuted {
+                hapticManager.startContinuousAlert(urgent: alert.severity == "red")
+            }
+        } else {
+            remoteAlertTitle = nil
+            remoteAlertDetail = nil
+            remoteAlertSeverity = .green
+            // The watch's own vitals alert keeps vibrating if it is still active.
+            if sideEffectsEnabled && overallStatus != .amber && overallStatus != .red {
+                hapticManager.stopContinuousAlert()
+            }
+        }
     }
 
     func toggleMute() {
@@ -229,8 +259,8 @@ final class AlertCoordinator: ObservableObject {
         overallStatus = highest
 
         var breaches = buildBreachMessages(hrStatus: hrStatus, o2Status: o2Status, tempStatus: tempStatus)
-        if breaches.isEmpty, let remoteAlertTitle, !remoteAlertTitle.isEmpty, highest == .amber || highest == .red {
-            breaches.append(remoteAlertTitle)
+        if breaches.isEmpty, let remoteTelemetryAlertTitle, !remoteTelemetryAlertTitle.isEmpty, highest == .amber || highest == .red {
+            breaches.append(remoteTelemetryAlertTitle)
         }
 
         if highest == .amber || highest == .red, !breaches.isEmpty {

@@ -26,10 +26,14 @@ class DashboardViewModel: ObservableObject {
     @Published var astronautPacket: AstronautHealthPacket?
     @Published var aiGuidance: AiGuidance?
     @Published private(set) var latestBackendGuidance: AiGuidance?
-    @Published var activeAlerts: [AiAlert] = []
+    @Published var activeAlerts: [AiAlert] = [] {
+        didSet { forwardActiveAlertToWatch() }
+    }
     @Published private(set) var webAssignedTasks: [RemoteWebTask] = []
     @Published private(set) var hasSyncedWebTasks: Bool = false
     @Published private(set) var houstonSyncRevision: Int = 0
+    /// Direct callback invoked on the main actor the moment new alerts, guidance, or web tasks arrive.
+    var onMissionSyncNeeded: (() -> Void)?
     @Published var lastWatchSyncAt: Date?
     @Published var isSyncingBackend: Bool = false
     @Published var lastSampleSyncMessage: String?
@@ -47,6 +51,7 @@ class DashboardViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var aiStreamTask: Task<Void, Never>?
     private var relayStreamTask: Task<Void, Never>?
+    private var taskPollTask: Task<Void, Never>?
     private var journalAnalysisTask: Task<Void, Never>?
     private var notifiedAlertIds = Set<String>()
     private var acknowledgedAlertKeys: Set<String> = Set(
@@ -159,6 +164,7 @@ class DashboardViewModel: ObservableObject {
         telemetryService.stopMonitoring()
         aiStreamTask?.cancel()
         relayStreamTask?.cancel()
+        taskPollTask?.cancel()
         journalAnalysisTask?.cancel()
     }
 
@@ -195,24 +201,93 @@ class DashboardViewModel: ObservableObject {
                 switch event {
                 case .hello(let packets, let tasks):
                     if let tasks {
-                        self.webAssignedTasks = tasks.filter { $0.assigneeId == targetCrewId }
-                        self.hasSyncedWebTasks = true
-                        self.houstonSyncRevision &+= 1
+                        self.applyWebTaskSnapshot(tasks, crewId: targetCrewId)
                     }
                     if let mine = packets.first(where: { $0.astronautId == targetCrewId }) {
                         self.applyPacket(mine, fromBackend: true)
                     }
+                case .taskChanged(let action, let task):
+                    self.applyRemoteTaskChange(action: action, task: task, crewId: targetCrewId)
                 case .packet(let packet):
                     if packet.astronautId == targetCrewId {
                         self.applyPacket(packet, fromBackend: true)
                     }
                 case .tasks(let tasks):
-                    self.webAssignedTasks = tasks.filter { $0.assigneeId == targetCrewId }
-                    self.hasSyncedWebTasks = true
-                    self.houstonSyncRevision &+= 1
+                    self.applyWebTaskSnapshot(tasks, crewId: targetCrewId)
                 }
             }
         }
+    }
+
+    /// Lightweight periodic task poll as a safety net alongside live SSE (`event: task`).
+    @MainActor
+    func startTaskPolling() {
+        guard taskPollTask == nil else { return }
+        taskPollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard let self, !Task.isCancelled else { break }
+                await self.refreshTasksOnly()
+            }
+        }
+    }
+
+    /// Re-establishes SSE sockets and pulls fresh tasks/packets when the app returns to the foreground.
+    @MainActor
+    func handleAppDidBecomeActive() async {
+        aiStreamTask?.cancel()
+        aiStreamTask = nil
+        relayStreamTask?.cancel()
+        relayStreamTask = nil
+        startAiAlertStream()
+        startRelayStream()
+        startTaskPolling()
+        await syncFromBackend()
+    }
+
+    @MainActor
+    func refreshTasksOnly() async {
+        let targetCrewId = crewId
+        guard let fetchedTasks = try? await NetworkManager.shared.fetchTasks(crewId: targetCrewId) else {
+            return
+        }
+        applyWebTaskSnapshot(fetchedTasks, crewId: targetCrewId)
+    }
+
+    @MainActor
+    private func applyWebTaskSnapshot(_ tasks: [RemoteWebTask], crewId targetCrewId: String) {
+        let mine = tasks.filter { $0.assigneeId == targetCrewId }
+        guard !hasSyncedWebTasks || mine != webAssignedTasks else { return }
+        webAssignedTasks = mine
+        hasSyncedWebTasks = true
+        notifyMissionSyncNeeded()
+    }
+
+    @MainActor
+    private func applyRemoteTaskChange(action: String, task: RemoteWebTask, crewId targetCrewId: String) {
+        if action == "delete" || task.assigneeId != targetCrewId {
+            let before = webAssignedTasks.count
+            webAssignedTasks.removeAll { $0.id == task.id }
+            hasSyncedWebTasks = true
+            if webAssignedTasks.count != before || action == "delete" {
+                notifyMissionSyncNeeded()
+            }
+            return
+        }
+
+        if let index = webAssignedTasks.firstIndex(where: { $0.id == task.id }) {
+            webAssignedTasks[index] = task
+        } else {
+            webAssignedTasks.insert(task, at: 0)
+        }
+        hasSyncedWebTasks = true
+        notifyMissionSyncNeeded()
+    }
+
+    @MainActor
+    private func notifyMissionSyncNeeded() {
+        houstonSyncRevision &+= 1
+        onMissionSyncNeeded?()
     }
 
     @MainActor
@@ -226,7 +301,7 @@ class DashboardViewModel: ObservableObject {
         activeAlerts.removeAll { $0.id == alert.id }
         if inserted || removedAny {
             reconcileGuidanceWithCurrentState()
-            houstonSyncRevision &+= 1
+            notifyMissionSyncNeeded()
             forwardLatestStateToWatch(force: true)
         }
         try? await NetworkManager.shared.acknowledgeAlert(alertId: alert.id, deviceId: Constants.deviceId)
@@ -257,8 +332,7 @@ class DashboardViewModel: ObservableObject {
                 sampleHistory = Array(fetchedSamples.filter { $0.crewId == targetCrewId }.suffix(500))
             }
             if let fetchedTasks = await webTasksTask {
-                webAssignedTasks = fetchedTasks.filter { $0.assigneeId == targetCrewId }
-                hasSyncedWebTasks = true
+                applyWebTaskSnapshot(fetchedTasks, crewId: targetCrewId)
             }
             applyPacket(packet, fromBackend: true)
         } catch {
@@ -428,7 +502,7 @@ class DashboardViewModel: ObservableObject {
         }
         recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
         if fromBackend {
-            houstonSyncRevision &+= 1
+            notifyMissionSyncNeeded()
             forwardLatestStateToWatch(force: overallStatus != .green)
         }
     }
@@ -556,8 +630,21 @@ class DashboardViewModel: ObservableObject {
             upsertAlert(alert)
         }
         reconcileGuidanceWithCurrentState()
-        houstonSyncRevision &+= 1
+        notifyMissionSyncNeeded()
         forwardLatestStateToWatch(force: true)
+    }
+
+    /// The most serious active alert (a backend scenario or a health alert) is mirrored to the Apple Watch;
+    /// an empty list tells the watch that everything is normal again.
+    private func forwardActiveAlertToWatch() {
+        let top = activeAlerts.first(where: { $0.severity == .red }) ?? activeAlerts.first
+        let payload = WatchAlertPayload(
+            active: top != nil,
+            title: top?.title ?? "",
+            detail: top?.spokenText ?? "",
+            severity: top.map { $0.severity == .red ? "red" : "amber" } ?? "green"
+        )
+        ConnectivityManager.shared.sendAlertState(payload)
     }
 
     @MainActor

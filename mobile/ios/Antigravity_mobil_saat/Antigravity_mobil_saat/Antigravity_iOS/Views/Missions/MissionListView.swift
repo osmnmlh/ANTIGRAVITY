@@ -19,6 +19,7 @@ private enum MissionFilter: String, CaseIterable, Identifiable {
 /// Persistent astronaut TODO mission list supporting personal tasks and Houston-issued directives.
 struct MissionListView: View {
     @ObservedObject var viewModel: MissionViewModel
+    var onRefresh: (() async -> Void)? = nil
 
     @State private var selectedFilter: MissionFilter = .all
     @State private var isShowingComposer = false
@@ -73,6 +74,9 @@ struct MissionListView: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 24)
+        }
+        .refreshable {
+            await onRefresh?()
         }
         .navigationTitle("Görevler")
         .navigationBarTitleDisplayMode(.large)

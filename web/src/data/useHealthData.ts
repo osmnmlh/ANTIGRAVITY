@@ -63,11 +63,22 @@ function mergeSamples(current: HealthSample[], incoming: HealthSample[]) {
   return Array.from(samplesByKey.values())
 }
 
+export type MissionEnvironment = 'iss' | 'lunar' | 'mars'
+
+// The relay's packets are the source of truth for names, roles and missions; the web only derives scenery from them.
+function missionEnvironment(environment: string, missionName: string): MissionEnvironment {
+  if (environment === 'lunarBase') return 'lunar'
+  return /mars/i.test(missionName) ? 'mars' : 'iss'
+}
+
 export const astronautProfiles = astronautPacketData.astronauts.map((astronaut, index) => ({
   id: astronaut.astronautId,
   name: astronaut.fullName,
   role: astronaut.role,
   missionName: astronaut.mission.name,
+  environment: missionEnvironment(astronaut.mission.environment, astronaut.mission.name),
+  missionDay: astronaut.mission.missionDay,
+  commsDelayMinutes: astronaut.mission.commsDelayMinutes,
   radiationBudgetMsv: astronaut.mission.radiationBudgetMsv,
   code: `AST-${String(index + 1).padStart(2, '0')}`,
 }))

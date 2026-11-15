@@ -13,7 +13,7 @@ const lead = (status) => (status === 'red' ? 'Uyarı.' : 'Dikkat.');
 const lower = (s) => s.toLocaleLowerCase('tr-TR');
 const cap = (s) => s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1);
 
-/** Name without rank prefix, for speech ("Cmdr. Marcus Chen" → "Marcus Chen"). */
+/** Name without rank prefix, for speech ("Omer Ozcan" → "Omer Ozcan"). */
 const spokenName = (name) => name.replace(/^(Dr|Cmdr|Cdr|Capt|Lt)\.\s*/i, '');
 
 const GAS = { ammonia: 'amonyak' };
@@ -215,7 +215,7 @@ function vitalRed(ctx, c, covered) {
 /**
  * Every phrase a RED alert can speak (amber is a tone only), for pre-rendering voice clips (make-voice-clips.mjs).
  * Keep in step with the `spoken` / `spokenText` templates above; ai.test.mjs checks the demo scenarios against it.
- * @param {string[]} crewNames  full names as in the packets ("Cmdr. Marcus Chen")
+ * @param {string[]} crewNames  full names as in the packets ("Omer Ozcan")
  * @param {string[]} vitalLabels  labels of the single-indicator "kritik" alerts (blood pressure is added here)
  */
 export function spokenPhrases(crewNames, vitalLabels) {

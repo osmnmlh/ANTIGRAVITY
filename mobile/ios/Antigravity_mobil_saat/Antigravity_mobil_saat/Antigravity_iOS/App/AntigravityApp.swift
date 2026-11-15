@@ -18,7 +18,9 @@ struct AntigravityApp: App {
 }
 
 struct MainTabContainerView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .dashboard
+    @State private var hasCompletedInitialSync = false
     @StateObject private var dashboardViewModel = DashboardViewModel()
     @StateObject private var missionViewModel = MissionViewModel()
     @StateObject private var journalViewModel = JournalViewModel()
@@ -53,7 +55,9 @@ struct MainTabContainerView: View {
                     case .missions:
                         NavigationStack {
                             tabBackground {
-                                MissionListView(viewModel: missionViewModel)
+                                MissionListView(viewModel: missionViewModel) {
+                                    await dashboardViewModel.refreshTasksOnly()
+                                }
                             }
                         }
                     case .journal:
@@ -71,11 +75,29 @@ struct MainTabContainerView: View {
             }
         }
         .task {
+            dashboardViewModel.onMissionSyncNeeded = {
+                syncMissionsAndAlerts()
+            }
             dashboardViewModel.updateJournalEntries(journalViewModel.entries, syncToBackend: false)
             dashboardViewModel.startAiAlertStream()
             dashboardViewModel.startRelayStream()
+            dashboardViewModel.startTaskPolling()
             await dashboardViewModel.syncFromBackend()
             syncMissionsAndAlerts()
+            hasCompletedInitialSync = true
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active, hasCompletedInitialSync else { return }
+            Task {
+                await dashboardViewModel.handleAppDidBecomeActive()
+            }
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == .missions {
+                Task {
+                    await dashboardViewModel.refreshTasksOnly()
+                }
+            }
         }
         .onChange(of: journalViewModel.entries) { _, updatedEntries in
             dashboardViewModel.updateJournalEntries(updatedEntries, syncToBackend: true)

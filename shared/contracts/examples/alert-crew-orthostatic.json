@@ -7,8 +7,8 @@
   "severity": "red",
   "scenarioId": "orthostatic",
   "hazardId": "gravityFields",
-  "title": "Cmdr. Marcus Chen: düşük tansiyon ve hızlı nabız",
-  "spokenText": "Uyarı. Marcus Chen için kan basıncı düşük.",
+  "title": "Omer Ozcan: düşük tansiyon ve hızlı nabız",
+  "spokenText": "Uyarı. Omer Ozcan için kan basıncı düşük.",
   "metrics": [
     {
       "kind": "vital",

@@ -557,10 +557,10 @@ export function getGuidance(
 
 // Dashboard UI wording (Turkish, from the web dashboard). Keep English labels above for backend/AI text.
 export const statusLabels: Record<HealthStatus, string> = {
-  green: 'NORMAL',
-  amber: 'DİKKAT',
-  red: 'KRİTİK',
-  missing: 'VERİ YOK',
+  green: 'Normal',
+  amber: 'Dikkat',
+  red: 'Kritik',
+  missing: 'Veri yok',
 };
 
 export const statusDescriptions: Record<HealthStatus, string> = {

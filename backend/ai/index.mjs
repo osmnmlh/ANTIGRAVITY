@@ -207,20 +207,33 @@ export function createAi(deps) {
   };
   const restore = new Map(); // "crewId:type" → sample that puts the value back on reset
 
-  function toSamples(list) {
-    return list.map((s) => (Array.isArray(s) ? { crewId: patient(), type: s[0], value: s[1] } : s))
+  // A demo scenario plays for a fixed time (default 15 s) on the web, every phone and every watch, then everything returns
+  // to normal through the same reset: the resolved alerts reach the devices in the `hello` that resetDemo() pushes.
+  const scenarioMs = Number(process.env.DEMO_SCENARIO_MS ?? 15_000);
+  let scenarioTimer = null;
+  const stopScenarioTimer = () => {
+    if (scenarioTimer) clearTimeout(scenarioTimer);
+    scenarioTimer = null;
+  };
+
+  function toSamples(list, crewId) {
+    return list.map((s) => (Array.isArray(s) ? { crewId: crewId ?? patient(), type: s[0], value: s[1] } : s))
       .map((s) => ({ ...s, source: 'mock', timestamp: now().toISOString() }));
   }
 
-  function runDemo(id) {
+  /** `crewId` picks who a one-astronaut scenario happens to (default: the second crew member, as in the rehearsal guide). */
+  function runDemo(id, crewId) {
     const demo = DEMOS[id];
+    if (crewId && !getPackets().some((p) => p.astronautId === crewId)) {
+      throw Object.assign(new Error(`unknown crewId: ${crewId}`), { status: 404 });
+    }
     if (!demo) throw Object.assign(new Error(`unknown scenario: ${id}`), { status: 404 });
     if (demo.vitals && !applySamples) {
       throw Object.assign(new Error('vital scenarios need deps.applySamples from the host'), { status: 501 });
     }
     if (demo.cabin) cabin.update(demo.cabin);
     if (demo.vitals) {
-      const samples = toSamples(demo.vitals());
+      const samples = toSamples(demo.vitals(), crewId);
       for (const s of samples) {
         const key = `${s.crewId}:${s.type}`;
         const prev = getPackets().find((p) => p.astronautId === s.crewId)?.measurements?.[s.type];
@@ -229,10 +242,20 @@ export function createAi(deps) {
       applySamples(samples);
     }
     hub.all('cabin', () => cabin.snapshot());
-    return run();
+    const result = run();
+    stopScenarioTimer();
+    if (scenarioMs > 0) {
+      scenarioTimer = setTimeout(() => {
+        scenarioTimer = null;
+        resetDemo();
+      }, scenarioMs);
+      scenarioTimer.unref?.();
+    }
+    return result;
   }
 
   function resetDemo() {
+    stopScenarioTimer();
     if (applySamples && restore.size) applySamples(toSamples([...restore.values()]));
     restore.clear();
     cabin.reset();
@@ -295,9 +318,15 @@ export function createAi(deps) {
     }],
     ['GET', /^\/api\/ai\/demo$/, () => Object.keys(DEMOS)],
     ['POST', /^\/api\/ai\/demo\/reset$/, () => { resetDemo(); return { ok: true }; }],
-    ['POST', /^\/api\/ai\/demo\/([\w-]+)$/, (_req, _url, [, id]) => {
-      const { created } = runDemo(id);
-      return { ok: true, created: created.map((a) => a.id) };
+    ['POST', /^\/api\/ai\/demo\/([\w-]+)$/, async (req, _url, [, id]) => {
+      const { crewId } = await readBody(req);
+      const { created } = runDemo(id, crewId);
+      return {
+        ok: true,
+        created: created.map((a) => a.id),
+        durationMs: scenarioMs,
+        endsAt: scenarioMs > 0 ? new Date(now().getTime() + scenarioMs).toISOString() : null,
+      };
     }],
   ];
 

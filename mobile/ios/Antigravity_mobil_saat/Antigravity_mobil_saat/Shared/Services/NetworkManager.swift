@@ -36,14 +36,23 @@ struct AiChatResponse: Codable, Sendable {
     let escalation: String?
 }
 
+/// SSE payload emitted by `POST /api/tasks`, `POST /api/tasks/:id/complete`, and `POST /api/tasks/:id/delete`.
+struct RelayTaskPayload: Codable, Sendable {
+    let action: String
+    let task: RemoteWebTask
+}
+
 struct RelayHelloPayload: Codable, Sendable {
     let astronauts: [AstronautHealthPacket]
+    /// Absent on relays that predate mission tasks.
     let tasks: [RemoteWebTask]?
 }
 
 enum RelayStreamEvent: Sendable {
+    /// `tasks` is nil when the relay predates mission tasks.
     case hello([AstronautHealthPacket], [RemoteWebTask]?)
     case packet(AstronautHealthPacket)
+    case taskChanged(action: String, task: RemoteWebTask)
     case tasks([RemoteWebTask])
 }
 
@@ -75,8 +84,16 @@ final class NetworkManager {
 
     private let session: URLSession
 
-    private init(session: URLSession = .shared) {
-        self.session = session
+    private init(session: URLSession? = nil) {
+        if let session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.urlCache = nil
+            config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            config.httpAdditionalHeaders = ["Cache-Control": "no-cache"]
+            self.session = URLSession(configuration: config)
+        }
     }
 
     /// Checks whether the Render relay backend is awake and ready.
@@ -160,9 +177,9 @@ final class NetworkManager {
 
                 while !Task.isCancelled {
                     do {
-                        var request = URLRequest(url: url)
+                        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 45)
                         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                        request.timeoutInterval = 300
+                        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
 
                         let (bytes, response) = try await session.bytes(for: request)
                         try validate(response: response)
@@ -189,7 +206,7 @@ final class NetworkManager {
                         if Task.isCancelled { break }
                     }
 
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
                 }
 
                 continuation.finish()
@@ -251,9 +268,9 @@ final class NetworkManager {
 
                 while !Task.isCancelled {
                     do {
-                        var request = URLRequest(url: url)
+                        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 45)
                         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                        request.timeoutInterval = 300
+                        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
 
                         let (bytes, response) = try await session.bytes(for: request)
                         try validate(response: response)
@@ -281,7 +298,7 @@ final class NetworkManager {
                         if Task.isCancelled { break }
                     }
 
-                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
                 }
 
                 continuation.finish()
@@ -337,12 +354,13 @@ final class NetworkManager {
             throw NetworkError.invalidURL
         }
 
-        let (data, response) = try await session.data(from: url)
+        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+        let (data, response) = try await session.data(for: request)
         try validate(response: response)
         return try JSONDecoder().decode([RemoteWebTask].self, from: data)
     }
 
-    /// Mirrors mission task completion state back to the backend (`POST /api/tasks/:id/toggle`).
+    /// Mirrors mission task completion state back to the backend (`POST /api/tasks/:id/complete`).
     func toggleRemoteTask(taskId: String, completed: Bool) async throws {
         guard let url = Constants.taskToggleURL(taskId: taskId) else {
             throw NetworkError.invalidURL
@@ -367,6 +385,8 @@ final class NetworkManager {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
 
         let (_, response) = try await session.data(for: request)
         try validate(response: response)
@@ -397,6 +417,11 @@ final class NetworkManager {
                 return nil
             }
             return .packet(packet)
+        case "task":
+            guard let payload = try? JSONDecoder().decode(RelayTaskPayload.self, from: jsonData) else {
+                return nil
+            }
+            return .taskChanged(action: payload.action, task: payload.task)
         case "tasks":
             guard let tasks = try? JSONDecoder().decode([RemoteWebTask].self, from: jsonData) else {
                 return nil
