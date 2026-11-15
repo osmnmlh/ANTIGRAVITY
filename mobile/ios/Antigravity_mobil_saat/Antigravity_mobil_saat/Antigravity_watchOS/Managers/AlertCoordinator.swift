@@ -43,6 +43,9 @@ final class AlertCoordinator: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var lastAlertSignature: String?
     private var lastVitalsPushDate: Date?
+    private var lastRemoteSyncDate: Date?
+    private var remoteOverallStatus: HealthStatus = .green
+    private var remoteTelemetryAlertTitle: String?
     private var isRunning = false
     private let sideEffectsEnabled: Bool
 
@@ -64,6 +67,20 @@ final class AlertCoordinator: ObservableObject {
         guard !isRunning else { return }
         isRunning = true
         if sideEffectsEnabled {
+            ConnectivityManager.shared.onRemoteTelemetryReceived = { [weak self] payload in
+                guard let self, !self.isSimulatingSpike else { return }
+                self.lastRemoteSyncDate = payload.timestamp
+                self.remoteOverallStatus = payload.overallStatus
+                self.remoteTelemetryAlertTitle = payload.alertTitle
+                self.lastSyncDate = Date()
+                self.applyReadings(
+                    heartRate: payload.heartRate,
+                    spo2: payload.spo2,
+                    bodyTemp: payload.bodyTemp,
+                    remoteStatus: payload.overallStatus,
+                    remoteAlertTitle: payload.alertTitle
+                )
+            }
             ConnectivityManager.shared.onAlertReceived = { [weak self] alert in
                 Task { @MainActor [weak self] in
                     self?.applyRemoteAlert(alert)
@@ -195,6 +212,14 @@ final class AlertCoordinator: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] data in
                 guard let self, !self.isSimulatingSpike else { return }
+                // Let live Web/iPhone stream drive Watch values while active,
+                // unless offline/idle so standalone Watch simulation stays responsive.
+                if let lastRemote = self.lastRemoteSyncDate, Date().timeIntervalSince(lastRemote) < 10 {
+                    return
+                }
+                if self.remoteOverallStatus == .amber || self.remoteOverallStatus == .red {
+                    return
+                }
                 self.applyReadings(
                     heartRate: Int(data.vitals.currentHeartRate),
                     spo2: data.vitals.bloodOxygenPercentage.map { Int($0) },
@@ -210,7 +235,13 @@ final class AlertCoordinator: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func applyReadings(heartRate: Int, spo2: Int?, bodyTemp: Double?) {
+    private func applyReadings(
+        heartRate: Int,
+        spo2: Int?,
+        bodyTemp: Double?,
+        remoteStatus: HealthStatus = .green,
+        remoteAlertTitle: String? = nil
+    ) {
         self.heartRate = heartRate
         self.spo2 = spo2
         self.bodyTemp = bodyTemp
@@ -223,10 +254,14 @@ final class AlertCoordinator: ObservableObject {
         spo2Status = o2Status
         bodyTempStatus = tempStatus
 
-        let highest = [hrStatus, o2Status, tempStatus].filter { $0 != .missing }.max() ?? .green
+        let localHighest = [hrStatus, o2Status, tempStatus].filter { $0 != .missing }.max() ?? .green
+        let highest = max(localHighest, remoteStatus)
         overallStatus = highest
 
-        let breaches = buildBreachMessages(hrStatus: hrStatus, o2Status: o2Status, tempStatus: tempStatus)
+        var breaches = buildBreachMessages(hrStatus: hrStatus, o2Status: o2Status, tempStatus: tempStatus)
+        if breaches.isEmpty, let remoteTelemetryAlertTitle, !remoteTelemetryAlertTitle.isEmpty, highest == .amber || highest == .red {
+            breaches.append(remoteTelemetryAlertTitle)
+        }
 
         if highest == .amber || highest == .red, !breaches.isEmpty {
             let title = (highest == .red

@@ -9,35 +9,6 @@ import Foundation
 import Combine
 import UserNotifications
 
-struct MissionTask: Identifiable, Equatable {
-    let id: UUID
-    var title: String
-    var detail: String
-    var isCompleted: Bool
-    /// Set for tasks assigned from the web (Ana üs); these are synced with the relay.
-    var remoteId: String?
-
-    init(id: UUID = UUID(), title: String, detail: String = "Günlük Protokol", isCompleted: Bool = false, remoteId: String? = nil) {
-        self.id = id
-        self.title = title
-        self.detail = detail
-        self.isCompleted = isCompleted
-        self.remoteId = remoteId
-    }
-
-    init(remote: RemoteMissionTask) {
-        let note = (remote.details ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let prefix = remote.priority == "high" ? "Yüksek öncelik • " : ""
-        self.init(
-            id: UUID(uuidString: remote.id) ?? UUID(),
-            title: remote.title,
-            detail: prefix + (note.isEmpty ? "Ana üsten atandı" : note),
-            isCompleted: remote.completed,
-            remoteId: remote.id
-        )
-    }
-}
-
 class DashboardViewModel: ObservableObject {
 
     // MARK: - @Published Değişkenler
@@ -54,9 +25,15 @@ class DashboardViewModel: ObservableObject {
     @Published var crewId: String = Constants.defaultCrewId
     @Published var astronautPacket: AstronautHealthPacket?
     @Published var aiGuidance: AiGuidance?
+    @Published private(set) var latestBackendGuidance: AiGuidance?
     @Published var activeAlerts: [AiAlert] = [] {
         didSet { forwardActiveAlertToWatch() }
     }
+    @Published private(set) var webAssignedTasks: [RemoteWebTask] = []
+    @Published private(set) var hasSyncedWebTasks: Bool = false
+    @Published private(set) var houstonSyncRevision: Int = 0
+    /// Direct callback invoked on the main actor the moment new alerts, guidance, or web tasks arrive.
+    var onMissionSyncNeeded: (() -> Void)?
     @Published var lastWatchSyncAt: Date?
     @Published var isSyncingBackend: Bool = false
     @Published var lastSampleSyncMessage: String?
@@ -69,44 +46,25 @@ class DashboardViewModel: ObservableObject {
     @Published private(set) var hasSyncedFromBackend: Bool = false
     @Published var radiationBudgetMsv: Double = 100.0
 
-    // Interactive TODO missions shared between MissionListView and DashboardView
-    @Published var missionTasks: [MissionTask] = [
-        MissionTask(title: "Sabah Apple Watch SpO2 & Nabız Ölçümü", detail: "Vital Kontrol • 08:00", isCompleted: true),
-        MissionTask(title: "Kabin CO2 ve Radyasyon Dozu Kontrolü", detail: "Çevresel Güvenlik • 10:30", isCompleted: true),
-        MissionTask(title: "Günlük Direnç / Kardiyo Egzersizi (30 dk)", detail: "Mikro-yerçekimi Önlemi • 13:00", isCompleted: true),
-        MissionTask(title: "Akşam Uyku & Ruh Hali Kaydı", detail: "Davranışsal Sağlık • 21:00", isCompleted: false)
-    ]
-
     // MARK: - Servisler ve Hafıza Yönetimi
     private let telemetryService: TelemetryServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private var aiStreamTask: Task<Void, Never>?
     private var relayStreamTask: Task<Void, Never>?
+    private var taskPollTask: Task<Void, Never>?
     private var journalAnalysisTask: Task<Void, Never>?
     private var notifiedAlertIds = Set<String>()
+    private var acknowledgedAlertKeys: Set<String> = Set(
+        UserDefaults.standard.stringArray(forKey: "antigravity_acknowledged_alert_keys") ?? []
+    )
     private var sampleHistory: [HealthSample] = []
+    private var lastBackendPacketAt: Date?
+    private var lastWatchForwardAt: Date?
     private var latestJournalInputs: [JournalNoteInput] = []
     private var cachedJournalSentiment: JournalSentimentResult = JournalSentimentAnalyzer.evaluateLocally([])
     private var lastAnalyzedJournalDigest: String = ""
 
     // MARK: - Computed Helpers
-    var completedMissionsCount: Int {
-        missionTasks.filter(\.isCompleted).count
-    }
-
-    var totalMissionsCount: Int {
-        missionTasks.count
-    }
-
-    var missionCompletionRatio: Double {
-        guard totalMissionsCount > 0 else { return 0 }
-        return Double(completedMissionsCount) / Double(totalMissionsCount)
-    }
-
-    var missionCompletionPercent: Int {
-        Int((missionCompletionRatio * 100).rounded())
-    }
-
     var heartRateValue: Double {
         indicatorValues[.heartRate] ?? latestTelemetry?.vitals.currentHeartRate ?? 72
     }
@@ -206,6 +164,7 @@ class DashboardViewModel: ObservableObject {
         telemetryService.stopMonitoring()
         aiStreamTask?.cancel()
         relayStreamTask?.cancel()
+        taskPollTask?.cancel()
         journalAnalysisTask?.cancel()
     }
 
@@ -241,25 +200,120 @@ class DashboardViewModel: ObservableObject {
                 guard let self, !Task.isCancelled else { break }
                 switch event {
                 case .hello(let packets, let tasks):
+                    if let tasks {
+                        self.applyWebTaskSnapshot(tasks, crewId: targetCrewId)
+                    }
                     if let mine = packets.first(where: { $0.astronautId == targetCrewId }) {
                         self.applyPacket(mine, fromBackend: true)
                     }
-                    self.replaceRemoteTasks(tasks)
                 case .taskChanged(let action, let task):
-                    self.applyRemoteTaskChange(action: action, task: task)
+                    self.applyRemoteTaskChange(action: action, task: task, crewId: targetCrewId)
                 case .packet(let packet):
                     if packet.astronautId == targetCrewId {
                         self.applyPacket(packet, fromBackend: true)
                     }
+                case .tasks(let tasks):
+                    self.applyWebTaskSnapshot(tasks, crewId: targetCrewId)
                 }
             }
         }
     }
 
+    /// Lightweight periodic task poll as a safety net alongside live SSE (`event: task`).
+    @MainActor
+    func startTaskPolling() {
+        guard taskPollTask == nil else { return }
+        taskPollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard let self, !Task.isCancelled else { break }
+                await self.refreshTasksOnly()
+            }
+        }
+    }
+
+    /// Re-establishes SSE sockets and pulls fresh tasks/packets when the app returns to the foreground.
+    @MainActor
+    func handleAppDidBecomeActive() async {
+        aiStreamTask?.cancel()
+        aiStreamTask = nil
+        relayStreamTask?.cancel()
+        relayStreamTask = nil
+        startAiAlertStream()
+        startRelayStream()
+        startTaskPolling()
+        await syncFromBackend()
+    }
+
+    @MainActor
+    func refreshTasksOnly() async {
+        let targetCrewId = crewId
+        guard let fetchedTasks = try? await NetworkManager.shared.fetchTasks(crewId: targetCrewId) else {
+            return
+        }
+        applyWebTaskSnapshot(fetchedTasks, crewId: targetCrewId)
+    }
+
+    @MainActor
+    private func applyWebTaskSnapshot(_ tasks: [RemoteWebTask], crewId targetCrewId: String) {
+        let mine = tasks.filter { $0.assigneeId == targetCrewId }
+        guard !hasSyncedWebTasks || mine != webAssignedTasks else { return }
+        webAssignedTasks = mine
+        hasSyncedWebTasks = true
+        notifyMissionSyncNeeded()
+    }
+
+    @MainActor
+    private func applyRemoteTaskChange(action: String, task: RemoteWebTask, crewId targetCrewId: String) {
+        if action == "delete" || task.assigneeId != targetCrewId {
+            let before = webAssignedTasks.count
+            webAssignedTasks.removeAll { $0.id == task.id }
+            hasSyncedWebTasks = true
+            if webAssignedTasks.count != before || action == "delete" {
+                notifyMissionSyncNeeded()
+            }
+            return
+        }
+
+        if let index = webAssignedTasks.firstIndex(where: { $0.id == task.id }) {
+            webAssignedTasks[index] = task
+        } else {
+            webAssignedTasks.insert(task, at: 0)
+        }
+        hasSyncedWebTasks = true
+        notifyMissionSyncNeeded()
+    }
+
+    @MainActor
+    private func notifyMissionSyncNeeded() {
+        houstonSyncRevision &+= 1
+        onMissionSyncNeeded?()
+    }
+
     @MainActor
     func acknowledgeAlert(_ alert: AiAlert) async {
+        let key = Self.alertKey(for: alert)
+        let inserted = acknowledgedAlertKeys.insert(key).inserted
+        if inserted {
+            persistAcknowledgedAlertKeys()
+        }
+        let removedAny = activeAlerts.contains { $0.id == alert.id }
         activeAlerts.removeAll { $0.id == alert.id }
+        if inserted || removedAny {
+            reconcileGuidanceWithCurrentState()
+            notifyMissionSyncNeeded()
+            forwardLatestStateToWatch(force: true)
+        }
         try? await NetworkManager.shared.acknowledgeAlert(alertId: alert.id, deviceId: Constants.deviceId)
+    }
+
+    private static func alertKey(for alert: AiAlert) -> String {
+        "\(alert.id)|\(Int(alert.createdAt.timeIntervalSince1970))"
+    }
+
+    private func persistAcknowledgedAlertKeys() {
+        let capped = Array(acknowledgedAlertKeys.suffix(200))
+        UserDefaults.standard.set(capped, forKey: "antigravity_acknowledged_alert_keys")
     }
 
     @MainActor
@@ -272,9 +326,13 @@ class DashboardViewModel: ObservableObject {
         do {
             async let packetTask = NetworkManager.shared.fetchPacket(crewId: targetCrewId)
             async let samplesTask = try? NetworkManager.shared.fetchSamples(crewId: targetCrewId)
+            async let webTasksTask = try? NetworkManager.shared.fetchTasks(crewId: targetCrewId)
             let packet = try await packetTask
             if let fetchedSamples = await samplesTask, !fetchedSamples.isEmpty {
                 sampleHistory = Array(fetchedSamples.filter { $0.crewId == targetCrewId }.suffix(500))
+            }
+            if let fetchedTasks = await webTasksTask {
+                applyWebTaskSnapshot(fetchedTasks, crewId: targetCrewId)
             }
             applyPacket(packet, fromBackend: true)
         } catch {
@@ -378,53 +436,6 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
-    func toggleMission(_ task: MissionTask) {
-        guard let index = missionTasks.firstIndex(where: { $0.id == task.id }) else { return }
-        missionTasks[index].isCompleted.toggle()
-        if let remoteId = missionTasks[index].remoteId {
-            let completed = missionTasks[index].isCompleted
-            Task { await NetworkManager.shared.setTaskCompleted(id: remoteId, completed: completed) }
-        }
-    }
-
-    // MARK: - Tasks assigned from the web (Ana üs)
-
-    /// The relay's list for this astronaut replaces the previously synced tasks; locally added ones stay.
-    @MainActor
-    private func replaceRemoteTasks(_ remote: [RemoteMissionTask]) {
-        let mine = remote.filter { $0.assigneeId == crewId }
-        let localOnly = missionTasks.filter { $0.remoteId == nil }
-        missionTasks = mine.reversed().map(MissionTask.init(remote:)) + localOnly
-    }
-
-    @MainActor
-    private func applyRemoteTaskChange(action: String, task: RemoteMissionTask) {
-        guard task.assigneeId == crewId else { return }
-        if action == "delete" {
-            missionTasks.removeAll { $0.remoteId == task.id }
-            return
-        }
-        let updated = MissionTask(remote: task)
-        if let index = missionTasks.firstIndex(where: { $0.remoteId == task.id }) {
-            missionTasks[index] = updated
-        } else {
-            missionTasks.insert(updated, at: 0)
-        }
-    }
-
-    func addMission(title: String, detail: String = "Özel Protokol") {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        missionTasks.append(MissionTask(title: trimmed, detail: detail, isCompleted: false))
-    }
-
-    func deleteMission(_ task: MissionTask) {
-        missionTasks.removeAll { $0.id == task.id }
-        if let remoteId = task.remoteId {
-            Task { await NetworkManager.shared.deleteTask(id: remoteId) }
-        }
-    }
-
     // MARK: - Private
     private func seedMockPacketAndInitialTelemetry() {
         // Mirrors crew-1 nominal mock values from shared/mock/astronaut-packets.json
@@ -474,9 +485,12 @@ class DashboardViewModel: ObservableObject {
     private func applyPacket(_ packet: AstronautHealthPacket, fromBackend: Bool = false) {
         if fromBackend {
             hasSyncedFromBackend = true
+            lastBackendPacketAt = Date()
+            latestBackendGuidance = packet.aiGuidance
+        } else if latestBackendGuidance == nil {
+            latestBackendGuidance = packet.aiGuidance
         }
         astronautPacket = packet
-        aiGuidance = packet.aiGuidance
         radiationBudgetMsv = packet.mission.radiationBudgetMsv
         for type in HealthIndicatorType.allCases where type != .mood {
             if let snap = packet.measurements[type.rawValue] {
@@ -487,6 +501,25 @@ class DashboardViewModel: ObservableObject {
             latestTelemetry = watch
         }
         recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
+        if fromBackend {
+            notifyMissionSyncNeeded()
+            forwardLatestStateToWatch(force: overallStatus != .green)
+        }
+    }
+
+    private func forwardLatestStateToWatch(force: Bool = false) {
+        let now = Date()
+        if !force, let last = lastWatchForwardAt, now.timeIntervalSince(last) < 1.5 {
+            return
+        }
+        lastWatchForwardAt = now
+        ConnectivityManager.shared.sendRemoteTelemetryToWatch(
+            heartRate: heartRateValue,
+            spo2: indicatorValues[.spo2] ?? latestTelemetry?.vitals.bloodOxygenPercentage,
+            bodyTemp: indicatorValues[.bodyTemp] ?? latestTelemetry?.vitals.bodyTemperature,
+            overallStatus: overallStatus,
+            alertTitle: activeAlerts.first?.title
+        )
     }
 
     private func loadBundledNominalPacket() -> AstronautHealthPacket? {
@@ -503,11 +536,15 @@ class DashboardViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] data in
                 guard let self else { return }
-                // Preserve real backend web telemetry or recent WatchConnectivity updates without local mock overwriting them.
-                if self.hasSyncedFromBackend {
+                // Preserve real WatchConnectivity updates, active Web/SSE stream ticks,
+                // or non-green backend incidents without letting local mock overwrite them.
+                if let lastWatch = self.lastWatchSyncAt, Date().timeIntervalSince(lastWatch) < 30 {
                     return
                 }
-                if let lastWatch = self.lastWatchSyncAt, Date().timeIntervalSince(lastWatch) < 30 {
+                if let lastBackend = self.lastBackendPacketAt, Date().timeIntervalSince(lastBackend) < 10 {
+                    return
+                }
+                if self.hasSyncedFromBackend, self.overallStatus == .amber || self.overallStatus == .red {
                     return
                 }
                 self.applyTelemetry(data)
@@ -578,16 +615,23 @@ class DashboardViewModel: ObservableObject {
     private func handleAiStreamEvent(_ event: AiStreamEvent, deviceId: String) {
         switch event {
         case .hello(let alerts):
-            activeAlerts = alerts.filter { $0.state == "active" }
+            activeAlerts = alerts.filter {
+                $0.state == "active" && !acknowledgedAlertKeys.contains(Self.alertKey(for: $0))
+            }
         case .alert(let alert):
             upsertAlert(alert)
-            notifyLocalAlertIfNeeded(alert)
+            if !acknowledgedAlertKeys.contains(Self.alertKey(for: alert)) {
+                notifyLocalAlertIfNeeded(alert)
+            }
             Task {
                 try? await NetworkManager.shared.markAlertDelivered(alertId: alert.id, deviceId: deviceId)
             }
         case .alertUpdate(let alert):
             upsertAlert(alert)
         }
+        reconcileGuidanceWithCurrentState()
+        notifyMissionSyncNeeded()
+        forwardLatestStateToWatch(force: true)
     }
 
     /// The most serious active alert (a backend scenario or a health alert) is mirrored to the Apple Watch;
@@ -605,7 +649,15 @@ class DashboardViewModel: ObservableObject {
 
     @MainActor
     private func upsertAlert(_ alert: AiAlert) {
+        let key = Self.alertKey(for: alert)
         if alert.state == "resolved" {
+            activeAlerts.removeAll { $0.id == alert.id }
+            if acknowledgedAlertKeys.remove(key) != nil {
+                persistAcknowledgedAlertKeys()
+            }
+            return
+        }
+        guard !acknowledgedAlertKeys.contains(key) else {
             activeAlerts.removeAll { $0.id == alert.id }
             return
         }
@@ -753,6 +805,207 @@ class DashboardViewModel: ObservableObject {
             connectionStatus = "KRİTİK UYARI"
         case .missing:
             connectionStatus = "VERİ BEKLENİYOR"
+        }
+
+        reconcileGuidanceWithCurrentState()
+    }
+
+    /// Keeps the Dashboard's AI card and per-indicator sheets consistent whenever local status
+    /// (for example computed mood, Watch telemetry, or active alerts) diverges from cached backend guidance.
+    private func reconcileGuidanceWithCurrentState() {
+        let baseGuidance = latestBackendGuidance ?? astronautPacket?.aiGuidance
+        let alertWorst = activeAlerts.map(\.severity).max() ?? .green
+        let effectiveOverall = max(overallStatus, alertWorst)
+
+        let packetStatuses: [HealthIndicatorType: HealthStatus] = Dictionary(
+            uniqueKeysWithValues: HealthIndicatorType.allCases.map { type in
+                let packetValue = astronautPacket?.measurements[type.rawValue]?.value
+                let status = HealthThresholds.status(
+                    for: type,
+                    value: packetValue,
+                    radiationBudgetMsv: radiationBudgetMsv
+                )
+                return (type, status)
+            }
+        )
+
+        let hasIndicatorDivergence = HealthIndicatorType.allCases.contains { type in
+            let current = indicatorStatuses[type] ?? .missing
+            let packetStatus = packetStatuses[type] ?? .missing
+            guard current == .amber || current == .red || packetStatus == .amber || packetStatus == .red else {
+                return false
+            }
+            return current != packetStatus
+        }
+
+        let hasStaleClearedAlertInBackendGuidance = activeAlerts.isEmpty
+            && !acknowledgedAlertKeys.isEmpty
+            && (baseGuidance?.summary.localizedCaseInsensitiveContains("kabinde aktif") ?? false)
+
+        if let baseGuidance,
+           baseGuidance.overallStatus == effectiveOverall,
+           !hasIndicatorDivergence,
+           !hasStaleClearedAlertInBackendGuidance {
+            aiGuidance = baseGuidance
+            return
+        }
+
+        let flaggedTypes: [HealthIndicatorType] = HealthIndicatorType.allCases
+            .filter {
+                let status = indicatorStatuses[$0] ?? .missing
+                return status == .amber || status == .red
+            }
+            .sorted { lhs, rhs in
+                let lStatus = indicatorStatuses[lhs] ?? .missing
+                let rStatus = indicatorStatuses[rhs] ?? .missing
+                if lStatus != rStatus {
+                    return lStatus > rStatus
+                }
+                return lhs.rawValue < rhs.rawValue
+            }
+
+        var indicatorsMap: [String: AiIndicatorGuidance] = [:]
+        for type in HealthIndicatorType.allCases {
+            let currentStatus = indicatorStatuses[type] ?? .missing
+            let packetStatus = packetStatuses[type] ?? .missing
+            if let baseGuidance,
+               let backendItem = baseGuidance.indicators?[type.rawValue],
+               baseGuidance.overallStatus == effectiveOverall,
+               packetStatus == currentStatus {
+                indicatorsMap[type.rawValue] = backendItem
+                continue
+            }
+
+            let rule = HealthThresholds.guidance(for: type, status: currentStatus)
+            if type == .mood,
+               currentStatus == .amber || currentStatus == .red,
+               let moodAssessment {
+                var enrichedWhy = rule.whyInSpace
+                if !moodAssessment.journalAnalysis.summary.isEmpty {
+                    enrichedWhy = "\(rule.whyInSpace) \(moodAssessment.summaryLine)"
+                }
+                var enrichedDoNow = rule.doNow
+                if !moodAssessment.symptoms.isEmpty {
+                    let symptomLine = "Bildirilen belirtileri takip edin: \(moodAssessment.symptoms.joined(separator: ", "))."
+                    if !enrichedDoNow.contains(symptomLine) {
+                        enrichedDoNow.append(symptomLine)
+                    }
+                }
+                indicatorsMap[type.rawValue] = AiIndicatorGuidance(
+                    whatItIs: rule.whatItIs,
+                    whyInSpace: enrichedWhy,
+                    doNow: Array(enrichedDoNow.prefix(3)),
+                    escalateWhen: rule.escalateWhen
+                )
+            } else {
+                indicatorsMap[type.rawValue] = AiIndicatorGuidance(
+                    whatItIs: rule.whatItIs,
+                    whyInSpace: rule.whyInSpace,
+                    doNow: Array(rule.doNow.prefix(3)),
+                    escalateWhen: rule.escalateWhen
+                )
+            }
+        }
+
+        if flaggedTypes.isEmpty && activeAlerts.isEmpty {
+            aiGuidance = AiGuidance(
+                generatedAt: Date(),
+                source: .fallback,
+                model: nil,
+                overallStatus: effectiveOverall,
+                summary: "Tüm değerlerin normal aralıkta. Günlük rutinine devam et.",
+                actions: [
+                    "Planlanan egzersiz önlemlerine devam et.",
+                    "Uyku ve sıvı alımı düzenini koru."
+                ],
+                escalate: "Şu an uçuş cerrahına başvurman gerekmiyor. Yeni bir belirti fark edersen haber ver.",
+                disclaimer: HealthThresholds.demoDisclaimer,
+                indicators: indicatorsMap
+            )
+            return
+        }
+
+        let flaggedDescriptions = flaggedTypes.map { type in
+            let statusWord = (indicatorStatuses[type] == .red) ? "KRİTİK" : "dikkat"
+            return "\(type.displayName) \(formattedGuidanceValue(for: type)) (\(statusWord))"
+        }
+
+        var summaryParts: [String] = []
+        if !flaggedDescriptions.isEmpty {
+            summaryParts.append("\(flaggedDescriptions.count) değer dikkat gerektiriyor: \(flaggedDescriptions.joined(separator: ", ")).")
+        }
+        if flaggedTypes.contains(.mood), let moodAssessment {
+            summaryParts.append(moodAssessment.summaryLine)
+        }
+        if !activeAlerts.isEmpty {
+            let titles = activeAlerts.prefix(2).map(\.title).joined(separator: "; ")
+            summaryParts.append("Aktif uyarı: \(titles).")
+        }
+
+        var combinedActions: [String] = []
+        for alert in activeAlerts {
+            for step in alert.advice?.doNow ?? [] {
+                if !combinedActions.contains(step) {
+                    combinedActions.append(step)
+                }
+                if combinedActions.count >= 2 { break }
+            }
+            if combinedActions.count >= 2 { break }
+        }
+        for type in flaggedTypes {
+            for step in indicatorsMap[type.rawValue]?.doNow ?? [] {
+                if !combinedActions.contains(step) {
+                    combinedActions.append(step)
+                }
+                if combinedActions.count >= 3 { break }
+            }
+            if combinedActions.count >= 3 { break }
+        }
+        if combinedActions.isEmpty {
+            combinedActions = ["Dinlenmeye geçin ve ölçümleri 15 dakika sonra tekrarlayın."]
+        }
+
+        let escalateText: String
+        if let worstType = flaggedTypes.first, let item = indicatorsMap[worstType.rawValue] {
+            escalateText = item.escalateWhen
+        } else if let alertEscalate = activeAlerts.first?.advice?.escalate, !alertEscalate.isEmpty {
+            escalateText = alertEscalate
+        } else {
+            escalateText = "Durum düzelmezse mürettebat sağlık sorumlusu ve uçuş cerrahıyla iletişime geçin."
+        }
+
+        aiGuidance = AiGuidance(
+            generatedAt: Date(),
+            source: .fallback,
+            model: nil,
+            overallStatus: effectiveOverall,
+            summary: summaryParts.joined(separator: " "),
+            actions: Array(combinedActions.prefix(3)),
+            escalate: escalateText,
+            disclaimer: HealthThresholds.demoDisclaimer,
+            indicators: indicatorsMap
+        )
+    }
+
+    private func formattedGuidanceValue(for type: HealthIndicatorType) -> String {
+        guard let value = indicatorValues[type] else { return "--" }
+        switch type {
+        case .heartRate:
+            return "\(Int(value.rounded())) bpm"
+        case .bloodPressureSys, .bloodPressureDia:
+            return "\(Int(value.rounded())) mmHg"
+        case .spo2:
+            return "%\(Int(value.rounded()))"
+        case .bodyTemp:
+            return String(format: "%.1f °C", value)
+        case .bloodGlucose:
+            return "\(Int(value.rounded())) mg/dL"
+        case .sleepHours:
+            return String(format: "%.1f sa", value)
+        case .mood:
+            return "\(Int(value.rounded()))/5"
+        case .radiationDose:
+            return String(format: "%.1f mSv", value)
         }
     }
 }

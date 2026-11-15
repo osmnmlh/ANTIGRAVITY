@@ -18,8 +18,11 @@ struct AntigravityApp: App {
 }
 
 struct MainTabContainerView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .dashboard
+    @State private var hasCompletedInitialSync = false
     @StateObject private var dashboardViewModel = DashboardViewModel()
+    @StateObject private var missionViewModel = MissionViewModel()
     @StateObject private var journalViewModel = JournalViewModel()
 
     var body: some View {
@@ -33,7 +36,10 @@ struct MainTabContainerView: View {
                     case .dashboard:
                         NavigationStack {
                             tabBackground {
-                                DashboardView(viewModel: dashboardViewModel) { tab in
+                                DashboardView(
+                                    viewModel: dashboardViewModel,
+                                    missionViewModel: missionViewModel
+                                ) { tab in
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         selectedTab = tab
                                     }
@@ -49,7 +55,9 @@ struct MainTabContainerView: View {
                     case .missions:
                         NavigationStack {
                             tabBackground {
-                                MissionListView(dashboardViewModel: dashboardViewModel)
+                                MissionListView(viewModel: missionViewModel) {
+                                    await dashboardViewModel.refreshTasksOnly()
+                                }
                             }
                         }
                     case .journal:
@@ -67,13 +75,57 @@ struct MainTabContainerView: View {
             }
         }
         .task {
+            dashboardViewModel.onMissionSyncNeeded = {
+                syncMissionsAndAlerts()
+            }
             dashboardViewModel.updateJournalEntries(journalViewModel.entries, syncToBackend: false)
             dashboardViewModel.startAiAlertStream()
             dashboardViewModel.startRelayStream()
+            dashboardViewModel.startTaskPolling()
             await dashboardViewModel.syncFromBackend()
+            syncMissionsAndAlerts()
+            hasCompletedInitialSync = true
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active, hasCompletedInitialSync else { return }
+            Task {
+                await dashboardViewModel.handleAppDidBecomeActive()
+            }
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == .missions {
+                Task {
+                    await dashboardViewModel.refreshTasksOnly()
+                }
+            }
         }
         .onChange(of: journalViewModel.entries) { _, updatedEntries in
             dashboardViewModel.updateJournalEntries(updatedEntries, syncToBackend: true)
+        }
+        .onChange(of: dashboardViewModel.houstonSyncRevision) { _, _ in
+            syncMissionsAndAlerts()
+        }
+        .onChange(of: missionViewModel.tasks) { _, _ in
+            acknowledgeAlertsCompletedByMissions()
+        }
+    }
+
+    private func syncMissionsAndAlerts() {
+        missionViewModel.ingestHoustonDirectives(
+            guidance: dashboardViewModel.aiGuidance,
+            alerts: dashboardViewModel.activeAlerts,
+            webTasks: dashboardViewModel.webAssignedTasks,
+            hasSyncedWebTasks: dashboardViewModel.hasSyncedWebTasks
+        )
+        acknowledgeAlertsCompletedByMissions()
+    }
+
+    private func acknowledgeAlertsCompletedByMissions() {
+        let completedAlerts = missionViewModel.alertsCompletedByMissions(from: dashboardViewModel.activeAlerts)
+        for alert in completedAlerts {
+            Task {
+                await dashboardViewModel.acknowledgeAlert(alert)
+            }
         }
     }
 

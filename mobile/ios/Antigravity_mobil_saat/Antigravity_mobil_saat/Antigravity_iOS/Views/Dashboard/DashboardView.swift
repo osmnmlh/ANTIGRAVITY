@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
+    @ObservedObject var missionViewModel: MissionViewModel
     var onSelectTab: (AppTab) -> Void = { _ in }
 
     private static let watchSyncFormatter: DateFormatter = {
@@ -84,11 +85,11 @@ struct DashboardView: View {
 
                         Spacer()
 
-                        Text("%\(viewModel.missionCompletionPercent) Tamamlandı")
+                        Text("%\(missionViewModel.completionPercent) Tamamlandı")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(ColorTheme.textPrimary)
 
-                        Text("\(viewModel.completedMissionsCount)/\(viewModel.totalMissionsCount)")
+                        Text("\(missionViewModel.completedCount)/\(missionViewModel.totalCount)")
                             .font(.caption.weight(.semibold).monospacedDigit())
                             .foregroundStyle(ColorTheme.textMuted)
                             .padding(.horizontal, 8)
@@ -100,8 +101,17 @@ struct DashboardView: View {
                             .foregroundStyle(ColorTheme.textMuted)
                     }
 
-                    ProgressView(value: viewModel.missionCompletionRatio)
-                        .tint(viewModel.missionCompletionPercent == 100 ? ColorTheme.statusGreen : ColorTheme.accent)
+                    ProgressView(value: missionViewModel.completionRatio)
+                        .tint(missionViewModel.completionPercent == 100 && missionViewModel.totalCount > 0 ? ColorTheme.statusGreen : ColorTheme.accent)
+
+                    if missionViewModel.houstonOpenCount > 0 {
+                        Label(
+                            "\(missionViewModel.houstonOpenCount) Houston talimatı bekliyor",
+                            systemImage: "antenna.radiowaves.left.and.right"
+                        )
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(ColorTheme.accent)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -209,7 +219,10 @@ struct DashboardView: View {
     NavigationStack {
         ZStack {
             ColorTheme.spaceBackdropGradient.ignoresSafeArea()
-            DashboardView(viewModel: DashboardViewModel())
+            DashboardView(
+                viewModel: DashboardViewModel(),
+                missionViewModel: MissionViewModel(storageURL: nil)
+            )
         }
     }
     .preferredColorScheme(.dark)

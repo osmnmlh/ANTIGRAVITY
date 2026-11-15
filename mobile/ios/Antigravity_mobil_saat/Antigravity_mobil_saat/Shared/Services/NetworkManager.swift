@@ -36,33 +36,28 @@ struct AiChatResponse: Codable, Sendable {
     let escalation: String?
 }
 
-/// A mission task assigned from the web (Ana üs) via `POST /api/tasks`; `assigneeId` is the astronaut's crewId.
-struct RemoteMissionTask: Codable, Sendable, Equatable {
-    let id: String
-    let title: String
-    let details: String?
-    let assigneeId: String
-    let dueAt: String?
-    let priority: String?
-    let completed: Bool
-}
-
+/// SSE payload emitted by `POST /api/tasks`, `POST /api/tasks/:id/complete`, and `POST /api/tasks/:id/delete`.
 struct RelayTaskPayload: Codable, Sendable {
     let action: String
-    let task: RemoteMissionTask
+    let task: RemoteWebTask
 }
 
 struct RelayHelloPayload: Codable, Sendable {
     let astronauts: [AstronautHealthPacket]
     /// Absent on relays that predate mission tasks.
-    let tasks: [RemoteMissionTask]?
+    let tasks: [RemoteWebTask]?
 }
 
 enum RelayStreamEvent: Sendable {
-    /// `tasks` is empty when the relay predates mission tasks.
-    case hello([AstronautHealthPacket], tasks: [RemoteMissionTask])
+    /// `tasks` is nil when the relay predates mission tasks.
+    case hello([AstronautHealthPacket], [RemoteWebTask]?)
     case packet(AstronautHealthPacket)
-    case taskChanged(action: String, task: RemoteMissionTask)
+    case taskChanged(action: String, task: RemoteWebTask)
+    case tasks([RemoteWebTask])
+}
+
+private struct TaskToggleBody: Encodable {
+    let completed: Bool
 }
 
 enum AiStreamEvent: Sendable {
@@ -89,8 +84,16 @@ final class NetworkManager {
 
     private let session: URLSession
 
-    private init(session: URLSession = .shared) {
-        self.session = session
+    private init(session: URLSession? = nil) {
+        if let session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.urlCache = nil
+            config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            config.httpAdditionalHeaders = ["Cache-Control": "no-cache"]
+            self.session = URLSession(configuration: config)
+        }
     }
 
     /// Checks whether the Render relay backend is awake and ready.
@@ -174,9 +177,9 @@ final class NetworkManager {
 
                 while !Task.isCancelled {
                     do {
-                        var request = URLRequest(url: url)
+                        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 45)
                         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                        request.timeoutInterval = 90
+                        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
 
                         let (bytes, response) = try await session.bytes(for: request)
                         try validate(response: response)
@@ -184,7 +187,7 @@ final class NetworkManager {
                         var currentEvent = ""
                         var currentData = ""
 
-                        for try await line in bytes.lines {
+                        for try await line in Self.sseLines(from: bytes) {
                             if Task.isCancelled { break }
                             if line.isEmpty {
                                 if !currentData.isEmpty, let parsed = Self.parseSSEEvent(name: currentEvent, data: currentData) {
@@ -203,7 +206,7 @@ final class NetworkManager {
                         if Task.isCancelled { break }
                     }
 
-                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
                 }
 
                 continuation.finish()
@@ -265,9 +268,9 @@ final class NetworkManager {
 
                 while !Task.isCancelled {
                     do {
-                        var request = URLRequest(url: url)
+                        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 45)
                         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                        request.timeoutInterval = 90
+                        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
 
                         let (bytes, response) = try await session.bytes(for: request)
                         try validate(response: response)
@@ -275,7 +278,7 @@ final class NetworkManager {
                         var currentEvent = ""
                         var currentData = ""
 
-                        for try await line in bytes.lines {
+                        for try await line in Self.sseLines(from: bytes) {
                             if Task.isCancelled { break }
                             if line.isEmpty {
                                 if !currentData.isEmpty,
@@ -295,7 +298,7 @@ final class NetworkManager {
                         if Task.isCancelled { break }
                     }
 
-                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
                 }
 
                 continuation.finish()
@@ -307,26 +310,86 @@ final class NetworkManager {
         }
     }
 
-    /// Tells the relay a mission task was (un)completed on this phone: `POST /api/tasks/:id/complete`.
-    func setTaskCompleted(id: String, completed: Bool) async {
-        await postTaskAction(id: id, action: "complete", body: ["completed": completed])
+    /// Reads SSE lines from `URLSession.AsyncBytes` while preserving blank `\n` lines that separate SSE frames.
+    /// (`AsyncBytes.lines` drops empty lines, which prevents SSE event boundaries from flushing.)
+    private static func sseLines(from bytes: URLSession.AsyncBytes) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let readerTask = Task {
+                var buffer: [UInt8] = []
+                do {
+                    for try await byte in bytes {
+                        if Task.isCancelled { break }
+                        if byte == 0x0A { // '\n'
+                            if buffer.last == 0x0D { // strip optional '\r'
+                                buffer.removeLast()
+                            }
+                            let line = String(decoding: buffer, as: UTF8.self)
+                            buffer.removeAll(keepingCapacity: true)
+                            continuation.yield(line)
+                        } else {
+                            buffer.append(byte)
+                        }
+                    }
+                    if !buffer.isEmpty {
+                        if buffer.last == 0x0D {
+                            buffer.removeLast()
+                        }
+                        continuation.yield(String(decoding: buffer, as: UTF8.self))
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+
+            continuation.onTermination = { _ in
+                readerTask.cancel()
+            }
+        }
     }
 
-    /// Removes a mission task on the relay: `POST /api/tasks/:id/delete`.
-    func deleteTask(id: String) async {
-        await postTaskAction(id: id, action: "delete", body: [String: Bool]())
+    /// Fetches mission tasks assigned from the Web command view (`GET /api/tasks?crewId=...`).
+    func fetchTasks(crewId: String = Constants.defaultCrewId) async throws -> [RemoteWebTask] {
+        guard let url = Constants.tasksURL(crewId: crewId) else {
+            throw NetworkError.invalidURL
+        }
+
+        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response)
+        return try JSONDecoder().decode([RemoteWebTask].self, from: data)
     }
 
-    private func postTaskAction(id: String, action: String, body: [String: Bool]) async {
-        guard let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-              let url = URL(string: "\(Constants.apiBaseURL)/api/tasks/\(encoded)/\(action)") else { return }
+    /// Mirrors mission task completion state back to the backend (`POST /api/tasks/:id/complete`).
+    func toggleRemoteTask(taskId: String, completed: Bool) async throws {
+        guard let url = Constants.taskToggleURL(taskId: taskId) else {
+            throw NetworkError.invalidURL
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 20
+        request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONEncoder().encode(body)
-        // Local state already changed; a failed sync is retried implicitly by the next hello on reconnect.
-        _ = try? await session.data(for: request)
+        request.httpBody = try JSONEncoder().encode(TaskToggleBody(completed: completed))
+
+        let (_, response) = try await session.data(for: request)
+        try validate(response: response)
+    }
+
+    /// Mirrors mission task deletion back to the backend (`POST /api/tasks/:id/delete`).
+    func deleteRemoteTask(taskId: String) async throws {
+        guard let url = Constants.taskDeleteURL(taskId: taskId) else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
+
+        let (_, response) = try await session.data(for: request)
+        try validate(response: response)
     }
 
     private func postAlertDeviceAction(url: URL, deviceId: String) async throws -> AiAlert {
@@ -348,17 +411,22 @@ final class NetworkManager {
             guard let payload = try? HealthJSONCodec.decoder.decode(RelayHelloPayload.self, from: jsonData) else {
                 return nil
             }
-            return .hello(payload.astronauts, tasks: payload.tasks ?? [])
+            return .hello(payload.astronauts, payload.tasks)
         case "packet":
             guard let packet = try? HealthJSONCodec.decoder.decode(AstronautHealthPacket.self, from: jsonData) else {
                 return nil
             }
             return .packet(packet)
         case "task":
-            guard let payload = try? HealthJSONCodec.decoder.decode(RelayTaskPayload.self, from: jsonData) else {
+            guard let payload = try? JSONDecoder().decode(RelayTaskPayload.self, from: jsonData) else {
                 return nil
             }
             return .taskChanged(action: payload.action, task: payload.task)
+        case "tasks":
+            guard let tasks = try? JSONDecoder().decode([RemoteWebTask].self, from: jsonData) else {
+                return nil
+            }
+            return .tasks(tasks)
         default:
             return nil
         }

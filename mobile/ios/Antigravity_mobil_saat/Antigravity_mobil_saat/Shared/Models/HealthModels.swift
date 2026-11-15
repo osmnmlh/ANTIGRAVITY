@@ -33,7 +33,7 @@ enum HealthIndicatorType: String, Codable, CaseIterable, Sendable {
         case .bloodPressureSys: return "Büyük Tansiyon (Sys)"
         case .bloodPressureDia: return "Küçük Tansiyon (Dia)"
         case .spo2: return "Kan Oksijeni (SpO2)"
-        case .bodyTemp: return "Vücut Isısı"
+        case .bodyTemp: return "Vücut Sıcaklığı"
         case .bloodGlucose: return "Kan Şekeri"
         case .sleepHours: return "Uyku Süresi"
         case .mood: return "Ruh Hâli"
@@ -340,6 +340,54 @@ struct NasaHazardReferenceMetrics: Codable, Sendable {
 
 // MARK: - Shared JSON Coding Helpers
 
+/// Mission task assigned from the Web dashboard (`Ana üs -> Görev ata`) and synced over `/api/tasks` & `/api/stream`.
+struct RemoteWebTask: Codable, Equatable, Sendable, Identifiable {
+    let id: String
+    let title: String
+    let details: String
+    let assigneeId: String
+    let dueAt: String
+    let priority: String
+    let completed: Bool
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, details, assigneeId, dueAt, priority, completed, createdAt
+    }
+
+    init(
+        id: String,
+        title: String,
+        details: String = "",
+        assigneeId: String,
+        dueAt: String = "",
+        priority: String = "normal",
+        completed: Bool = false,
+        createdAt: String = ""
+    ) {
+        self.id = id
+        self.title = title
+        self.details = details
+        self.assigneeId = assigneeId
+        self.dueAt = dueAt
+        self.priority = priority
+        self.completed = completed
+        self.createdAt = createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        details = try container.decodeIfPresent(String.self, forKey: .details) ?? ""
+        assigneeId = try container.decode(String.self, forKey: .assigneeId)
+        dueAt = try container.decodeIfPresent(String.self, forKey: .dueAt) ?? ""
+        priority = try container.decodeIfPresent(String.self, forKey: .priority) ?? "normal"
+        completed = try container.decodeIfPresent(Bool.self, forKey: .completed) ?? false
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+    }
+}
+
 enum HealthJSONCodec {
     private static let isoWithFractionalSeconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -352,6 +400,21 @@ enum HealthJSONCodec {
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
     }()
+
+    private static let localDateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        return formatter
+    }()
+
+    static func parseFlexibleDate(_ raw: String) -> Date? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return isoWithFractionalSeconds.date(from: trimmed)
+            ?? isoStandard.date(from: trimmed)
+            ?? localDateTimeFormatter.date(from: trimmed)
+    }
 
     static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()

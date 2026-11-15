@@ -9,6 +9,15 @@ import Combine
 import Foundation
 import WatchConnectivity
 
+struct RemoteWatchTelemetryPayload: Sendable {
+    let heartRate: Int
+    let spo2: Int?
+    let bodyTemp: Double?
+    let overallStatus: HealthStatus
+    let alertTitle: String?
+    let timestamp: Date
+}
+
 /// The alert the iPhone shows (a backend scenario or a health alert), mirrored to the paired Apple Watch.
 struct WatchAlertPayload: Equatable, Sendable {
     let active: Bool
@@ -31,6 +40,8 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     var onSamplesReceived: (([HealthSample]) -> Void)?
     /// Callback triggered on the main queue whenever Watch symptom check-ins arrive.
     var onSymptomsReceived: (([String]) -> Void)?
+    /// Callback triggered on the main queue on Apple Watch whenever iPhone forwards live Web/backend vitals.
+    var onRemoteTelemetryReceived: ((RemoteWatchTelemetryPayload) -> Void)?
     /// Callback triggered on the main queue (Watch side) whenever the iPhone forwards its active alert.
     var onAlertReceived: ((WatchAlertPayload) -> Void)?
 
@@ -98,6 +109,39 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 
     func sendSample(_ sample: HealthSample) {
         sendSamples([sample])
+    }
+
+    /// Forwards live backend/Web vitals and alert state from iPhone to the paired Apple Watch.
+    func sendRemoteTelemetryToWatch(
+        heartRate: Double,
+        spo2: Double?,
+        bodyTemp: Double?,
+        overallStatus: HealthStatus,
+        alertTitle: String?
+    ) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+
+        var payload: [String: Any] = [
+            "remoteHeartRate": Int(heartRate.rounded()),
+            "remoteOverallStatus": overallStatus.rawValue,
+            "remoteTimestamp": Date().timeIntervalSince1970
+        ]
+        if let spo2 {
+            payload["remoteSpo2"] = Int(spo2.rounded())
+        }
+        if let bodyTemp {
+            payload["remoteBodyTemp"] = bodyTemp
+        }
+        if let alertTitle, !alertTitle.isEmpty {
+            payload["remoteAlertTitle"] = alertTitle
+        }
+
+        try? session.updateApplicationContext(payload)
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        }
     }
 
     func sendSamples(_ samples: [HealthSample]) {
@@ -180,6 +224,27 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
             Task { @MainActor [weak self] in
                 self?.latestSymptoms = symptoms
                 self?.onSymptomsReceived?(symptoms)
+            }
+        }
+
+        if let heartRate = payload["remoteHeartRate"] as? Int,
+           let statusRaw = payload["remoteOverallStatus"] as? String {
+            let spo2 = payload["remoteSpo2"] as? Int
+            let bodyTemp = payload["remoteBodyTemp"] as? Double
+            let alertTitle = payload["remoteAlertTitle"] as? String
+            let ts = (payload["remoteTimestamp"] as? TimeInterval).map(Date.init(timeIntervalSince1970:)) ?? Date()
+            let status = HealthStatus(rawValue: statusRaw) ?? .green
+            let remote = RemoteWatchTelemetryPayload(
+                heartRate: heartRate,
+                spo2: spo2,
+                bodyTemp: bodyTemp,
+                overallStatus: status,
+                alertTitle: alertTitle,
+                timestamp: ts
+            )
+            Task { @MainActor [weak self] in
+                self?.lastSyncDate = ts
+                self?.onRemoteTelemetryReceived?(remote)
             }
         }
     }
