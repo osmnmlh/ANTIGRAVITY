@@ -149,40 +149,46 @@ enum JournalSentimentAnalyzer {
     }
 
     static func parseGeminiReply(_ rawReply: String, digest: String) -> JournalSentimentResult? {
-        let trimmed = rawReply.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = rawReply
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "*`[]"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        let upperLine = normalizeAsciiTurkish(trimmed.components(separatedBy: .newlines).first ?? trimmed).uppercased()
-        let tone: JournalSentimentTone
-        let matchedMarkers: [String]
+        // Only inspect the leading classification label so explanatory words later in the sentence
+        // (e.g. "OLUMLU ... olumsuz bir durum yok") never hijack the tone.
+        let firstLine = trimmed.components(separatedBy: .newlines).first ?? trimmed
+        let normalizedPrefix = normalizeAsciiTurkish(firstLine)
+            .uppercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if upperLine.contains("COK_OLUMSUZ") || upperLine.contains("COK OLUMSUZ") {
-            tone = .veryNegative
-            matchedMarkers = ["COK_OLUMSUZ", "COK OLUMSUZ", "ÇOK OLUMSUZ"]
-        } else if upperLine.contains("COK_OLUMLU") || upperLine.contains("COK OLUMLU") {
-            tone = .veryPositive
-            matchedMarkers = ["COK_OLUMLU", "COK OLUMLU", "ÇOK OLUMLU"]
-        } else if upperLine.contains("OLUMSUZ") {
-            tone = .negative
-            matchedMarkers = ["OLUMSUZ"]
-        } else if upperLine.contains("OLUMLU") {
-            tone = .positive
-            matchedMarkers = ["OLUMLU"]
-        } else if upperLine.contains("NOTR") {
-            tone = .neutral
-            matchedMarkers = ["NOTR", "NÖTR"]
-        } else {
-            return nil
-        }
+        let labels: [(prefix: String, tone: JournalSentimentTone)] = [
+            ("COK_OLUMSUZ", .veryNegative),
+            ("COK OLUMSUZ", .veryNegative),
+            ("COK_OLUMLU", .veryPositive),
+            ("COK OLUMLU", .veryPositive),
+            ("OLUMSUZ", .negative),
+            ("OLUMLU", .positive),
+            ("NOTR", .neutral)
+        ]
 
-        var cleanedSummary = trimmed
-        for marker in matchedMarkers {
-            if let range = cleanedSummary.range(of: marker, options: [.caseInsensitive, .diacriticInsensitive]) {
-                cleanedSummary.removeSubrange(range)
+        var matchedTone: JournalSentimentTone?
+        var matchedLength = 0
+        for (prefix, candidateTone) in labels where normalizedPrefix.hasPrefix(prefix) {
+            let nextIndex = normalizedPrefix.index(normalizedPrefix.startIndex, offsetBy: prefix.count)
+            let isBoundary = nextIndex == normalizedPrefix.endIndex || !normalizedPrefix[nextIndex].isLetter
+            if isBoundary {
+                matchedTone = candidateTone
+                matchedLength = prefix.count
                 break
             }
         }
-        cleanedSummary = cleanedSummary.trimmingCharacters(in: CharacterSet(charactersIn: " .:-–—\n\t"))
+
+        guard let tone = matchedTone else { return nil }
+
+        let dropCount = min(matchedLength, trimmed.count)
+        var cleanedSummary = String(trimmed.dropFirst(dropCount))
+            .trimmingCharacters(in: CharacterSet(charactersIn: " .:-–—*`[]\n\t"))
         if cleanedSummary.isEmpty {
             cleanedSummary = "AI günlük değerlendirmesi: \(tone.label)."
         }

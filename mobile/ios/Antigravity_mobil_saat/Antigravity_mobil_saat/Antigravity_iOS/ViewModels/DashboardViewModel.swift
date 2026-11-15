@@ -374,9 +374,10 @@ class DashboardViewModel: ObservableObject {
             hasSyncedFromBackend = true
             lastBackendPacketAt = Date()
             latestBackendGuidance = packet.aiGuidance
+        } else if latestBackendGuidance == nil {
+            latestBackendGuidance = packet.aiGuidance
         }
         astronautPacket = packet
-        aiGuidance = packet.aiGuidance
         radiationBudgetMsv = packet.mission.radiationBudgetMsv
         for type in HealthIndicatorType.allCases where type != .mood {
             if let snap = packet.measurements[type.rawValue] {
@@ -512,6 +513,7 @@ class DashboardViewModel: ObservableObject {
             upsertAlert(alert)
         }
         houstonSyncRevision &+= 1
+        reconcileGuidanceWithCurrentState()
         forwardLatestStateToWatch(force: true)
     }
 
@@ -665,6 +667,202 @@ class DashboardViewModel: ObservableObject {
             connectionStatus = "KRİTİK UYARI"
         case .missing:
             connectionStatus = "VERİ BEKLENİYOR"
+        }
+
+        reconcileGuidanceWithCurrentState()
+    }
+
+    /// Keeps the Dashboard's AI card and per-indicator sheets consistent whenever local status
+    /// (for example computed mood, Watch telemetry, or active alerts) diverges from cached backend guidance.
+    private func reconcileGuidanceWithCurrentState() {
+        let baseGuidance = latestBackendGuidance ?? astronautPacket?.aiGuidance
+        let alertWorst = activeAlerts.map(\.severity).max() ?? .green
+        let effectiveOverall = max(overallStatus, alertWorst)
+
+        let packetStatuses: [HealthIndicatorType: HealthStatus] = Dictionary(
+            uniqueKeysWithValues: HealthIndicatorType.allCases.map { type in
+                let packetValue = astronautPacket?.measurements[type.rawValue]?.value
+                let status = HealthThresholds.status(
+                    for: type,
+                    value: packetValue,
+                    radiationBudgetMsv: radiationBudgetMsv
+                )
+                return (type, status)
+            }
+        )
+
+        let hasIndicatorDivergence = HealthIndicatorType.allCases.contains { type in
+            let current = indicatorStatuses[type] ?? .missing
+            let packetStatus = packetStatuses[type] ?? .missing
+            guard current == .amber || current == .red || packetStatus == .amber || packetStatus == .red else {
+                return false
+            }
+            return current != packetStatus
+        }
+
+        if let baseGuidance,
+           baseGuidance.overallStatus == effectiveOverall,
+           !hasIndicatorDivergence {
+            aiGuidance = baseGuidance
+            return
+        }
+
+        let flaggedTypes: [HealthIndicatorType] = HealthIndicatorType.allCases
+            .filter {
+                let status = indicatorStatuses[$0] ?? .missing
+                return status == .amber || status == .red
+            }
+            .sorted { lhs, rhs in
+                let lStatus = indicatorStatuses[lhs] ?? .missing
+                let rStatus = indicatorStatuses[rhs] ?? .missing
+                if lStatus != rStatus {
+                    return lStatus > rStatus
+                }
+                return lhs.rawValue < rhs.rawValue
+            }
+
+        var indicatorsMap: [String: AiIndicatorGuidance] = [:]
+        for type in HealthIndicatorType.allCases {
+            let currentStatus = indicatorStatuses[type] ?? .missing
+            let packetStatus = packetStatuses[type] ?? .missing
+            if let baseGuidance,
+               let backendItem = baseGuidance.indicators?[type.rawValue],
+               baseGuidance.overallStatus == effectiveOverall,
+               packetStatus == currentStatus {
+                indicatorsMap[type.rawValue] = backendItem
+                continue
+            }
+
+            let rule = HealthThresholds.guidance(for: type, status: currentStatus)
+            if type == .mood,
+               currentStatus == .amber || currentStatus == .red,
+               let moodAssessment {
+                var enrichedWhy = rule.whyInSpace
+                if !moodAssessment.journalAnalysis.summary.isEmpty {
+                    enrichedWhy = "\(rule.whyInSpace) \(moodAssessment.summaryLine)"
+                }
+                var enrichedDoNow = rule.doNow
+                if !moodAssessment.symptoms.isEmpty {
+                    let symptomLine = "Bildirilen belirtileri takip edin: \(moodAssessment.symptoms.joined(separator: ", "))."
+                    if !enrichedDoNow.contains(symptomLine) {
+                        enrichedDoNow.append(symptomLine)
+                    }
+                }
+                indicatorsMap[type.rawValue] = AiIndicatorGuidance(
+                    whatItIs: rule.whatItIs,
+                    whyInSpace: enrichedWhy,
+                    doNow: Array(enrichedDoNow.prefix(3)),
+                    escalateWhen: rule.escalateWhen
+                )
+            } else {
+                indicatorsMap[type.rawValue] = AiIndicatorGuidance(
+                    whatItIs: rule.whatItIs,
+                    whyInSpace: rule.whyInSpace,
+                    doNow: Array(rule.doNow.prefix(3)),
+                    escalateWhen: rule.escalateWhen
+                )
+            }
+        }
+
+        if flaggedTypes.isEmpty && activeAlerts.isEmpty {
+            aiGuidance = AiGuidance(
+                generatedAt: Date(),
+                source: .fallback,
+                model: nil,
+                overallStatus: effectiveOverall,
+                summary: "Tüm değerlerin normal aralıkta. Günlük rutinine devam et.",
+                actions: [
+                    "Planlanan egzersiz önlemlerine devam et.",
+                    "Uyku ve sıvı alımı düzenini koru."
+                ],
+                escalate: "Şu an uçuş cerrahına başvurman gerekmiyor. Yeni bir belirti fark edersen haber ver.",
+                disclaimer: HealthThresholds.demoDisclaimer,
+                indicators: indicatorsMap
+            )
+            return
+        }
+
+        let flaggedDescriptions = flaggedTypes.map { type in
+            let statusWord = (indicatorStatuses[type] == .red) ? "KRİTİK" : "dikkat"
+            return "\(type.displayName) \(formattedGuidanceValue(for: type)) (\(statusWord))"
+        }
+
+        var summaryParts: [String] = []
+        if !flaggedDescriptions.isEmpty {
+            summaryParts.append("\(flaggedDescriptions.count) değer dikkat gerektiriyor: \(flaggedDescriptions.joined(separator: ", ")).")
+        }
+        if flaggedTypes.contains(.mood), let moodAssessment {
+            summaryParts.append(moodAssessment.summaryLine)
+        }
+        if !activeAlerts.isEmpty {
+            let titles = activeAlerts.prefix(2).map(\.title).joined(separator: "; ")
+            summaryParts.append("Aktif uyarı: \(titles).")
+        }
+
+        var combinedActions: [String] = []
+        for alert in activeAlerts {
+            for step in alert.advice?.doNow ?? [] {
+                if !combinedActions.contains(step) {
+                    combinedActions.append(step)
+                }
+                if combinedActions.count >= 2 { break }
+            }
+            if combinedActions.count >= 2 { break }
+        }
+        for type in flaggedTypes {
+            for step in indicatorsMap[type.rawValue]?.doNow ?? [] {
+                if !combinedActions.contains(step) {
+                    combinedActions.append(step)
+                }
+                if combinedActions.count >= 3 { break }
+            }
+            if combinedActions.count >= 3 { break }
+        }
+        if combinedActions.isEmpty {
+            combinedActions = ["Dinlenmeye geçin ve ölçümleri 15 dakika sonra tekrarlayın."]
+        }
+
+        let escalateText: String
+        if let worstType = flaggedTypes.first, let item = indicatorsMap[worstType.rawValue] {
+            escalateText = item.escalateWhen
+        } else if let alertEscalate = activeAlerts.first?.advice?.escalate, !alertEscalate.isEmpty {
+            escalateText = alertEscalate
+        } else {
+            escalateText = "Durum düzelmezse mürettebat sağlık sorumlusu ve uçuş cerrahıyla iletişime geçin."
+        }
+
+        aiGuidance = AiGuidance(
+            generatedAt: Date(),
+            source: .fallback,
+            model: nil,
+            overallStatus: effectiveOverall,
+            summary: summaryParts.joined(separator: " "),
+            actions: Array(combinedActions.prefix(3)),
+            escalate: escalateText,
+            disclaimer: HealthThresholds.demoDisclaimer,
+            indicators: indicatorsMap
+        )
+    }
+
+    private func formattedGuidanceValue(for type: HealthIndicatorType) -> String {
+        guard let value = indicatorValues[type] else { return "--" }
+        switch type {
+        case .heartRate:
+            return "\(Int(value.rounded())) bpm"
+        case .bloodPressureSys, .bloodPressureDia:
+            return "\(Int(value.rounded())) mmHg"
+        case .spo2:
+            return "%\(Int(value.rounded()))"
+        case .bodyTemp:
+            return String(format: "%.1f °C", value)
+        case .bloodGlucose:
+            return "\(Int(value.rounded())) mg/dL"
+        case .sleepHours:
+            return String(format: "%.1f sa", value)
+        case .mood:
+            return "\(Int(value.rounded()))/5"
+        case .radiationDose:
+            return String(format: "%.1f mSv", value)
         }
     }
 }

@@ -336,7 +336,16 @@ struct AstronautBodyMapView: View {
 
     /// AI text of the backend for this indicator, else the app's own Turkish rule table.
     private func aiIndicator(for callout: BodyMapCallout) -> AiIndicatorGuidance? {
-        aiGuidance?.indicators?[primaryIndicator(for: callout).rawValue]
+        guard let aiGuidance,
+              let item = aiGuidance.indicators?[primaryIndicator(for: callout).rawValue] else {
+            return nil
+        }
+        let currentStatus = status(for: callout)
+        if currentStatus == .amber || currentStatus == .red,
+           aiGuidance.overallStatus < currentStatus {
+            return nil
+        }
+        return item
     }
 
     private func indicatorGuidance(for callout: BodyMapCallout) -> IndicatorGuidance {
