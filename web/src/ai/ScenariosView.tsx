@@ -167,9 +167,11 @@ export function ScenariosView({ crewId, onCrewChange, scenario, onOpenBase, onOp
               ))}
             </select>
           </label>
-          <button className="scenarios-reset" data-testid="ai-demo-reset" disabled={busy} onClick={() => void reset()} type="button">
-            ■ Hemen durdur
-          </button>
+          {(playing || live) && (
+            <button className="scenarios-reset" data-testid="ai-demo-reset" disabled={busy} onClick={() => void reset()} type="button">
+              ■ Hemen durdur
+            </button>
+          )}
           <button className="scenarios-link" onClick={onOpenBase} type="button">
             Uyarı merkezine git
           </button>

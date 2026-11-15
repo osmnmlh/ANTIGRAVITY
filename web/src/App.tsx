@@ -625,77 +625,83 @@ function App() {
         )}
 
         <section className="dashboard-grid">
-          <details className="dashboard-disclosure control-column" data-testid="astronaut-tasks-panel" open>
-            <summary className="disclosure-summary">
-              <span className="disclosure-icon" aria-hidden="true">✓</span>
-              <span className="disclosure-copy">
-                <strong>{selectedAstronaut.name} · Atanmış görevler</strong>
-              </span>
-              <span className="assigned-task-count">{selectedAstronautTasks.length}</span>
-              <span className="disclosure-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div className="disclosure-content">
-              <section className="panel assigned-task-panel">
-                {selectedAstronautTasks.length ? (
-                  <div className="base-task-list" data-testid="astronaut-task-list">
-                    {selectedAstronautTasks.map((task) => (
-                      <article
-                        className={`base-task-card ${task.completed ? 'is-completed' : ''}`}
-                        data-testid={`astronaut-task-${task.id}`}
-                        key={task.id}
-                      >
-                        <button
-                          aria-label={task.completed ? 'Görevi yeniden aç' : 'Görevi tamamlandı olarak işaretle'}
-                          aria-pressed={task.completed}
-                          className="task-complete-toggle"
-                          data-testid={`astronaut-task-toggle-${task.id}`}
-                          onClick={() => toggleTask(task)}
-                          type="button"
+          <div className="control-column">
+            <details className="dashboard-disclosure" data-testid="astronaut-tasks-panel" open>
+              <summary className="disclosure-summary">
+                <span className="disclosure-icon" aria-hidden="true">✓</span>
+                <span className="disclosure-copy">
+                  <strong>{selectedAstronaut.name} · Atanmış görevler</strong>
+                </span>
+                <span className="assigned-task-count">{selectedAstronautTasks.length}</span>
+                <span className="disclosure-chevron" aria-hidden="true">⌄</span>
+              </summary>
+              <div className="disclosure-content">
+                <section className="panel assigned-task-panel">
+                  {selectedAstronautTasks.length ? (
+                    <div className="base-task-list" data-testid="astronaut-task-list">
+                      {selectedAstronautTasks.map((task) => (
+                        <article
+                          className={`base-task-card ${task.completed ? 'is-completed' : ''}`}
+                          data-testid={`astronaut-task-${task.id}`}
+                          key={task.id}
                         >
-                          {task.completed ? '✓' : ''}
-                        </button>
-                        <div className="base-task-content">
-                          <div className="base-task-title-line">
-                            <strong>{task.title}</strong>
-                            {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
+                          <button
+                            aria-label={task.completed ? 'Görevi yeniden aç' : 'Görevi tamamlandı olarak işaretle'}
+                            aria-pressed={task.completed}
+                            className="task-complete-toggle"
+                            data-testid={`astronaut-task-toggle-${task.id}`}
+                            onClick={() => toggleTask(task)}
+                            type="button"
+                          >
+                            {task.completed ? '✓' : ''}
+                          </button>
+                          <div className="base-task-content">
+                            <div className="base-task-title-line">
+                              <strong>{task.title}</strong>
+                              {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
+                            </div>
+                            {task.details && <p>{task.details}</p>}
+                            <span className="base-task-meta">
+                              {task.dueAt
+                                ? `Son tarih · ${new Date(task.dueAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                : 'Son tarih belirtilmedi'}
+                            </span>
                           </div>
-                          {task.details && <p>{task.details}</p>}
-                          <span className="base-task-meta">
-                            {task.dueAt
-                              ? `Son tarih · ${new Date(task.dueAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-                              : 'Son tarih belirtilmedi'}
-                          </span>
-                        </div>
-                        <span className={`task-status ${task.completed ? 'done' : ''}`}>{task.completed ? 'TAMAM' : 'AÇIK'}</span>
-                        <button
-                          aria-label={`Görevi sil: ${task.title}`}
-                          className="task-delete-button"
-                          data-testid={`astronaut-task-delete-${task.id}`}
-                          onClick={() => handleDeleteTask(task)}
-                          type="button"
-                        >
-                          SİL
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="base-empty-state" data-testid="astronaut-tasks-empty">
-                    <span>{selectedAstronaut.code}</span>
-                    <strong>Henüz atanmış görev yok</strong>
-                    <button
-                      className="assigned-task-link"
-                      data-testid="go-to-base-tasks"
-                      onClick={() => setActiveWorkspace('base')}
-                      type="button"
-                    >
-                      Ana üs görev panosuna git <b aria-hidden="true">→</b>
-                    </button>
-                  </div>
-                )}
-              </section>
+                          <span className={`task-status ${task.completed ? 'done' : ''}`}>{task.completed ? 'TAMAM' : 'AÇIK'}</span>
+                          <button
+                            aria-label={`Görevi sil: ${task.title}`}
+                            className="task-delete-button"
+                            data-testid={`astronaut-task-delete-${task.id}`}
+                            onClick={() => handleDeleteTask(task)}
+                            type="button"
+                          >
+                            SİL
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="base-empty-state" data-testid="astronaut-tasks-empty">
+                      <span>{selectedAstronaut.code}</span>
+                      <strong>Henüz atanmış görev yok</strong>
+                      <button
+                        className="assigned-task-link"
+                        data-testid="go-to-base-tasks"
+                        onClick={() => setActiveWorkspace('base')}
+                        type="button"
+                      >
+                        Ana üs görev panosuna git <b aria-hidden="true">→</b>
+                      </button>
+                    </div>
+                  )}
+                </section>
+              </div>
+            </details>
+
+            <div className="ai-slot">
+              <AiChat crewId={selectedCrewId} crewName={selectedAstronaut.name} />
             </div>
-          </details>
+          </div>
 
           <section className="body-column">
             <section className="panel body-panel">
@@ -766,18 +772,15 @@ function App() {
             </section>
           </section>
 
-          <details className="dashboard-disclosure guidance-column" data-testid="guidance-disclosure">
-            <summary className="disclosure-summary">
-              <span className={`disclosure-icon status-${selectedStatus}`} aria-hidden="true">◎</span>
-              <span className="disclosure-copy">
-                <strong>{formatValue(selectedMetric, selectedSample?.value)} {metricDefinitions[selectedMetric].displayUnit} · Rehber ve eğilim</strong>
-                <small>{selectedGuidance.hazard}</small>
-              </span>
-              <StatusBadge status={selectedStatus} />
-              <span className="disclosure-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div className="disclosure-content">
-            <section className="panel guidance-panel" data-testid="guidance-panel">
+          <section className="panel guidance-panel guidance-column" data-testid="guidance-panel">
+              <div className="guidance-static-head">
+                <span className={`disclosure-icon status-${selectedStatus}`} aria-hidden="true">◎</span>
+                <span className="disclosure-copy">
+                  <strong>{formatValue(selectedMetric, selectedSample?.value)} {metricDefinitions[selectedMetric].displayUnit} · Rehber ve eğilim</strong>
+                  <small>{selectedGuidance.hazard}</small>
+                </span>
+                <StatusBadge status={selectedStatus} />
+              </div>
               <div className="metric-readout">
                 <div>
                   <h2>{metricDefinitions[selectedMetric].label}</h2>
@@ -826,14 +829,8 @@ function App() {
                 Kaynak: {selectedSample?.source === 'manual' ? 'Manuel giriş' : selectedSample?.source === 'watch' ? 'Saat simülasyonu' : selectedSample?.source === 'iphone' ? 'Telefon' : 'Demo verisi'}
                 {selectedSample ? ` · ${new Date(selectedSample.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}` : ''}
               </p>
-            </section>
-            </div>
-          </details>
+          </section>
         </section>
-
-        <div className="ai-slot">
-          <AiChat crewId={selectedCrewId} crewName={selectedAstronaut.name} />
-        </div>
 
         <footer className="app-footer">
           <span className="footer-brand"><span className="brand-mark small"><span /><span /><span /></span> ANTIGRAVITY · MISSION HEALTH DEMO</span>
