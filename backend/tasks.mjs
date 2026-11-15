@@ -3,6 +3,23 @@
 
 const PRIORITIES = new Set(['normal', 'high']);
 
+/** An astronaut never gets more than this many alert tasks at once; a long list is ignored in an emergency. */
+export const MAX_ALERT_TASKS = 3;
+
+/**
+ * The steps of an alert that become tasks for ONE astronaut, at most `room` of them.
+ * Red: the first steps, then "Uçuş cerrahına haber ver" as the last one (calling the surgeon must never be cut).
+ * Amber: just the first steps.
+ */
+export function alertTaskItems(alert, room = MAX_ALERT_TASKS) {
+  const steps = (alert.advice?.doNow ?? []).map((title) => ({ title, details: alert.title }));
+  const call = alert.severity === 'red' && alert.advice?.escalate
+    ? [{ title: 'Uçuş cerrahına haber ver', details: alert.advice.escalate }]
+    : [];
+  const limit = Math.max(0, Math.min(room, MAX_ALERT_TASKS));
+  return [...steps.slice(0, Math.max(0, limit - call.length)), ...call].slice(0, limit);
+}
+
 export function createTaskStore({ now = () => new Date() } = {}) {
   /** @type {Map<string, object>} */
   const tasks = new Map();
