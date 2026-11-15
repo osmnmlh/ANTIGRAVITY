@@ -29,6 +29,17 @@ struct DashboardView: View {
                     status: viewModel.overallStatus
                 )
 
+                if let scenario = viewModel.activeScenario {
+                    Label(
+                        "\(scenario.bannerText) · \(scenario.remainingSeconds ?? 0) sn · simüle edilmiş veri",
+                        systemImage: "play.circle.fill"
+                    )
+                    .font(.headline)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+                }
+
                 ForEach(viewModel.activeAlerts) { alert in
                     proactiveAlertCard(alert)
                 }
