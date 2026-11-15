@@ -153,25 +153,47 @@ function TrendChart({ type, samples }: { type: HealthType; samples: HealthSample
   const firstTimestamp = Date.parse(orderedSamples[0].timestamp)
   const lastTimestamp = Date.parse(orderedSamples[orderedSamples.length - 1].timestamp)
   const rangeStart = Math.max(firstTimestamp, lastTimestamp - 6 * 24 * 60 * 60 * 1000)
-  const recentSamples = orderedSamples.filter((sample) => Date.parse(sample.timestamp) >= rangeStart)
-  const values = recentSamples.map(({ value }) => value)
+  const filteredSamples = orderedSamples.filter((sample) => Date.parse(sample.timestamp) >= rangeStart)
+  const recentSamples = filteredSamples.length >= 2 ? filteredSamples : orderedSamples.slice(-7)
+
+  // Keep one latest sample per calendar day over the 7-day window so live bursts don't cram spikes or duplicate day labels
+  const dailyMap = new Map<string, HealthSample>()
+  for (const sample of recentSamples) {
+    const date = new Date(sample.timestamp)
+    const dayKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+    dailyMap.set(dayKey, sample)
+  }
+  const dailySamples = Array.from(dailyMap.values())
+  const useDailyPoints = dailySamples.length >= 2
+  const plotSamples = useDailyPoints ? dailySamples : recentSamples
+
+  const values = plotSamples.map(({ value }) => value)
   const minimum = Math.min(...values)
   const maximum = Math.max(...values)
   const padding = (maximum - minimum) * 0.15 || Math.max(Math.abs(minimum) * 0.02, 0.1)
   const min = minimum - padding
   const span = maximum - minimum + padding * 2
-  const dateSpan = Date.parse(recentSamples[recentSamples.length - 1].timestamp) -
-    Date.parse(recentSamples[0].timestamp)
-  const points = recentSamples.map((sample) => ({
+  const chartStart = Date.parse(plotSamples[0].timestamp)
+  const chartEnd = Date.parse(plotSamples[plotSamples.length - 1].timestamp)
+  const dateSpan = chartEnd - chartStart
+  const points = plotSamples.map((sample) => ({
     x: 8 + (dateSpan
-      ? ((Date.parse(sample.timestamp) - Date.parse(recentSamples[0].timestamp)) / dateSpan) * 264
+      ? ((Date.parse(sample.timestamp) - chartStart) / dateSpan) * 264
       : 132),
     y: 112 - ((sample.value - min) / span) * 82,
-    value: sample.value,
     date: new Date(sample.timestamp).toLocaleDateString('tr-TR', { day: '2-digit' }),
   }))
   const pointString = points.map(({ x, y }) => `${x},${y}`).join(' ')
-  const areaPath = `M ${points[0].x} 122 L ${points.map(({ x, y }) => `${x} ${y}`).join(' L ')} L ${points[points.length - 1].x} 122 Z`
+  const areaPath = `M ${points[0].x} 112 L ${points.map(({ x, y }) => `${x} ${y}`).join(' L ')} L ${points[points.length - 1].x} 112 Z`
+
+  const intradayTickCount = Math.min(5, Math.max(2, plotSamples.length))
+  const axisLabels = useDailyPoints
+    ? points.map(({ x, date }, index) => ({ key: `${index}-${x}-${date}`, text: date }))
+    : Array.from({ length: intradayTickCount }, (_, index) => {
+        const ts = chartStart + (dateSpan * index) / Math.max(intradayTickCount - 1, 1)
+        const text = new Date(ts).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        return { key: `${index}-${Math.round(ts)}`, text }
+      })
 
   return (
     <div className="trend-chart" role="img" aria-label={`${metricDefinitions[type].label}: kaydedilmiş yedi günlük ölçümler`}>
@@ -196,7 +218,7 @@ function TrendChart({ type, samples }: { type: HealthType; samples: HealthSample
         <polyline className="chart-line" points={pointString} vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="trend-days">
-        {points.map(({ x, date }, index) => <span key={`${index}-${x}-${date}`}>{date}</span>)}
+        {axisLabels.map(({ key, text }) => <span key={key}>{text}</span>)}
       </div>
     </div>
   )
