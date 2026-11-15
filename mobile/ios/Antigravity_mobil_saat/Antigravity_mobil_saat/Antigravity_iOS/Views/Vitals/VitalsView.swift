@@ -22,22 +22,25 @@ struct VitalsView: View {
     private let standStartColor = Color(red: 0.000, green: 0.961, blue: 0.918)    // #00F5EA
     private let standEndColor = Color(red: 0.220, green: 0.741, blue: 0.973)      // #38BDF8
 
-    private let chartRingSize: CGFloat = 112
-    private let chartRingThickness: CGFloat = 11.5
-    private let chartRingSpacing: CGFloat = 3.0
-
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 12) {
-                activityRingsCard
-                vitalsRingsCard
-                missionMetricsRingsCard
-                syncSamplesCard
-                    .padding(.top, 10)
+        GeometryReader { proxy in
+            let verticalPadding: CGFloat = 16
+            let cardSpacing: CGFloat = 12
+            let availableHeight = max(proxy.size.height - verticalPadding - cardSpacing * 2, 460)
+            let perCardHeight = availableHeight / 3.0
+            let dynamicRingSize = Swift.min(Swift.max(perCardHeight - 78, 114), 126)
+            let dynamicThickness = dynamicRingSize * 0.105
+            let minContentHeight = Swift.min(Swift.max(perCardHeight - 52, 134), 156)
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: cardSpacing) {
+                    activityRingsCard(ringSize: dynamicRingSize, ringThickness: dynamicThickness, minContentHeight: minContentHeight)
+                    vitalsRingsCard(ringSize: dynamicRingSize, ringThickness: dynamicThickness, minContentHeight: minContentHeight)
+                    missionMetricsRingsCard(ringSize: dynamicRingSize, ringThickness: dynamicThickness, minContentHeight: minContentHeight)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
         }
         .navigationTitle("Vital Veriler")
         .navigationBarTitleDisplayMode(.inline)
@@ -49,7 +52,10 @@ struct VitalsView: View {
         title: String,
         trailingText: String,
         trailingColor: Color,
-        rings: [ActivityRingItem]
+        rings: [ActivityRingItem],
+        ringSize: CGFloat,
+        ringThickness: CGFloat,
+        minContentHeight: CGFloat
     ) -> some View {
         GlassCardView(cornerRadius: 20, padding: 14) {
             VStack(alignment: .leading, spacing: 10) {
@@ -61,21 +67,22 @@ struct VitalsView: View {
                     Spacer()
 
                     Text(trailingText)
-                        .font(.caption2.weight(.semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(trailingColor)
                 }
 
                 ActivityRingsChartView(
                     rings: rings,
-                    ringSize: chartRingSize,
-                    ringThickness: chartRingThickness,
-                    ringSpacing: chartRingSpacing
+                    ringSize: ringSize,
+                    ringThickness: ringThickness,
+                    ringSpacing: 3.2
                 )
             }
+            .frame(maxWidth: .infinity, minHeight: minContentHeight, alignment: .leading)
         }
     }
 
-    private var activityRingsCard: some View {
+    private func activityRingsCard(ringSize: CGFloat, ringThickness: CGFloat, minContentHeight: CGFloat) -> some View {
         let moveProgress = max(0, dashboardViewModel.activeCalories / moveGoal)
         let exerciseProgress = max(0, Double(dashboardViewModel.exerciseMinutes) / exerciseGoal)
         let standProgress = max(0, Double(dashboardViewModel.standHours) / standGoal)
@@ -114,11 +121,14 @@ struct VitalsView: View {
             title: "Aktivite",
             trailingText: "Aktivite Halkaları",
             trailingColor: ColorTheme.textMuted,
-            rings: rings
+            rings: rings,
+            ringSize: ringSize,
+            ringThickness: ringThickness,
+            minContentHeight: minContentHeight
         )
     }
 
-    private var vitalsRingsCard: some View {
+    private func vitalsRingsCard(ringSize: CGFloat, ringThickness: CGFloat, minContentHeight: CGFloat) -> some View {
         let hrProgress = normalizedProgress(value: dashboardViewModel.heartRateValue, min: 40, max: 140)
         let spo2Progress = normalizedProgress(value: dashboardViewModel.spo2Value, min: 85, max: 100)
         let tempProgress = normalizedProgress(value: dashboardViewModel.bodyTempValue, min: 35.0, max: 39.0)
@@ -164,11 +174,14 @@ struct VitalsView: View {
             title: "Ölçümler",
             trailingText: dashboardViewModel.overallStatus.turkishLabel,
             trailingColor: dashboardViewModel.overallStatus.themeColor,
-            rings: rings
+            rings: rings,
+            ringSize: ringSize,
+            ringThickness: ringThickness,
+            minContentHeight: minContentHeight
         )
     }
 
-    private var missionMetricsRingsCard: some View {
+    private func missionMetricsRingsCard(ringSize: CGFloat, ringThickness: CGFloat, minContentHeight: CGFloat) -> some View {
         let sleepValue = dashboardViewModel.indicatorValues[.sleepHours]
         let sleepProgress = sleepValue.map { normalizedProgress(value: $0, min: 0, max: 9.0) } ?? 0.02
         let sleepStatus = dashboardViewModel.indicatorStatuses[.sleepHours] ?? .missing
@@ -230,30 +243,11 @@ struct VitalsView: View {
             title: "Uyku, Tansiyon & Radyasyon",
             trailingText: sectionWorst == .missing ? "Bekleniyor" : sectionWorst.turkishLabel,
             trailingColor: sectionWorst.themeColor,
-            rings: rings
+            rings: rings,
+            ringSize: ringSize,
+            ringThickness: ringThickness,
+            minContentHeight: minContentHeight
         )
-    }
-
-    private var syncSamplesCard: some View {
-        VStack(spacing: 4) {
-            NeonButton(
-                title: dashboardViewModel.isSyncingBackend ? "Gönderiliyor..." : "Ölçümleri Sunucuya Gönder",
-                systemImage: "icloud.and.arrow.up",
-                tintColor: ColorTheme.accent
-            ) {
-                Task {
-                    await dashboardViewModel.sendCurrentVitalsToBackend()
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .disabled(dashboardViewModel.isSyncingBackend)
-
-            if let message = dashboardViewModel.lastSampleSyncMessage {
-                Text(message)
-                    .font(.caption2)
-                    .foregroundStyle(ColorTheme.textMuted)
-            }
-        }
     }
 
     private func normalizedProgress(value: Double, min: Double, max: Double) -> Double {

@@ -49,14 +49,6 @@ struct MissionListView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
-                NeonButton(
-                    title: "Yeni Görev Ekle",
-                    systemImage: "plus.circle.fill",
-                    tintColor: ColorTheme.accent
-                ) {
-                    isShowingComposer = true
-                }
-
                 progressSummaryCard
 
                 filterBar
@@ -72,14 +64,14 @@ struct MissionListView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, 8)
             .padding(.bottom, 24)
         }
         .refreshable {
             await onRefresh?()
         }
         .navigationTitle("Görevler")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if viewModel.completedCount > 0 {

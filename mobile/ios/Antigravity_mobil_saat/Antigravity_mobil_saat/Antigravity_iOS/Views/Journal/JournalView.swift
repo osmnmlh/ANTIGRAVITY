@@ -25,14 +25,6 @@ struct JournalView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
-                NeonButton(
-                    title: "Yeni Günlük Notu Ekle",
-                    systemImage: "square.and.pencil",
-                    tintColor: ColorTheme.accent
-                ) {
-                    isShowingComposer = true
-                }
-
                 if viewModel.entries.isEmpty {
                     emptyStateCard
                 } else {
@@ -42,11 +34,11 @@ struct JournalView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, 8)
             .padding(.bottom, 24)
         }
         .navigationTitle("Günlük")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
