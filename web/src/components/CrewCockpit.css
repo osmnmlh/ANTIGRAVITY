@@ -1,0 +1,116 @@
+.crew-cockpit {
+  position: relative;
+  margin-bottom: 14px;
+  border: 1px solid var(--shell-hairline);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-space-base);
+}
+
+.crew-cockpit-canvas {
+  width: 100%;
+  height: clamp(340px, 42vw, 470px);
+}
+
+.crew-cockpit-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.crew-cockpit-labels {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 0;
+}
+
+.cockpit-label {
+  position: absolute;
+  bottom: 14px;
+  transform: translateX(-50%);
+  min-width: 168px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 16px 10px;
+  border: 1px solid var(--shell-hairline);
+  border-radius: 10px;
+  background: rgba(var(--bg-card-rgb), 0.92);
+  color: var(--text-primary);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
+}
+
+.cockpit-label:hover {
+  border-color: var(--shell-hairline-hover);
+}
+
+.cockpit-label:focus-visible {
+  outline: 2px solid var(--accent-telemetry);
+  outline-offset: 2px;
+}
+
+.cockpit-label.is-selected {
+  border-color: rgba(var(--accent-telemetry-rgb), 0.7);
+  background: rgba(var(--bg-elevated-rgb), 0.96);
+}
+
+.cockpit-label-code {
+  color: var(--accent-telemetry);
+  font: 500 13px var(--font-mono);
+}
+
+.cockpit-label strong {
+  font: 700 16px/1.25 var(--font-display);
+}
+
+.cockpit-label-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font: 600 13px var(--font-body);
+}
+
+.cockpit-label-status i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-optimal);
+}
+
+.cockpit-label.status-amber .cockpit-label-status i { background: var(--status-warning); }
+.cockpit-label.status-red .cockpit-label-status i { background: var(--status-critical); }
+.cockpit-label.status-missing .cockpit-label-status i { background: var(--text-muted); }
+
+/* Without WebGL the labels become a plain row of buttons. */
+.crew-cockpit-labels.is-fallback {
+  position: static;
+  height: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px;
+}
+
+.crew-cockpit-labels.is-fallback .cockpit-label {
+  position: static;
+  transform: none;
+}
+
+@media (max-width: 720px) {
+  .cockpit-label {
+    min-width: 0;
+    padding: 7px 8px 8px;
+  }
+
+  .cockpit-label strong {
+    font-size: 13px;
+  }
+
+  .cockpit-label-code {
+    font-size: 11px;
+  }
+}

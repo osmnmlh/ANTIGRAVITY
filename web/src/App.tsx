@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import './App.css'
 import { ThreeBodyMap } from './components/ThreeBodyMap'
-import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi, useAiIndicatorGuidance } from './ai'
+import { AiChat, AlertCenter, DevicesPanel, askAi, useAiIndicatorGuidance } from './ai'
+import { ScenariosView } from './ai/ScenariosView'
+import { CrewCockpit } from './components/CrewCockpit'
 import './cosmos-shell.css'
 import { astronautProfiles, latestSampleFor, useHealthData } from './data/useHealthData'
 import { guidanceByType } from './domain/guidance'
@@ -18,8 +20,7 @@ import {
   type HealthType,
 } from './domain/types'
 
-type MissionEnvironment = 'iss' | 'lunar' | 'mars'
-type Workspace = 'astronauts' | 'base'
+type Workspace = 'astronauts' | 'base' | 'scenarios'
 type TaskPriority = 'normal' | 'high'
 type AlertSeverity = 'info' | 'warning' | 'critical'
 type AlertRecipient = 'all' | (typeof astronautProfiles)[number]['id']
@@ -103,14 +104,6 @@ function readCrewMessages(): CrewMessage[] {
     console.error('Could not load crew messages from local storage.', error)
     return []
   }
-}
-
-const issEnvironment = {
-  label: 'ISS Alçak Uzay Ortamı',
-  short: 'ISS',
-  latency: '1.3 sn',
-  detail: 'Dünya ile yakın gerçek zamanlı iletişim',
-  icon: 'LEO',
 }
 
 const metricOrder: HealthType[] = [
@@ -224,8 +217,8 @@ function App() {
   const [alertSeverity, setAlertSeverity] = useState<AlertSeverity>('critical')
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [showMessageForm, setShowMessageForm] = useState(false)
-  const environment: MissionEnvironment = 'iss'
   const [selectedCrewId, setSelectedCrewId] = useState<(typeof astronautProfiles)[number]['id']>('crew-1')
+  const [cockpitCrewId, setCockpitCrewId] = useState<(typeof astronautProfiles)[number]['id']>('crew-1')
   const [selectedMetric, setSelectedMetric] = useState<HealthType>('heartRate')
   const [focusedMetric, setFocusedMetric] = useState<HealthType | null>(null)
   const [simulationActionError, setSimulationActionError] = useState('')
@@ -282,7 +275,6 @@ function App() {
   const selectedGuidance = aiIndicator
     ? { ...guidanceByType[selectedMetric], what: aiIndicator.whatItIs, why: aiIndicator.whyInSpace, doNow: aiIndicator.doNow, escalate: aiIndicator.escalateWhen }
     : guidanceByType[selectedMetric]
-  const activeEnvironment = issEnvironment
   const selectedTrendSamples = useMemo(
     () => crewSamples.filter((sample) => sample.type === selectedMetric),
     [crewSamples, selectedMetric],
@@ -510,6 +502,17 @@ function App() {
           )}
           <small>GÖREV KONTROLÜ</small>
         </button>
+        <button
+          className={`workspace-tab ${activeWorkspace === 'scenarios' ? 'is-active' : ''}`}
+          data-testid="workspace-scenarios"
+          onClick={() => setActiveWorkspace('scenarios')}
+          type="button"
+          aria-current={activeWorkspace === 'scenarios' ? 'page' : undefined}
+        >
+          <span className="workspace-tab-icon" aria-hidden="true">▶</span>
+          <span>Senaryolar</span>
+          <small>DEMO TETİKLEYİCİ</small>
+        </button>
       </nav>
 
       <main id="dashboard" className="dashboard">
@@ -675,7 +678,7 @@ function App() {
               </section>
               <div className="map-indicator-layout">
                 <ThreeBodyMap
-                  environment={environment}
+                  environment={selectedAstronaut.environment}
                   astronautCode={selectedAstronaut.code}
                   astronautName={selectedAstronaut.name}
                   statuses={statuses}
@@ -790,6 +793,8 @@ function App() {
           <span className="dose-budget">GÖREV DOZ BÜTÇESİ: {selectedAstronaut.radiationBudgetMsv} mSv</span>
         </footer>
           </>
+        ) : activeWorkspace === 'scenarios' ? (
+          <ScenariosView onOpenBase={() => setActiveWorkspace('base')} />
         ) : (
           <>
             <section className="base-welcome">
@@ -814,9 +819,19 @@ function App() {
               <div className="panel-heading">
                 <div><h2>Görev ekibi</h2></div>
               </div>
+              <CrewCockpit
+                crew={crewOverview.map(({ id, name, code, role, overallStatus }) => ({ id, name, code, role, status: overallStatus }))}
+                selectedId={cockpitCrewId}
+                onSelect={setCockpitCrewId}
+              />
               <div className="base-roster-list">
                 {crewOverview.map((astronaut) => (
-                  <article className="base-roster-row" data-testid={`base-crew-${astronaut.id}`} key={astronaut.id}>
+                  <article
+                    className={`base-roster-row ${astronaut.id === cockpitCrewId ? 'is-selected' : ''}`}
+                    data-testid={`base-crew-${astronaut.id}`}
+                    key={astronaut.id}
+                    onClick={() => setCockpitCrewId(astronaut.id)}
+                  >
                     <span className="base-crew-avatar">{astronaut.code.slice(-2)}</span>
                     <span className="base-crew-main">
                       <strong>{astronaut.name}</strong>
@@ -1119,15 +1134,14 @@ function App() {
               </section>
             </section>
 
-            <section className="ai-base-side ai-base-panels" aria-label="Bağlı cihazlar ve AI demo kontrolleri">
+            <section className="ai-base-side ai-base-panels" aria-label="Bağlı cihazlar">
               <DevicesPanel crewNames={Object.fromEntries(astronautProfiles.map((astronaut) => [astronaut.id, astronaut.name]))} />
-              <AiDemoControls />
             </section>
 
             <footer className="app-footer">
               <span className="footer-brand"><span className="brand-mark small"><span /><span /><span /></span> ANTIGRAVITY · MISSION CONTROL DEMO</span>
               <span className="medical-disclaimer">Demo yazılımıdır, tıbbi cihaz değildir. Sağlık uyarıları demo eşiklerine dayanır.</span>
-              <span className="dose-budget">GÖREV: {activeEnvironment.short} · {activeEnvironment.latency}</span>
+              <span className="dose-budget">GÖREV: {[...new Set(astronautProfiles.map(({ missionName }) => missionName))].join(' · ')}</span>
             </footer>
           </>
         )}
