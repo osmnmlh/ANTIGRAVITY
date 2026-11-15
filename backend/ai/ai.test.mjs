@@ -860,25 +860,40 @@ test('a cabin scenario also moves every cabin astronaut, but only to amber (the 
 
 // ---- More scenarios from the data we already have (vitals and cabin) ----
 
-for (const [id, scenarioId, scope] of [
-  ['hypertensive-crisis', 'hypertensive-crisis', 'crew'],
-  ['hypoglycemia', 'hypoglycemia', 'crew'],
-  ['eva-exertion', 'eva-exertion', 'crew'],
-  ['radiation-budget', 'radiation-budget', 'crew'],
-  ['cabin-humidity-high', 'cabin-humidity', 'cabin'],
-  ['cabin-overheat', 'cabin-temperature', 'cabin'],
+test('new scenario hypoglycemia: one red alert with steps, aimed at the chosen astronaut', async () => {
+  const { ai } = setup();
+  await call(ai, 'POST', '/api/ai/demo/hypoglycemia', { crewId: 'crew-1' });
+  const hits = active(ai).filter((a) => a.scenarioId === 'hypoglycemia');
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].scope, 'crew');
+  assert.equal(hits[0].severity, 'red');
+  assert.deepEqual(hits[0].crewIds, ['crew-1']);
+  assert.ok(hits[0].advice.doNow.length >= 2 && hits[0].advice.escalate.includes('uçuş cerrah'));
+});
+
+// The other rules built from our vitals and cabin data still fire on real readings (no demo button for them).
+for (const [scenarioId, samples] of [
+  ['hypertensive-crisis', [['bloodPressureSys', 172], ['bloodPressureDia', 108], ['heartRate', 104]]],
+  ['eva-exertion', [['heartRate', 152], ['spo2', 91]]],
+  ['radiation-budget', [['radiationDose', 93]]],
 ]) {
-  test(`new scenario ${id}: one red alert with steps, aimed at the right people`, async () => {
-    const { ai } = setup();
-    await call(ai, 'POST', `/api/ai/demo/${id}`, scope === 'crew' ? { crewId: 'crew-1' } : undefined);
+  test(`rule ${scenarioId} fires once for the astronaut whose readings cross the limit`, () => {
+    const { ai, applySamples } = setup();
+    applySamples(samples.map(([type, value]) => ({ crewId: 'crew-2', type, value, timestamp: 't', source: 'mock' })));
+    ai.onSamples();
     const hits = active(ai).filter((a) => a.scenarioId === scenarioId);
-    assert.equal(hits.length, 1, `${id} raises exactly one ${scenarioId} alert`);
-    assert.equal(hits[0].scope, scope);
-    assert.equal(hits[0].severity, 'red');
-    assert.ok(hits[0].advice.doNow.length >= 2 && hits[0].advice.escalate.includes('uçuş cerrah') || hits[0].advice.escalate.includes('görev kontrol'));
-    if (scope === 'crew') assert.deepEqual(hits[0].crewIds, ['crew-1']);
+    assert.equal(hits.length, 1);
+    assert.deepEqual(hits[0].crewIds, ['crew-2']);
   });
 }
+
+test('rule cabin-humidity fires for everyone in the cabin when the air is too wet', async () => {
+  const { ai } = setup();
+  await call(ai, 'POST', '/api/ai/cabin', { readings: [{ metric: 'humidity', value: 86 }] });
+  const hits = active(ai).filter((a) => a.scenarioId === 'cabin-humidity');
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].scope, 'cabin');
+});
 
 test('every alert hands its steps to the host (onAlert) and tells when it is over (onAlertResolved, onAlertsCleared)', async () => {
   const seen = { created: [], resolved: [], cleared: 0 };

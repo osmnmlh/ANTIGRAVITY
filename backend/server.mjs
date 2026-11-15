@@ -19,7 +19,7 @@ import {
 import { guidanceByType } from '../web/src/domain/guidance.ts';
 import { metricDefinitions } from '../web/src/domain/types.ts';
 import { createAi } from './ai/index.mjs';
-import { createTaskStore } from './tasks.mjs';
+import { createTaskStore, alertTaskItems, MAX_ALERT_TASKS } from './tasks.mjs';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 try { process.loadEnvFile(here('./.env')); } catch { /* .env is optional */ }
@@ -109,12 +109,11 @@ function addSamples(input) {
 const publishTask = (action, task) => broadcast('task', { action, task });
 
 function assignAlertTasks(alert) {
-  const items = (alert.advice?.doNow ?? []).slice(0, 3).map((title) => ({ title, details: alert.title }));
-  if (alert.severity === 'red' && alert.advice?.escalate) {
-    items.push({ title: 'Uçuş cerrahına haber ver', details: alert.advice.escalate });
-  }
   const base = Date.now();
   for (const crewId of alert.crewIds) {
+    // At most MAX_ALERT_TASKS alert tasks per astronaut at any time, however many alerts are active.
+    const room = MAX_ALERT_TASKS - taskStore.list(crewId).filter((t) => t.source === 'alert').length;
+    const items = alertTaskItems(alert, room);
     items.forEach((item, index) => {
       const task = taskStore.upsert({
         ...item,
