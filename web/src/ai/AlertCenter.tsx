@@ -4,6 +4,7 @@ import { aiStore, useAiState } from './aiStore'
 import { AI_LABELS as L } from './labels'
 import type { Alert } from './types'
 import { announce, readAloud, stopReading, toggleVoice, useVoiceEnabled } from './voice'
+import { Icon } from './Icon'
 import { VoiceSettings } from './VoiceSettings'
 import './ai.css'
 
@@ -22,7 +23,7 @@ export interface AlertCenterProps {
   placement?: 'bottom-right' | 'top-right' | 'inline'
 }
 
-const ICON = { red: '⚠', amber: '!' } as const
+const ICON = { red: <Icon name="siren" size={13} />, amber: <Icon name="alert" size={13} /> } as const
 /** Same id can come back after a server restart: createdAt makes the key unique. */
 const keyOf = (a: Alert) => `${a.id}@${a.createdAt}`
 
@@ -47,7 +48,7 @@ function AdvicePanel({ alert }: { alert: Alert }) {
     <div className="ai-advice" data-testid="ai-alert-advice">
       {advice.summary && (
         <div className="ai-summary" data-testid="ai-alert-summary">
-          <span className="ai-summary-label">✦ {L.summary}</span>
+          <span className="ai-summary-label"><Icon name="sparkle" size={13} /> {L.summary}</span>
           <p>{advice.summary}</p>
         </div>
       )}
@@ -63,7 +64,7 @@ function AdvicePanel({ alert }: { alert: Alert }) {
             if (reading) { stopReading(); setReading(false) }
             else setReading(readAloud(`${L.stepsIntro} ${steps} ${advice.escalate}`, () => setReading(false)))
           }}>
-          {reading ? `⏹ ${L.readStop}` : `🔊 ${L.readAloud}`}
+          {reading ? <Icon name="stop" size={14} /> : <Icon name="volume" size={14} />} {reading ? L.readStop : L.readAloud}
         </button>
         <span className="ai-source" data-testid="ai-alert-source" data-source={advice.source}>
           {L.interpretedBy(advice.source)} · {alert.disclaimer}
@@ -123,7 +124,7 @@ function AlertPopup({ alert, queued, onClose, onOpenAstronaut, onAskAi, deviceId
             {L.ack}
           </button>
           <button type="button" className="ai-btn" aria-expanded={adviceOpen} onClick={() => setAdviceOpen((o) => !o)} data-testid="ai-alert-advice-toggle">
-            🤖 {adviceOpen ? L.aiAdviceHide : L.aiAdvice}
+            <Icon name="sparkle" size={15} /> {adviceOpen ? L.aiAdviceHide : L.aiAdvice}
           </button>
           {crewTarget && onOpenAstronaut && (
             <button type="button" className="ai-btn" data-testid="ai-alert-open-astronaut"
@@ -197,7 +198,7 @@ export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId, placement = 'b
           onClick={() => toggleVoice(L.voiceTest)}
           data-testid="ai-voice-toggle"
         >
-          {voice ? '🔊' : '🔇'} {voice ? L.voiceOn : L.voiceOff}
+          <Icon name={voice ? 'volume' : 'mute'} size={16} /> {voice ? L.voiceOn : L.voiceOff}
         </button>
         <button
           type="button"
@@ -208,7 +209,7 @@ export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId, placement = 'b
           onClick={() => { setVoiceOpen((o) => !o); setListOpen(false) }}
           data-testid="ai-voice-settings-toggle"
         >
-          ⚙
+          <Icon name="gear" size={17} />
         </button>
         <button
           type="button"
@@ -217,7 +218,7 @@ export function AlertCenter({ onOpenAstronaut, onAskAi, deviceId, placement = 'b
           onClick={() => { setListOpen((o) => !o); setVoiceOpen(false) }}
           data-testid="ai-alert-count"
         >
-          🔔 {alerts.length}
+          <Icon name="bell" size={16} /> {alerts.length}
         </button>
         {voiceOpen && <VoiceSettings />}
         {listOpen && (

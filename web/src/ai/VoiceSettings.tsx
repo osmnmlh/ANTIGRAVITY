@@ -1,5 +1,6 @@
 import { AI_LABELS as L } from './labels'
 import { VOICE_PRESETS, isFemaleVoice, sampleVoice, setVoicePrefs, useTurkishVoices, useVoicePrefs } from './voice'
+import { Icon } from './Icon'
 import './ai.css'
 
 /** "Ses ayarları": pick the voice of this device (female Turkish voices first), a character preset, speed and tone, and hear it. */
@@ -53,7 +54,7 @@ export function VoiceSettings() {
       </label>
 
       <button type="button" className="ai-btn ai-btn-primary" onClick={() => sampleVoice(L.voiceSample)} data-testid="ai-voice-try">
-        ▶ {L.voiceTry}
+        <Icon name="play" size={14} /> {L.voiceTry}
       </button>
       <p className="ai-muted ai-voice-note">{L.voiceNote}</p>
     </div>

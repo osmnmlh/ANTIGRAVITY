@@ -1,0 +1,148 @@
+/* ANTIGRAVITY "Sıcak Gözlemevi": warm anthracite, marble white, brass and copper.
+   Fonts are self-hosted (public/fonts) so the demo needs no internet; `latin-ext` carries the Turkish letters ğ ş İ.
+   Display: Fraunces (editorial serif) · Body: Hanken Grotesk · Telemetry labels: IBM Plex Mono. */
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/fraunces-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/fraunces-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/hanken-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/hanken-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plexmono-latin-ext-400.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plexmono-latin-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plexmono-latin-ext-500.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plexmono-latin-500.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* Typography */
+  --font-display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-body: 'Hanken Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Cascadia Mono', Consolas, monospace;
+
+  /* Warm anthracite surfaces (never pure black) */
+  --bg-space-base: #181716;
+  --bg-space-base-rgb: 24, 23, 22;
+  --bg-card: #1f1e1c;
+  --bg-card-rgb: 31, 30, 28;
+  --bg-elevated: #2a2825;
+  --bg-elevated-rgb: 42, 40, 37;
+  --border-grid: #3b3834;
+  --border-grid-rgb: 76, 72, 66;
+
+  /* Marble white text, WCAG AA on every surface above (primary 13:1, secondary 7:1, muted 4.6:1 on the cards) */
+  --text-primary: #f0eadf;
+  --text-secondary: #bdb4a6;
+  --text-muted: #948b7e;
+
+  /* Brass is the one accent; copper is its warm companion */
+  --accent-telemetry: #cfa86a;
+  --accent-telemetry-rgb: 207, 168, 106;
+  --accent-copper: #bd7b52;
+  --accent-copper-rgb: 189, 123, 82;
+  --marble: #f0eadf;
+  --marble-rgb: 240, 234, 223;
+
+  /* Status: sage / amber / terracotta. Always shown with an icon and a label as well, never by color alone */
+  --status-optimal: #92b89b;
+  --status-optimal-rgb: 146, 184, 155;
+  --status-optimal-bg: rgba(146, 184, 155, 0.14);
+  --status-warning: #e0aa55;
+  --status-warning-rgb: 224, 170, 85;
+  --status-warning-bg: rgba(224, 170, 85, 0.15);
+  --status-critical: #dd6b57;
+  --status-critical-rgb: 221, 107, 87;
+  --status-critical-bg: rgba(221, 107, 87, 0.17);
+
+  /* Aliases the components already use */
+  --surface: var(--bg-card);
+  --surface-raised: var(--bg-elevated);
+  --surface-soft: var(--bg-elevated);
+  --border: rgba(var(--marble-rgb), 0.11);
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --faint: var(--text-muted);
+  --cyan: var(--accent-telemetry);
+  --green: var(--status-optimal);
+  --amber: var(--status-warning);
+  --red: var(--status-critical);
+  --mono: var(--font-body); /* legacy alias, used by sentences too: mono is opt-in (cosmos-shell.css) */
+  --heading: var(--font-body); /* legacy alias used for small labels; serif (--font-display) is opt-in in cosmos-shell.css */
+  --body: var(--font-body);
+
+  /* Motion: one vocabulary. Short for feedback, longer for entrances; everything is switched off for prefers-reduced-motion below */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 160ms;
+  --dur-base: 260ms;
+  --dur-slow: 520ms;
+
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  background: var(--bg-space-base);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

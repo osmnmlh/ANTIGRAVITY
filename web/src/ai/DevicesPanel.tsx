@@ -1,5 +1,6 @@
 import { useAiState } from './aiStore'
 import { AI_LABELS as L } from './labels'
+import { Icon } from './Icon'
 import './ai.css'
 
 /**
@@ -15,7 +16,7 @@ export function DevicesPanel({ crewNames = {} }: { crewNames?: Record<string, st
   return (
     <section className="ai-devices" aria-label={L.devicesTitle} data-testid="ai-devices">
       <header className="ai-devices-head">
-        <p className="ai-list-title">📱 {L.devicesTitle}</p>
+        <p className="ai-list-title"><Icon name="phone" size={14} /> {L.devicesTitle}</p>
         <span className="ai-muted" data-testid="ai-devices-online">{online}/{devices.length} {L.online}</span>
       </header>
 
@@ -32,7 +33,7 @@ export function DevicesPanel({ crewNames = {} }: { crewNames?: Record<string, st
                 <small>{d.name ?? d.platform}</small>
               </span>
               <span className="ai-device-state">
-                {del?.ackedAt ? '✅' : del?.deliveredAt ? '📨' : d.online ? '🟢' : '⚪'}
+                <Icon name={del?.ackedAt ? 'checkCircle' : del?.deliveredAt ? 'inbox' : 'dot'} size={15} />
                 {' '}{d.online ? L.online : L.offlineShort}
               </span>
             </li>
@@ -43,7 +44,7 @@ export function DevicesPanel({ crewNames = {} }: { crewNames?: Record<string, st
       {newest && newest.deliveries.length > 0 && (
         <p className="ai-delivery" data-testid="ai-devices-summary">
           {L.reached(newest.deliveries.filter((d) => d.deliveredAt).length, newest.deliveries.length)}
-          {newest.deliveries.every((d) => d.ackedAt) ? ` · ${L.allAcked}` : ` · ✅ ${newest.deliveries.filter((d) => d.ackedAt).length}`}
+          {newest.deliveries.every((d) => d.ackedAt) ? ` · ${L.allAcked}` : ` · ${newest.deliveries.filter((d) => d.ackedAt).length} onay`}
         </p>
       )}
     </section>
