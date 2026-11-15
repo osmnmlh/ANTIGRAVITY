@@ -18,6 +18,7 @@ final class PhoneAlertCoordinator: NSObject, ObservableObject, UNUserNotificatio
     @Published var requestedTab: AppTab?
 
     private var hasConfiguredCenter = false
+    private var hasSentCriticalAlertInEpisode = false
 
     private override init() {
         super.init()
@@ -71,14 +72,14 @@ final class PhoneAlertCoordinator: NSObject, ObservableObject, UNUserNotificatio
     }
 
     func notifyAiAlert(id: String, title: String, spokenText: String, severity: HealthStatus) {
-        let isRed = (severity == .red)
-        let notificationTitle = isRed ? "🔴 KRİTİK TEHLİKE • \(title)" : "🟠 DİKKAT • \(title)"
-        let notificationBody = isRed ? "\(spokenText) Acil müdahale gerekiyor!" : spokenText
+        guard severity == .red else { return }
+        guard !hasSentCriticalAlertInEpisode else { return }
+        hasSentCriticalAlertInEpisode = true
 
         scheduleNotification(
-            identifier: "antigravity.ai.alert.\(id)",
-            title: notificationTitle,
-            body: notificationBody,
+            identifier: "antigravity.alert.critical",
+            title: "🔴 KRİTİK TEHLİKE • \(title)",
+            body: "\(spokenText) Acil müdahale gerekiyor!",
             categoryIdentifier: "ANTIGRAVITY_CRITICAL",
             timeSensitive: true,
             targetTab: .dashboard
@@ -86,33 +87,22 @@ final class PhoneAlertCoordinator: NSObject, ObservableObject, UNUserNotificatio
     }
 
     func notifyStatusEscalation(severity: HealthStatus, summary: String) {
-        let isRed = (severity == .red)
-        let title = isRed
-            ? "🔴 KRİTİK TEHLİKE • İŞ BAŞINA!"
-            : "🟠 EŞİK UYARISI • KONTROL GEREKLİ"
-        let body = isRed
-            ? "\(summary) Acil müdahale protokolünü başlatın!"
-            : summary
+        guard severity == .red else { return }
+        guard !hasSentCriticalAlertInEpisode else { return }
+        hasSentCriticalAlertInEpisode = true
 
         scheduleNotification(
-            identifier: "antigravity.status.\(severity.rawValue).\(Int(Date().timeIntervalSince1970))",
-            title: title,
-            body: body,
+            identifier: "antigravity.alert.critical",
+            title: "🔴 KRİTİK TEHLİKE • İŞ BAŞINA!",
+            body: "\(summary) Acil müdahale protokolünü başlatın!",
             categoryIdentifier: "ANTIGRAVITY_CRITICAL",
             timeSensitive: true,
             targetTab: .dashboard
         )
     }
 
-    func notifyScenarioStarted(id: String?, bannerText: String, remainingSeconds: Int) {
-        scheduleNotification(
-            identifier: "antigravity.scenario.\(id ?? "demo")",
-            title: bannerText,
-            body: "Değerler \(remainingSeconds) saniye boyunca canlı değişecek.",
-            categoryIdentifier: "ANTIGRAVITY_CRITICAL",
-            timeSensitive: true,
-            targetTab: .dashboard
-        )
+    func resetCriticalAlertEpisode() {
+        hasSentCriticalAlertInEpisode = false
     }
 
     // MARK: - UNUserNotificationCenter Scheduling & Delegate

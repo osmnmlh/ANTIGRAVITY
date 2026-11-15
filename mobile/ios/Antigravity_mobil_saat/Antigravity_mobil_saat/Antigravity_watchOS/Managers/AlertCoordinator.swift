@@ -138,10 +138,12 @@ final class AlertCoordinator: ObservableObject {
             remoteAlertTitle = nil
             remoteAlertDetail = nil
             remoteAlertSeverity = .green
+            if sideEffectsEnabled && overallStatus != .red {
+                notificationController.clearAlertState()
+            }
             // The watch's own vitals alert keeps vibrating if it is still active.
             if sideEffectsEnabled && overallStatus != .amber && overallStatus != .red {
                 hapticManager.stopContinuousAlert()
-                notificationController.clearAlertState()
             }
         }
     }
@@ -168,6 +170,20 @@ final class AlertCoordinator: ObservableObject {
             hapticManager.stopContinuousAlert()
         } else if hasActiveAlert {
             hapticManager.startContinuousAlert(urgent: isUrgent)
+        }
+    }
+
+    /// Synchronizes haptic loop across Watch foreground/background transitions.
+    func handleSceneActiveChange(isActive: Bool) {
+        guard sideEffectsEnabled else { return }
+        if isActive {
+            let hasActiveAlert = (overallStatus == .amber || overallStatus == .red || remoteAlertTitle != nil)
+            if hasActiveAlert && !isMuted {
+                let isUrgent = (overallStatus == .red || remoteAlertSeverity == .red)
+                hapticManager.startContinuousAlert(urgent: isUrgent)
+            }
+        } else {
+            hapticManager.pauseForBackground()
         }
     }
 
@@ -283,8 +299,12 @@ final class AlertCoordinator: ObservableObject {
         overallStatus = highest
 
         var breaches = buildBreachMessages(hrStatus: hrStatus, o2Status: o2Status, tempStatus: tempStatus)
-        if breaches.isEmpty, let remoteTelemetryAlertTitle, !remoteTelemetryAlertTitle.isEmpty, highest == .amber || highest == .red {
-            breaches.append(remoteTelemetryAlertTitle)
+        if breaches.isEmpty && (highest == .amber || highest == .red) {
+            if let remoteTelemetryAlertTitle, !remoteTelemetryAlertTitle.isEmpty {
+                breaches.append(remoteTelemetryAlertTitle)
+            } else {
+                breaches.append(highest == .red ? "KRİTİK SAĞLIK EŞİĞİ" : "SAĞLIK EŞİĞİ UYARISI")
+            }
         }
 
         if highest == .amber || highest == .red, !breaches.isEmpty {

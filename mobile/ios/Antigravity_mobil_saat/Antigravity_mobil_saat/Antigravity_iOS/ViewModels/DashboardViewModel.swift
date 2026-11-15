@@ -230,19 +230,11 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
-    /// Shows "Simülasyon başladı" once when a web demo scenario starts for this astronaut. The live values themselves
-    /// arrive through the normal `packet` events, and the scenario's alert reaches the Watch through `activeAlerts`.
+    /// Updates the in-app scenario banner when a web demo scenario runs for this astronaut.
+    /// Notifications fire once only if and when the scenario reaches a critical (red) state.
     @MainActor
     private func applyScenario(_ state: RelayScenarioState, crewId targetCrewId: String) {
-        let wasActive = activeScenario != nil
         activeScenario = state.concerns(crewId: targetCrewId) ? state : nil
-        guard let current = activeScenario, !wasActive else { return }
-
-        PhoneAlertCoordinator.shared.notifyScenarioStarted(
-            id: current.id,
-            bannerText: current.bannerText,
-            remainingSeconds: current.remainingSeconds ?? 15
-        )
     }
 
     /// Lightweight periodic task poll as a safety net alongside live SSE (`event: task`).
@@ -691,22 +683,65 @@ class DashboardViewModel: ObservableObject {
         case .alertUpdate(let alert):
             upsertAlert(alert)
         }
+        if overallStatus != .red && !activeAlerts.contains(where: { $0.severity == .red }) {
+            PhoneAlertCoordinator.shared.resetCriticalAlertEpisode()
+        }
         reconcileGuidanceWithCurrentState()
         notifyMissionSyncNeeded()
         forwardLatestStateToWatch(force: true)
     }
 
-    /// The most serious active alert (a backend scenario or a health alert) is mirrored to the Apple Watch;
-    /// an empty list tells the watch that everything is normal again.
+    /// The most serious active alert or threshold escalation is mirrored to the Apple Watch;
+    /// when both clear back to green, tells the Watch that everything is normal again.
     private func forwardActiveAlertToWatch() {
         let top = activeAlerts.first(where: { $0.severity == .red }) ?? activeAlerts.first
-        let payload = WatchAlertPayload(
-            active: top != nil,
-            title: top?.title ?? "",
-            detail: top?.spokenText ?? "",
-            severity: top.map { $0.severity == .red ? "red" : "amber" } ?? "green"
+        let effectiveSeverity: HealthStatus = {
+            if let top {
+                return max(overallStatus, top.severity)
+            }
+            return overallStatus
+        }()
+
+        if let top {
+            let payload = WatchAlertPayload(
+                active: true,
+                title: top.title,
+                detail: top.spokenText,
+                severity: effectiveSeverity == .red ? "red" : "amber"
+            )
+            ConnectivityManager.shared.sendAlertState(payload)
+            return
+        }
+
+        if overallStatus == .red || overallStatus == .amber {
+            let breached = HealthIndicatorType.allCases
+                .filter {
+                    let s = indicatorStatuses[$0] ?? .missing
+                    return s == .red || s == .amber
+                }
+                .map { "\($0.displayName) \(formattedGuidanceValue(for: $0))" }
+                .joined(separator: ", ")
+
+            let title = overallStatus == .red
+                ? "KRİTİK EŞİK AŞILDI! UÇUŞ CERRAHINA ULAŞ"
+                : "DİKKAT! SAĞLIK EŞİĞİ AŞILDI"
+            let detail = breached.isEmpty
+                ? (overallStatus == .red ? "Kritik sağlık eşiği aşıldı." : "Sağlık eşiği uyarı seviyesinde.")
+                : breached
+            ConnectivityManager.shared.sendAlertState(
+                WatchAlertPayload(
+                    active: true,
+                    title: title,
+                    detail: detail,
+                    severity: overallStatus == .red ? "red" : "amber"
+                )
+            )
+            return
+        }
+
+        ConnectivityManager.shared.sendAlertState(
+            WatchAlertPayload(active: false, title: "", detail: "", severity: "green")
         )
-        ConnectivityManager.shared.sendAlertState(payload)
     }
 
     @MainActor
@@ -732,6 +767,7 @@ class DashboardViewModel: ObservableObject {
 
     @MainActor
     private func notifyLocalAlertIfNeeded(_ alert: AiAlert) {
+        guard alert.severity == .red else { return }
         guard notifiedAlertIds.insert(alert.id).inserted else { return }
         PhoneAlertCoordinator.shared.notifyAiAlert(
             id: alert.id,
@@ -868,54 +904,39 @@ class DashboardViewModel: ObservableObject {
             connectionStatus = "VERİ BEKLENİYOR"
         }
 
+        if worst != .red && !activeAlerts.contains(where: { $0.severity == .red }) {
+            PhoneAlertCoordinator.shared.resetCriticalAlertEpisode()
+        }
+
         if isReadyForStatusNotifications {
             notifyStatusTransitionIfNeeded(
                 previousOverall: previousOverallStatus,
-                previousIndicators: previousIndicatorStatuses,
                 newOverall: worst,
                 newIndicators: computed
             )
+            forwardActiveAlertToWatch()
         }
         reconcileGuidanceWithCurrentState()
     }
 
     private func notifyStatusTransitionIfNeeded(
         previousOverall: HealthStatus,
-        previousIndicators: [HealthIndicatorType: HealthStatus],
         newOverall: HealthStatus,
         newIndicators: [HealthIndicatorType: HealthStatus]
     ) {
-        let enteredCriticalIndicators = HealthIndicatorType.allCases.filter {
-            newIndicators[$0] == .red && previousIndicators[$0] != .red
-        }
-        let enteredWarningIndicators = HealthIndicatorType.allCases.filter {
-            newIndicators[$0] == .amber && previousIndicators[$0] != .amber && previousIndicators[$0] != .red
-        }
-
-        if newOverall == .red,
-           (previousOverall != .red || !enteredCriticalIndicators.isEmpty),
-           !activeAlerts.contains(where: { $0.severity == .red }) {
-            let criticalTypes = HealthIndicatorType.allCases.filter { newIndicators[$0] == .red }
-            let summary = criticalTypes.map { "\($0.displayName) \(formattedGuidanceValue(for: $0))" }
-                .joined(separator: ", ")
-            PhoneAlertCoordinator.shared.notifyStatusEscalation(
-                severity: .red,
-                summary: summary.isEmpty ? "Kritik sağlık eşiği aşıldı." : "\(summary) kritik seviyede!"
-            )
+        guard newOverall == .red,
+              previousOverall != .red,
+              !activeAlerts.contains(where: { $0.severity == .red }) else {
             return
         }
 
-        if newOverall == .amber,
-           (previousOverall == .green || previousOverall == .missing || !enteredWarningIndicators.isEmpty),
-           activeAlerts.isEmpty {
-            let warningTypes = HealthIndicatorType.allCases.filter { newIndicators[$0] == .amber }
-            let summary = warningTypes.map { "\($0.displayName) \(formattedGuidanceValue(for: $0))" }
-                .joined(separator: ", ")
-            PhoneAlertCoordinator.shared.notifyStatusEscalation(
-                severity: .amber,
-                summary: summary.isEmpty ? "Sağlık eşiği uyarı seviyesinde." : "\(summary) dikkat gerektiriyor."
-            )
-        }
+        let criticalTypes = HealthIndicatorType.allCases.filter { newIndicators[$0] == .red }
+        let summary = criticalTypes.map { "\($0.displayName) \(formattedGuidanceValue(for: $0))" }
+            .joined(separator: ", ")
+        PhoneAlertCoordinator.shared.notifyStatusEscalation(
+            severity: .red,
+            summary: summary.isEmpty ? "Kritik sağlık eşiği aşıldı." : "\(summary) kritik seviyede!"
+        )
     }
 
     /// Keeps the Dashboard's AI card and per-indicator sheets consistent whenever local status

@@ -56,6 +56,7 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     var onTaskReceived: ((WatchTaskNotificationPayload) -> Void)?
 
     private var lastSentAlert: WatchAlertPayload?
+    private var lastBackgroundTelemetryStatus: HealthStatus = .green
     private var latestApplicationContext: [String: Any] = [:]
 
     /// iPhone -> Watch: the alert that is active right now (or `active == false` when everything is normal again).
@@ -184,9 +185,24 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
         }
         try? session.updateApplicationContext(latestApplicationContext)
         if session.isReachable {
-            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            session.sendMessage(payload, replyHandler: nil) { [weak self] _ in
+                guard let self else { return }
+                if overallStatus == .amber || overallStatus == .red,
+                   self.lastBackgroundTelemetryStatus != overallStatus {
+                    self.lastBackgroundTelemetryStatus = overallStatus
+                    session.transferUserInfo(payload)
+                }
+            }
+            if overallStatus == .green {
+                lastBackgroundTelemetryStatus = .green
+            }
         } else if overallStatus == .amber || overallStatus == .red {
-            session.transferUserInfo(payload)
+            if lastBackgroundTelemetryStatus != overallStatus {
+                lastBackgroundTelemetryStatus = overallStatus
+                session.transferUserInfo(payload)
+            }
+        } else {
+            lastBackgroundTelemetryStatus = .green
         }
     }
 
