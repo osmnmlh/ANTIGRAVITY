@@ -55,7 +55,7 @@ struct WatchDashboardView: View {
 
                 vitalsSummaryCard
 
-                if coordinator.overallStatus == .amber || coordinator.overallStatus == .red {
+                if coordinator.overallStatus == .amber || coordinator.overallStatus == .red || coordinator.remoteAlertTitle != nil {
                     Button {
                         coordinator.toggleMute()
                     } label: {
@@ -69,16 +69,6 @@ struct WatchDashboardView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(coordinator.isMuted ? .orange : .red)
                 }
-
-                Button {
-                    coordinator.toggleSpikeSimulation()
-                } label: {
-                    Text(coordinator.isSimulatingSpike ? "Normale Dön" : "Eşik Testi Yap")
-                        .font(.caption2.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
 
                 Text(lastSyncText)
                     .font(.system(size: 10).monospacedDigit())
@@ -163,20 +153,15 @@ struct WatchDashboardView: View {
     // MARK: - Subviews
 
     private var normalStatusHeader: some View {
-        VStack(spacing: 3) {
-            HStack(spacing: 6) {
-                Image(systemName: coordinator.overallStatus.systemIconName)
-                    .foregroundStyle(coordinator.overallStatus.themeColor)
-                Text("SİSTEMLER NORMAL")
-                    .font(.caption.bold())
-                    .foregroundStyle(coordinator.overallStatus.themeColor)
-            }
-            Text("Simüle Edilen Veri")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
+        HStack(spacing: 6) {
+            Image(systemName: coordinator.overallStatus.systemIconName)
+                .foregroundStyle(coordinator.overallStatus.themeColor)
+            Text("SİSTEMLER NORMAL")
+                .font(.caption.bold())
+                .foregroundStyle(coordinator.overallStatus.themeColor)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 7)
+        .padding(.vertical, 8)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
@@ -202,9 +187,11 @@ struct WatchDashboardView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.95))
 
-            Text(isRemote ? "Ana üs uyarısı" : "Simüle Edilen Veri")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.8))
+            if isRemote {
+                Text("Ana üs uyarısı")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(9)

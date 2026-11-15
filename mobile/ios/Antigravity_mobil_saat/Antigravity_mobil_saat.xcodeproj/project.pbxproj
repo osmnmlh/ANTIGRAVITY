@@ -78,6 +78,7 @@
 				Antigravity_iOS/Components/GlassCardView.swift,
 				Antigravity_iOS/Components/NeonButton.swift,
 				Antigravity_iOS/Components/PlanetHeroHeader.swift,
+				Antigravity_iOS/Managers/PhoneAlertCoordinator.swift,
 				Antigravity_iOS/Models/JournalEntry.swift,
 				Antigravity_iOS/Models/MissionTask.swift,
 				Antigravity_iOS/Resources/Assets.xcassets,
@@ -505,6 +506,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = AntiGravityCHS;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -549,6 +551,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = AntiGravityCHS;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -692,7 +695,7 @@
 				DEVELOPMENT_TEAM = GXK7JN5AN2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Antigravity;
+				INFOPLIST_KEY_CFBundleDisplayName = AntiGravityCHS;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.Skylowerr.Antigravity-mobil-saat";
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
@@ -726,7 +729,7 @@
 				DEVELOPMENT_TEAM = GXK7JN5AN2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Antigravity;
+				INFOPLIST_KEY_CFBundleDisplayName = AntiGravityCHS;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.Skylowerr.Antigravity-mobil-saat";
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;

@@ -27,6 +27,14 @@ struct WatchAlertPayload: Equatable, Sendable {
     let severity: String
 }
 
+/// A Houston mission task pushed from iPhone to Apple Watch so Watch notifies even when closed or backgrounded.
+struct WatchTaskNotificationPayload: Equatable, Sendable {
+    let id: String
+    let title: String
+    let details: String
+    let urgent: Bool
+}
+
 /// Shared WatchConnectivity bridge syncing `HealthSample` batches between Apple Watch and iPhone.
 final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = ConnectivityManager()
@@ -44,11 +52,14 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     var onRemoteTelemetryReceived: ((RemoteWatchTelemetryPayload) -> Void)?
     /// Callback triggered on the main queue (Watch side) whenever the iPhone forwards its active alert.
     var onAlertReceived: ((WatchAlertPayload) -> Void)?
+    /// Callback triggered on the main queue (Watch side) whenever iPhone forwards a new Houston task.
+    var onTaskReceived: ((WatchTaskNotificationPayload) -> Void)?
 
     private var lastSentAlert: WatchAlertPayload?
+    private var latestApplicationContext: [String: Any] = [:]
 
     /// iPhone -> Watch: the alert that is active right now (or `active == false` when everything is normal again).
-    /// The application context keeps the latest state for a watch that is not reachable; a live message makes it instant.
+    /// Merged `applicationContext` preserves both telemetry and active alert, while `sendMessage` / `transferUserInfo` delivers immediately.
     func sendAlertState(_ alert: WatchAlertPayload) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
@@ -56,17 +67,47 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
         guard alert != lastSentAlert else { return }
         lastSentAlert = alert
 
+        let alertDict: [String: Any] = [
+            "active": alert.active,
+            "title": alert.title,
+            "detail": alert.detail,
+            "severity": alert.severity
+        ]
+        latestApplicationContext["scenarioAlert"] = alertDict
+        try? session.updateApplicationContext(latestApplicationContext)
+
+        let payload: [String: Any] = ["scenarioAlert": alertDict]
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil) { _ in
+                if alert.active {
+                    session.transferUserInfo(payload)
+                }
+            }
+        } else if alert.active {
+            session.transferUserInfo(payload)
+        }
+    }
+
+    /// iPhone -> Watch: forwards a newly assigned Houston task to Watch.
+    func sendTaskNotificationToWatch(id: String, title: String, details: String, urgent: Bool) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+
         let payload: [String: Any] = [
-            "scenarioAlert": [
-                "active": alert.active,
-                "title": alert.title,
-                "detail": alert.detail,
-                "severity": alert.severity
+            "watchTask": [
+                "id": id,
+                "title": title,
+                "details": details,
+                "urgent": urgent
             ]
         ]
-        try? session.updateApplicationContext(payload)
         if session.isReachable {
-            session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+            session.sendMessage(payload, replyHandler: nil) { _ in
+                session.transferUserInfo(payload)
+            }
+        } else {
+            session.transferUserInfo(payload)
         }
     }
 
@@ -138,9 +179,14 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
             payload["remoteAlertTitle"] = alertTitle
         }
 
-        try? session.updateApplicationContext(payload)
+        for (key, value) in payload {
+            latestApplicationContext[key] = value
+        }
+        try? session.updateApplicationContext(latestApplicationContext)
         if session.isReachable {
             session.sendMessage(payload, replyHandler: nil, errorHandler: nil)
+        } else if overallStatus == .amber || overallStatus == .red {
+            session.transferUserInfo(payload)
         }
     }
 
@@ -176,6 +222,9 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
     ) {
         DispatchQueue.main.async {
             self.isReachable = (activationState == .activated) && session.isReachable
+        }
+        if activationState == .activated, !session.receivedApplicationContext.isEmpty {
+            handleIncomingPayload(session.receivedApplicationContext)
         }
     }
 
@@ -217,6 +266,20 @@ final class ConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
             )
             DispatchQueue.main.async { [weak self] in
                 self?.onAlertReceived?(alert)
+            }
+        }
+
+        if let dict = payload["watchTask"] as? [String: Any],
+           let id = dict["id"] as? String,
+           let title = dict["title"] as? String {
+            let task = WatchTaskNotificationPayload(
+                id: id,
+                title: title,
+                details: dict["details"] as? String ?? "",
+                urgent: dict["urgent"] as? Bool ?? false
+            )
+            DispatchQueue.main.async { [weak self] in
+                self?.onTaskReceived?(task)
             }
         }
 

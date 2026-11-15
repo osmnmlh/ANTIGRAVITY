@@ -18,23 +18,27 @@ final class HapticManager: ObservableObject {
     @Published private(set) var isVibrating = false
 
     private var timer: Timer?
+    private var burstTasks: [Task<Void, Never>] = []
     private var currentUrgent = false
 
-    /// Starts repeating wrist haptics. Urgent (.red) alerts pulse faster than warning (.amber) alerts.
+    /// Starts repeating wrist haptics.
+    /// - Mild breaches (`urgent == false` / amber): gentle single reminder every 4.0s.
+    /// - Critical breaches (`urgent == true` / red): intense multi-tap alarm burst every 0.85s.
     func startContinuousAlert(urgent: Bool) {
         if isVibrating && currentUrgent == urgent {
             return
         }
 
         stopTimer()
+        cancelBurstTasks()
         currentUrgent = urgent
         isVibrating = true
-        playPulse()
+        playCycle(initialEntry: true)
 
-        let interval: TimeInterval = urgent ? 0.65 : 1.15
+        let interval: TimeInterval = urgent ? 0.85 : 4.0
         let newTimer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.playPulse()
+                self?.playCycle(initialEntry: false)
             }
         }
         newTimer.tolerance = 0.05
@@ -42,9 +46,21 @@ final class HapticManager: ObservableObject {
         timer = newTimer
     }
 
+    /// Plays a discrete haptic tap/burst when a new Houston task arrives.
+    func playTaskAlert(urgent: Bool) {
+        #if os(watchOS)
+        if urgent {
+            playCriticalBurst()
+        } else {
+            WKInterfaceDevice.current().play(.notification)
+        }
+        #endif
+    }
+
     /// Stops repeating wrist vibrations immediately.
     func stopContinuousAlert() {
         stopTimer()
+        cancelBurstTasks()
         if isVibrating {
             isVibrating = false
         }
@@ -55,9 +71,37 @@ final class HapticManager: ObservableObject {
         timer = nil
     }
 
-    private func playPulse() {
+    private func cancelBurstTasks() {
+        for task in burstTasks {
+            task.cancel()
+        }
+        burstTasks.removeAll()
+    }
+
+    private func playCycle(initialEntry: Bool) {
         #if os(watchOS)
-        WKInterfaceDevice.current().play(currentUrgent ? .failure : .notification)
+        if currentUrgent {
+            playCriticalBurst()
+        } else {
+            // Mild threshold breach ("biraz çıkarsa az titresin"): gentle tap
+            WKInterfaceDevice.current().play(initialEntry ? .directionUp : .click)
+        }
+        #endif
+    }
+
+    private func playCriticalBurst() {
+        #if os(watchOS)
+        cancelBurstTasks()
+        WKInterfaceDevice.current().play(.failure)
+        for (index, delayNs) in [160_000_000 as UInt64, 320_000_000 as UInt64].enumerated() {
+            let hapticType: WKHapticType = (index == 0) ? .notification : .failure
+            let task = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: delayNs)
+                guard !Task.isCancelled else { return }
+                WKInterfaceDevice.current().play(hapticType)
+            }
+            burstTasks.append(task)
+        }
         #endif
     }
 }

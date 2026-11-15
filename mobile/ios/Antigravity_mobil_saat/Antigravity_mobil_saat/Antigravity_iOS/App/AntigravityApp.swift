@@ -9,6 +9,10 @@ import SwiftUI
 
 @main
 struct AntigravityApp: App {
+    init() {
+        PhoneAlertCoordinator.shared.configureAndRequestAuthorization()
+    }
+
     var body: some Scene {
         WindowGroup {
             MainTabContainerView()
@@ -19,6 +23,7 @@ struct AntigravityApp: App {
 
 struct MainTabContainerView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var alertCoordinator = PhoneAlertCoordinator.shared
     @State private var selectedTab: AppTab = .dashboard
     @State private var hasCompletedInitialSync = false
     @StateObject private var dashboardViewModel = DashboardViewModel()
@@ -91,6 +96,13 @@ struct MainTabContainerView: View {
             Task {
                 await dashboardViewModel.handleAppDidBecomeActive()
             }
+        }
+        .onChange(of: alertCoordinator.requestedTab) { _, targetTab in
+            guard let targetTab else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedTab = targetTab
+            }
+            alertCoordinator.requestedTab = nil
         }
         .onChange(of: selectedTab) { _, newTab in
             if newTab == .missions {
