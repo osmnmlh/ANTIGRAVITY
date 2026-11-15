@@ -27,6 +27,8 @@ class DashboardViewModel: ObservableObject {
     @Published var aiGuidance: AiGuidance?
     @Published private(set) var latestBackendGuidance: AiGuidance?
     @Published var activeAlerts: [AiAlert] = []
+    @Published private(set) var webAssignedTasks: [RemoteWebTask] = []
+    @Published private(set) var hasSyncedWebTasks: Bool = false
     @Published private(set) var houstonSyncRevision: Int = 0
     @Published var lastWatchSyncAt: Date?
     @Published var isSyncingBackend: Bool = false
@@ -47,6 +49,9 @@ class DashboardViewModel: ObservableObject {
     private var relayStreamTask: Task<Void, Never>?
     private var journalAnalysisTask: Task<Void, Never>?
     private var notifiedAlertIds = Set<String>()
+    private var acknowledgedAlertKeys: Set<String> = Set(
+        UserDefaults.standard.stringArray(forKey: "antigravity_acknowledged_alert_keys") ?? []
+    )
     private var sampleHistory: [HealthSample] = []
     private var lastBackendPacketAt: Date?
     private var lastWatchForwardAt: Date?
@@ -188,7 +193,12 @@ class DashboardViewModel: ObservableObject {
             for await event in NetworkManager.shared.streamRelayEvents() {
                 guard let self, !Task.isCancelled else { break }
                 switch event {
-                case .hello(let packets):
+                case .hello(let packets, let tasks):
+                    if let tasks {
+                        self.webAssignedTasks = tasks.filter { $0.assigneeId == targetCrewId }
+                        self.hasSyncedWebTasks = true
+                        self.houstonSyncRevision &+= 1
+                    }
                     if let mine = packets.first(where: { $0.astronautId == targetCrewId }) {
                         self.applyPacket(mine, fromBackend: true)
                     }
@@ -196,6 +206,10 @@ class DashboardViewModel: ObservableObject {
                     if packet.astronautId == targetCrewId {
                         self.applyPacket(packet, fromBackend: true)
                     }
+                case .tasks(let tasks):
+                    self.webAssignedTasks = tasks.filter { $0.assigneeId == targetCrewId }
+                    self.hasSyncedWebTasks = true
+                    self.houstonSyncRevision &+= 1
                 }
             }
         }
@@ -203,8 +217,28 @@ class DashboardViewModel: ObservableObject {
 
     @MainActor
     func acknowledgeAlert(_ alert: AiAlert) async {
+        let key = Self.alertKey(for: alert)
+        let inserted = acknowledgedAlertKeys.insert(key).inserted
+        if inserted {
+            persistAcknowledgedAlertKeys()
+        }
+        let removedAny = activeAlerts.contains { $0.id == alert.id }
         activeAlerts.removeAll { $0.id == alert.id }
+        if inserted || removedAny {
+            reconcileGuidanceWithCurrentState()
+            houstonSyncRevision &+= 1
+            forwardLatestStateToWatch(force: true)
+        }
         try? await NetworkManager.shared.acknowledgeAlert(alertId: alert.id, deviceId: Constants.deviceId)
+    }
+
+    private static func alertKey(for alert: AiAlert) -> String {
+        "\(alert.id)|\(Int(alert.createdAt.timeIntervalSince1970))"
+    }
+
+    private func persistAcknowledgedAlertKeys() {
+        let capped = Array(acknowledgedAlertKeys.suffix(200))
+        UserDefaults.standard.set(capped, forKey: "antigravity_acknowledged_alert_keys")
     }
 
     @MainActor
@@ -217,9 +251,14 @@ class DashboardViewModel: ObservableObject {
         do {
             async let packetTask = NetworkManager.shared.fetchPacket(crewId: targetCrewId)
             async let samplesTask = try? NetworkManager.shared.fetchSamples(crewId: targetCrewId)
+            async let webTasksTask = try? NetworkManager.shared.fetchTasks(crewId: targetCrewId)
             let packet = try await packetTask
             if let fetchedSamples = await samplesTask, !fetchedSamples.isEmpty {
                 sampleHistory = Array(fetchedSamples.filter { $0.crewId == targetCrewId }.suffix(500))
+            }
+            if let fetchedTasks = await webTasksTask {
+                webAssignedTasks = fetchedTasks.filter { $0.assigneeId == targetCrewId }
+                hasSyncedWebTasks = true
             }
             applyPacket(packet, fromBackend: true)
         } catch {
@@ -502,24 +541,36 @@ class DashboardViewModel: ObservableObject {
     private func handleAiStreamEvent(_ event: AiStreamEvent, deviceId: String) {
         switch event {
         case .hello(let alerts):
-            activeAlerts = alerts.filter { $0.state == "active" }
+            activeAlerts = alerts.filter {
+                $0.state == "active" && !acknowledgedAlertKeys.contains(Self.alertKey(for: $0))
+            }
         case .alert(let alert):
             upsertAlert(alert)
-            notifyLocalAlertIfNeeded(alert)
+            if !acknowledgedAlertKeys.contains(Self.alertKey(for: alert)) {
+                notifyLocalAlertIfNeeded(alert)
+            }
             Task {
                 try? await NetworkManager.shared.markAlertDelivered(alertId: alert.id, deviceId: deviceId)
             }
         case .alertUpdate(let alert):
             upsertAlert(alert)
         }
-        houstonSyncRevision &+= 1
         reconcileGuidanceWithCurrentState()
+        houstonSyncRevision &+= 1
         forwardLatestStateToWatch(force: true)
     }
 
     @MainActor
     private func upsertAlert(_ alert: AiAlert) {
+        let key = Self.alertKey(for: alert)
         if alert.state == "resolved" {
+            activeAlerts.removeAll { $0.id == alert.id }
+            if acknowledgedAlertKeys.remove(key) != nil {
+                persistAcknowledgedAlertKeys()
+            }
+            return
+        }
+        guard !acknowledgedAlertKeys.contains(key) else {
             activeAlerts.removeAll { $0.id == alert.id }
             return
         }
@@ -700,9 +751,14 @@ class DashboardViewModel: ObservableObject {
             return current != packetStatus
         }
 
+        let hasStaleClearedAlertInBackendGuidance = activeAlerts.isEmpty
+            && !acknowledgedAlertKeys.isEmpty
+            && (baseGuidance?.summary.localizedCaseInsensitiveContains("kabinde aktif") ?? false)
+
         if let baseGuidance,
            baseGuidance.overallStatus == effectiveOverall,
-           !hasIndicatorDivergence {
+           !hasIndicatorDivergence,
+           !hasStaleClearedAlertInBackendGuidance {
             aiGuidance = baseGuidance
             return
         }

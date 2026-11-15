@@ -340,6 +340,18 @@ struct NasaHazardReferenceMetrics: Codable, Sendable {
 
 // MARK: - Shared JSON Coding Helpers
 
+/// Mission task assigned from the Web dashboard (`Ana üs -> Görev ata`) and synced over `/api/tasks` & `/api/stream`.
+struct RemoteWebTask: Codable, Equatable, Sendable, Identifiable {
+    let id: String
+    let title: String
+    let details: String
+    let assigneeId: String
+    let dueAt: String
+    let priority: String
+    let completed: Bool
+    let createdAt: String
+}
+
 enum HealthJSONCodec {
     private static let isoWithFractionalSeconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -352,6 +364,21 @@ enum HealthJSONCodec {
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
     }()
+
+    private static let localDateTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        return formatter
+    }()
+
+    static func parseFlexibleDate(_ raw: String) -> Date? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return isoWithFractionalSeconds.date(from: trimmed)
+            ?? isoStandard.date(from: trimmed)
+            ?? localDateTimeFormatter.date(from: trimmed)
+    }
 
     static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()

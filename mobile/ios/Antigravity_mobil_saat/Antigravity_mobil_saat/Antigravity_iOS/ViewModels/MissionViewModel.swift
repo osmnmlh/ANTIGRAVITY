@@ -14,6 +14,7 @@ final class MissionViewModel: ObservableObject {
     @Published private(set) var tasks: [MissionTask] = []
 
     private var dismissedHoustonKeys: Set<String> = []
+    private var locallyMutatedWebTaskTimestamps: [String: Date] = [:]
     private let storageURL: URL?
 
     init(storageURL: URL? = MissionViewModel.defaultStorageURL()) {
@@ -100,32 +101,63 @@ final class MissionViewModel: ObservableObject {
     func toggleTask(_ task: MissionTask) {
         guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
         tasks[index].isCompleted.toggle()
-        tasks[index].completedAt = tasks[index].isCompleted ? Date() : nil
+        let isCompleted = tasks[index].isCompleted
+        tasks[index].completedAt = isCompleted ? Date() : nil
         sortTasks()
         saveState()
+
+        if let remoteId = Self.webTaskId(from: tasks[index].houstonKey) {
+            locallyMutatedWebTaskTimestamps[remoteId] = Date()
+            Task {
+                try? await NetworkManager.shared.toggleRemoteTask(taskId: remoteId, completed: isCompleted)
+            }
+        }
     }
 
     func deleteTask(_ task: MissionTask) {
         recordDismissalIfHouston(task)
         tasks.removeAll { $0.id == task.id }
         saveState()
+
+        if let remoteId = Self.webTaskId(from: task.houstonKey) {
+            locallyMutatedWebTaskTimestamps[remoteId] = Date()
+            Task {
+                try? await NetworkManager.shared.deleteRemoteTask(taskId: remoteId)
+            }
+        }
     }
 
     func clearCompletedTasks() {
         let completed = tasks.filter(\.isCompleted)
         guard !completed.isEmpty else { return }
+        var deletedRemoteIds: [String] = []
         for task in completed {
             recordDismissalIfHouston(task)
+            if let remoteId = Self.webTaskId(from: task.houstonKey) {
+                locallyMutatedWebTaskTimestamps[remoteId] = Date()
+                deletedRemoteIds.append(remoteId)
+            }
         }
         tasks.removeAll { $0.isCompleted }
         saveState()
+
+        for remoteId in deletedRemoteIds {
+            Task {
+                try? await NetworkManager.shared.deleteRemoteTask(taskId: remoteId)
+            }
+        }
     }
 
-    // MARK: - Houston Sync (Alerts + AI Guidance Actions)
+    // MARK: - Houston Sync (Alerts + AI Guidance Actions + Web Command Tasks)
 
-    /// Ingests directives from Houston (live backend alerts and packet guidance) without resurrecting completed or deleted items.
-    func ingestHoustonDirectives(guidance: AiGuidance?, alerts: [AiAlert]) {
-        var addedAny = false
+    /// Ingests directives from Houston (live backend alerts, packet guidance, and Web command-center tasks) without resurrecting completed or deleted items.
+    func ingestHoustonDirectives(
+        guidance: AiGuidance?,
+        alerts: [AiAlert],
+        webTasks: [RemoteWebTask] = [],
+        hasSyncedWebTasks: Bool = false
+    ) {
+        var changed = false
 
         for alert in alerts where alert.state == "active" {
             let steps = alert.advice?.doNow
@@ -166,7 +198,7 @@ final class MissionViewModel: ObservableObject {
                     ),
                     at: 0
                 )
-                addedAny = true
+                changed = true
             }
         }
 
@@ -210,17 +242,127 @@ final class MissionViewModel: ObservableObject {
                     ),
                     at: 0
                 )
-                addedAny = true
+                changed = true
             }
         }
 
-        if addedAny {
+        let now = Date()
+        for remote in webTasks {
+            let trimmedTitle = remote.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedTitle.isEmpty else { continue }
+
+            let key = "web:\(remote.id)"
+            if dismissedHoustonKeys.contains(key) {
+                continue
+            }
+
+            let priority: MissionTaskPriority = (remote.priority == "high") ? .high : .normal
+            let trimmedDetails = remote.details.trimmingCharacters(in: .whitespacesAndNewlines)
+            let detailText = trimmedDetails.isEmpty ? "Komuta Merkezi • Web Görevi" : trimmedDetails
+            let dueDate = HealthJSONCodec.parseFlexibleDate(remote.dueAt)
+            let createdAt = HealthJSONCodec.parseFlexibleDate(remote.createdAt) ?? now
+
+            if let existingIndex = tasks.firstIndex(where: { $0.houstonKey == key }) {
+                let recentlyMutatedLocally = locallyMutatedWebTaskTimestamps[remote.id]
+                    .map { now.timeIntervalSince($0) < 4.0 } ?? false
+                if !recentlyMutatedLocally && tasks[existingIndex].isCompleted != remote.completed {
+                    tasks[existingIndex].isCompleted = remote.completed
+                    tasks[existingIndex].completedAt = remote.completed ? now : nil
+                    changed = true
+                }
+                if tasks[existingIndex].title != trimmedTitle ||
+                    tasks[existingIndex].detail != detailText ||
+                    tasks[existingIndex].dueDate != dueDate ||
+                    tasks[existingIndex].priority != priority {
+                    tasks[existingIndex].title = trimmedTitle
+                    tasks[existingIndex].detail = detailText
+                    tasks[existingIndex].dueDate = dueDate
+                    tasks[existingIndex].priority = priority
+                    changed = true
+                }
+            } else {
+                tasks.insert(
+                    MissionTask(
+                        title: trimmedTitle,
+                        detail: detailText,
+                        isCompleted: remote.completed,
+                        createdAt: createdAt,
+                        dueDate: dueDate,
+                        completedAt: remote.completed ? createdAt : nil,
+                        source: .houston,
+                        priority: priority,
+                        houstonKey: key,
+                        originalHoustonTitle: trimmedTitle
+                    ),
+                    at: 0
+                )
+                changed = true
+            }
+        }
+
+        if hasSyncedWebTasks {
+            let activeWebIds = Set(webTasks.map(\.id))
+            let beforeCount = tasks.count
+            tasks.removeAll { task in
+                guard let remoteId = Self.webTaskId(from: task.houstonKey) else { return false }
+                if activeWebIds.contains(remoteId) { return false }
+                let recentlyMutatedLocally = locallyMutatedWebTaskTimestamps[remoteId]
+                    .map { now.timeIntervalSince($0) < 4.0 } ?? false
+                return !recentlyMutatedLocally
+            }
+            if tasks.count != beforeCount {
+                changed = true
+            }
+        }
+
+        if changed {
             sortTasks()
             saveState()
         }
     }
 
+    /// Returns any currently active backend alerts whose Houston mission tasks have all been completed or dismissed.
+    func alertsCompletedByMissions(from activeAlerts: [AiAlert]) -> [AiAlert] {
+        activeAlerts.filter { alert in
+            guard alert.state == "active" else { return false }
+            let createdStamp = Int(alert.createdAt.timeIntervalSince1970)
+            let prefix = "alert:\(alert.id):\(createdStamp):"
+
+            let alertTasks = tasks.filter { $0.houstonKey?.hasPrefix(prefix) == true }
+            let hadDismissedPrefix = dismissedHoustonKeys.contains { $0.hasPrefix(prefix) }
+
+            let steps = (alert.advice?.doNow ?? [])
+                .map { Self.normalizedDirectiveText($0) }
+                .filter { !$0.isEmpty }
+            let fallbackNorm = Self.normalizedDirectiveText(alert.title)
+            let expectedSteps = steps.isEmpty ? (fallbackNorm.isEmpty ? [] : [fallbackNorm]) : steps
+
+            let hasOpenMatchingStep = expectedSteps.contains { norm in
+                tasks.contains { !$0.isCompleted && Self.matchesActiveHoustonText($0, normalized: norm) }
+            }
+
+            if !alertTasks.isEmpty {
+                return alertTasks.allSatisfy(\.isCompleted) && !hasOpenMatchingStep
+            }
+
+            if hadDismissedPrefix {
+                return !hasOpenMatchingStep
+            }
+
+            guard !expectedSteps.isEmpty else { return false }
+            return expectedSteps.allSatisfy { norm in
+                tasks.contains { $0.source == .houston && $0.isCompleted && Self.matchesActiveHoustonText($0, normalized: norm) }
+            }
+        }
+    }
+
     // MARK: - Persistence & Helpers
+
+    private static func webTaskId(from houstonKey: String?) -> String? {
+        guard let houstonKey, houstonKey.hasPrefix("web:") else { return nil }
+        let id = String(houstonKey.dropFirst(4))
+        return id.isEmpty ? nil : id
+    }
 
     private func recordDismissalIfHouston(_ task: MissionTask) {
         if let houstonKey = task.houstonKey, !houstonKey.isEmpty {

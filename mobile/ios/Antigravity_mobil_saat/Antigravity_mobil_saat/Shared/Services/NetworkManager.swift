@@ -38,11 +38,17 @@ struct AiChatResponse: Codable, Sendable {
 
 struct RelayHelloPayload: Codable, Sendable {
     let astronauts: [AstronautHealthPacket]
+    let tasks: [RemoteWebTask]?
 }
 
 enum RelayStreamEvent: Sendable {
-    case hello([AstronautHealthPacket])
+    case hello([AstronautHealthPacket], [RemoteWebTask]?)
     case packet(AstronautHealthPacket)
+    case tasks([RemoteWebTask])
+}
+
+private struct TaskToggleBody: Encodable {
+    let completed: Bool
 }
 
 enum AiStreamEvent: Sendable {
@@ -325,6 +331,47 @@ final class NetworkManager {
         }
     }
 
+    /// Fetches mission tasks assigned from the Web command view (`GET /api/tasks?crewId=...`).
+    func fetchTasks(crewId: String = Constants.defaultCrewId) async throws -> [RemoteWebTask] {
+        guard let url = Constants.tasksURL(crewId: crewId) else {
+            throw NetworkError.invalidURL
+        }
+
+        let (data, response) = try await session.data(from: url)
+        try validate(response: response)
+        return try JSONDecoder().decode([RemoteWebTask].self, from: data)
+    }
+
+    /// Mirrors mission task completion state back to the backend (`POST /api/tasks/:id/toggle`).
+    func toggleRemoteTask(taskId: String, completed: Bool) async throws {
+        guard let url = Constants.taskToggleURL(taskId: taskId) else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(TaskToggleBody(completed: completed))
+
+        let (_, response) = try await session.data(for: request)
+        try validate(response: response)
+    }
+
+    /// Mirrors mission task deletion back to the backend (`POST /api/tasks/:id/delete`).
+    func deleteRemoteTask(taskId: String) async throws {
+        guard let url = Constants.taskDeleteURL(taskId: taskId) else {
+            throw NetworkError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+
+        let (_, response) = try await session.data(for: request)
+        try validate(response: response)
+    }
+
     private func postAlertDeviceAction(url: URL, deviceId: String) async throws -> AiAlert {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -344,12 +391,17 @@ final class NetworkManager {
             guard let payload = try? HealthJSONCodec.decoder.decode(RelayHelloPayload.self, from: jsonData) else {
                 return nil
             }
-            return .hello(payload.astronauts)
+            return .hello(payload.astronauts, payload.tasks)
         case "packet":
             guard let packet = try? HealthJSONCodec.decoder.decode(AstronautHealthPacket.self, from: jsonData) else {
                 return nil
             }
             return .packet(packet)
+        case "tasks":
+            guard let tasks = try? JSONDecoder().decode([RemoteWebTask].self, from: jsonData) else {
+                return nil
+            }
+            return .tasks(tasks)
         default:
             return nil
         }

@@ -75,19 +75,35 @@ struct MainTabContainerView: View {
             dashboardViewModel.startAiAlertStream()
             dashboardViewModel.startRelayStream()
             await dashboardViewModel.syncFromBackend()
-            missionViewModel.ingestHoustonDirectives(
-                guidance: dashboardViewModel.latestBackendGuidance,
-                alerts: dashboardViewModel.activeAlerts
-            )
+            syncMissionsAndAlerts()
         }
         .onChange(of: journalViewModel.entries) { _, updatedEntries in
             dashboardViewModel.updateJournalEntries(updatedEntries, syncToBackend: true)
         }
         .onChange(of: dashboardViewModel.houstonSyncRevision) { _, _ in
-            missionViewModel.ingestHoustonDirectives(
-                guidance: dashboardViewModel.latestBackendGuidance,
-                alerts: dashboardViewModel.activeAlerts
-            )
+            syncMissionsAndAlerts()
+        }
+        .onChange(of: missionViewModel.tasks) { _, _ in
+            acknowledgeAlertsCompletedByMissions()
+        }
+    }
+
+    private func syncMissionsAndAlerts() {
+        missionViewModel.ingestHoustonDirectives(
+            guidance: dashboardViewModel.aiGuidance,
+            alerts: dashboardViewModel.activeAlerts,
+            webTasks: dashboardViewModel.webAssignedTasks,
+            hasSyncedWebTasks: dashboardViewModel.hasSyncedWebTasks
+        )
+        acknowledgeAlertsCompletedByMissions()
+    }
+
+    private func acknowledgeAlertsCompletedByMissions() {
+        let completedAlerts = missionViewModel.alertsCompletedByMissions(from: dashboardViewModel.activeAlerts)
+        for alert in completedAlerts {
+            Task {
+                await dashboardViewModel.acknowledgeAlert(alert)
+            }
         }
     }
 

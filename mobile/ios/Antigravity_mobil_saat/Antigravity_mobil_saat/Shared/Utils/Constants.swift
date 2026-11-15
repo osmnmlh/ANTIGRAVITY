@@ -77,6 +77,24 @@ enum Constants {
         return URL(string: "\(apiBaseURL)/api/ai/alerts/\(encoded)/ack")
     }
 
+    static func tasksURL(crewId: String? = nil) -> URL? {
+        var components = URLComponents(string: "\(apiBaseURL)/api/tasks")
+        if let crewId, !crewId.isEmpty {
+            components?.queryItems = [URLQueryItem(name: "crewId", value: crewId)]
+        }
+        return components?.url
+    }
+
+    static func taskToggleURL(taskId: String) -> URL? {
+        let encoded = taskId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? taskId
+        return URL(string: "\(apiBaseURL)/api/tasks/\(encoded)/toggle")
+    }
+
+    static func taskDeleteURL(taskId: String) -> URL? {
+        let encoded = taskId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? taskId
+        return URL(string: "\(apiBaseURL)/api/tasks/\(encoded)/delete")
+    }
+
     // Sağlık eşikleri burada TUTULMAZ: HealthThresholds (Shared/Models/Thresholds.swift) tek kaynaktır.
     static let welcomeMessage = "Sistemler Normal, Kaptan."
     static let turkishDemoDisclaimer = "Demo yazılımıdır, tıbbi cihaz değildir."
