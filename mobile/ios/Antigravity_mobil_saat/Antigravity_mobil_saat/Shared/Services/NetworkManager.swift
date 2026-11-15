@@ -156,7 +156,7 @@ final class NetworkManager {
                     do {
                         var request = URLRequest(url: url)
                         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                        request.timeoutInterval = 90
+                        request.timeoutInterval = 300
 
                         let (bytes, response) = try await session.bytes(for: request)
                         try validate(response: response)
@@ -164,7 +164,7 @@ final class NetworkManager {
                         var currentEvent = ""
                         var currentData = ""
 
-                        for try await line in bytes.lines {
+                        for try await line in Self.sseLines(from: bytes) {
                             if Task.isCancelled { break }
                             if line.isEmpty {
                                 if !currentData.isEmpty, let parsed = Self.parseSSEEvent(name: currentEvent, data: currentData) {
@@ -183,7 +183,7 @@ final class NetworkManager {
                         if Task.isCancelled { break }
                     }
 
-                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
                 }
 
                 continuation.finish()
@@ -247,7 +247,7 @@ final class NetworkManager {
                     do {
                         var request = URLRequest(url: url)
                         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                        request.timeoutInterval = 90
+                        request.timeoutInterval = 300
 
                         let (bytes, response) = try await session.bytes(for: request)
                         try validate(response: response)
@@ -255,7 +255,7 @@ final class NetworkManager {
                         var currentEvent = ""
                         var currentData = ""
 
-                        for try await line in bytes.lines {
+                        for try await line in Self.sseLines(from: bytes) {
                             if Task.isCancelled { break }
                             if line.isEmpty {
                                 if !currentData.isEmpty,
@@ -275,7 +275,7 @@ final class NetworkManager {
                         if Task.isCancelled { break }
                     }
 
-                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
                 }
 
                 continuation.finish()
@@ -283,6 +283,44 @@ final class NetworkManager {
 
             continuation.onTermination = { _ in
                 task.cancel()
+            }
+        }
+    }
+
+    /// Reads SSE lines from `URLSession.AsyncBytes` while preserving blank `\n` lines that separate SSE frames.
+    /// (`AsyncBytes.lines` drops empty lines, which prevents SSE event boundaries from flushing.)
+    private static func sseLines(from bytes: URLSession.AsyncBytes) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let readerTask = Task {
+                var buffer: [UInt8] = []
+                do {
+                    for try await byte in bytes {
+                        if Task.isCancelled { break }
+                        if byte == 0x0A { // '\n'
+                            if buffer.last == 0x0D { // strip optional '\r'
+                                buffer.removeLast()
+                            }
+                            let line = String(decoding: buffer, as: UTF8.self)
+                            buffer.removeAll(keepingCapacity: true)
+                            continuation.yield(line)
+                        } else {
+                            buffer.append(byte)
+                        }
+                    }
+                    if !buffer.isEmpty {
+                        if buffer.last == 0x0D {
+                            buffer.removeLast()
+                        }
+                        continuation.yield(String(decoding: buffer, as: UTF8.self))
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+
+            continuation.onTermination = { _ in
+                readerTask.cancel()
             }
         }
     }

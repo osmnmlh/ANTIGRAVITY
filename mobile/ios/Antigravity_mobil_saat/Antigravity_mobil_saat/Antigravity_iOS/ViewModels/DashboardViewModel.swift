@@ -48,6 +48,8 @@ class DashboardViewModel: ObservableObject {
     private var journalAnalysisTask: Task<Void, Never>?
     private var notifiedAlertIds = Set<String>()
     private var sampleHistory: [HealthSample] = []
+    private var lastBackendPacketAt: Date?
+    private var lastWatchForwardAt: Date?
     private var latestJournalInputs: [JournalNoteInput] = []
     private var cachedJournalSentiment: JournalSentimentResult = JournalSentimentAnalyzer.evaluateLocally([])
     private var lastAnalyzedJournalDigest: String = ""
@@ -370,6 +372,7 @@ class DashboardViewModel: ObservableObject {
     private func applyPacket(_ packet: AstronautHealthPacket, fromBackend: Bool = false) {
         if fromBackend {
             hasSyncedFromBackend = true
+            lastBackendPacketAt = Date()
             latestBackendGuidance = packet.aiGuidance
         }
         astronautPacket = packet
@@ -386,7 +389,23 @@ class DashboardViewModel: ObservableObject {
         recomputeAlgorithmicMood(syncMoodSampleToBackend: false)
         if fromBackend {
             houstonSyncRevision &+= 1
+            forwardLatestStateToWatch(force: overallStatus != .green)
         }
+    }
+
+    private func forwardLatestStateToWatch(force: Bool = false) {
+        let now = Date()
+        if !force, let last = lastWatchForwardAt, now.timeIntervalSince(last) < 1.5 {
+            return
+        }
+        lastWatchForwardAt = now
+        ConnectivityManager.shared.sendRemoteTelemetryToWatch(
+            heartRate: heartRateValue,
+            spo2: indicatorValues[.spo2] ?? latestTelemetry?.vitals.bloodOxygenPercentage,
+            bodyTemp: indicatorValues[.bodyTemp] ?? latestTelemetry?.vitals.bodyTemperature,
+            overallStatus: overallStatus,
+            alertTitle: activeAlerts.first?.title
+        )
     }
 
     private func loadBundledNominalPacket() -> AstronautHealthPacket? {
@@ -403,11 +422,15 @@ class DashboardViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] data in
                 guard let self else { return }
-                // Preserve real backend web telemetry or recent WatchConnectivity updates without local mock overwriting them.
-                if self.hasSyncedFromBackend {
+                // Preserve real WatchConnectivity updates, active Web/SSE stream ticks,
+                // or non-green backend incidents without letting local mock overwrite them.
+                if let lastWatch = self.lastWatchSyncAt, Date().timeIntervalSince(lastWatch) < 30 {
                     return
                 }
-                if let lastWatch = self.lastWatchSyncAt, Date().timeIntervalSince(lastWatch) < 30 {
+                if let lastBackend = self.lastBackendPacketAt, Date().timeIntervalSince(lastBackend) < 10 {
+                    return
+                }
+                if self.hasSyncedFromBackend, self.overallStatus == .amber || self.overallStatus == .red {
                     return
                 }
                 self.applyTelemetry(data)
@@ -489,6 +512,7 @@ class DashboardViewModel: ObservableObject {
             upsertAlert(alert)
         }
         houstonSyncRevision &+= 1
+        forwardLatestStateToWatch(force: true)
     }
 
     @MainActor
