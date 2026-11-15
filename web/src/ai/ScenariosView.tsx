@@ -1,20 +1,30 @@
 import { useEffect, useState } from 'react'
+import { astronautProfiles } from '../data/useHealthData'
 import { listScenarios, resetDemo, runScenario } from './api'
 import { AI_LABELS as L } from './labels'
 import { AI_SCENARIOS, HAZARD_TR } from './scenarios'
 import './scenarios-view.css'
 
-type Outcome = { id: string; kind: 'sent' | 'error'; text: string }
+interface Playing {
+  id: string
+  crewName: string | null
+  endsAt: number
+  durationMs: number
+}
 
 /**
- * "Senaryolar" workspace: one large card per backend demo scenario (POST /api/ai/demo/:id).
- * Ids come from the relay (GET /api/ai/demo); the texts come from scenarios.ts.
+ * "Senaryolar" workspace: the showcase scenarios of the relay (POST /api/ai/demo/:id).
+ * A scenario plays for a fixed time (the relay answers with `durationMs`, 15 s by default) on the web,
+ * every phone and every watch at once, then everything goes back to normal by itself.
  */
 export function ScenariosView({ onOpenBase }: { onOpenBase: () => void }) {
   const [available, setAvailable] = useState<string[] | null>(null)
   const [offline, setOffline] = useState(false)
-  const [running, setRunning] = useState<string | null>(null)
-  const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [playing, setPlaying] = useState<Playing | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  const [crewId, setCrewId] = useState(astronautProfiles[0].id)
 
   useEffect(() => {
     listScenarios()
@@ -22,20 +32,47 @@ export function ScenariosView({ onOpenBase }: { onOpenBase: () => void }) {
       .catch(() => setOffline(true))
   }, [])
 
-  async function run(id: string, action: () => Promise<unknown>, sentText: string) {
-    setRunning(id)
-    setOutcome(null)
+  useEffect(() => {
+    if (!playing) return
+    const timer = window.setInterval(() => {
+      const current = Date.now()
+      setNow(current)
+      if (current >= playing.endsAt) setPlaying(null)
+    }, 200)
+    return () => window.clearInterval(timer)
+  }, [playing])
+
+  async function start(id: string, scope: 'cabin' | 'crew') {
+    setBusy(true)
+    setError(null)
     try {
-      await action()
-      setOutcome({ id, kind: 'sent', text: sentText })
-    } catch (error) {
-      setOutcome({ id, kind: 'error', text: error instanceof Error ? error.message : String(error) })
+      const result = await runScenario(id, scope === 'crew' ? crewId : undefined)
+      const durationMs = result.durationMs > 0 ? result.durationMs : 15_000
+      const crew = astronautProfiles.find(({ id: profileId }) => profileId === crewId)
+      const startedAt = Date.now()
+      setNow(startedAt)
+      setPlaying({ id, crewName: scope === 'crew' ? crew?.name ?? null : null, endsAt: startedAt + durationMs, durationMs })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
     }
-    setRunning(null)
+    setBusy(false)
+  }
+
+  async function reset() {
+    setBusy(true)
+    setError(null)
+    try {
+      await resetDemo()
+      setPlaying(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+    setBusy(false)
   }
 
   const scenarios = available ? AI_SCENARIOS.filter(({ id }) => available.includes(id)) : AI_SCENARIOS
-  const unlisted = available ? available.filter((id) => !AI_SCENARIOS.some((scenario) => scenario.id === id)) : []
+  const remainingMs = playing ? Math.max(0, playing.endsAt - now) : 0
+  const playingScenario = playing ? AI_SCENARIOS.find(({ id }) => id === playing.id) : null
 
   return (
     <section className="scenarios-view" data-testid="scenarios-view">
@@ -43,19 +80,13 @@ export function ScenariosView({ onOpenBase }: { onOpenBase: () => void }) {
         <div>
           <h1>Senaryolar</h1>
           <p>
-            Bir senaryo başlattığında uyarı, ilgili astronotların ekranına ve telefonuna düşer.
-            Sonucu Ana üs sekmesindeki uyarı merkezinde görürsün.
+            Bir senaryo başlatınca uyarı web’de, ilgili astronotların iPhone’unda ve Apple Watch’unda aynı anda çalışır.
+            Süre dolunca her şey kendiliğinden normale döner.
           </p>
         </div>
         <div className="scenarios-head-actions">
-          <button
-            className="scenarios-reset"
-            data-testid="ai-demo-reset"
-            disabled={running !== null}
-            onClick={() => void run('reset', resetDemo, 'Senaryolar sıfırlandı. Uyarılar temizlendi.')}
-            type="button"
-          >
-            ↺ {L.demoReset}
+          <button className="scenarios-reset" data-testid="ai-demo-reset" disabled={busy} onClick={() => void reset()} type="button">
+            ■ Hemen durdur
           </button>
           <button className="scenarios-link" onClick={onOpenBase} type="button">
             Uyarı merkezine git
@@ -68,22 +99,31 @@ export function ScenariosView({ onOpenBase }: { onOpenBase: () => void }) {
           {L.offlineHint} Senaryolar yalnızca backend açıkken başlatılabilir.
         </p>
       )}
-      {outcome && (
-        <p
-          className={`scenarios-note ${outcome.kind === 'error' ? 'is-error' : 'is-ok'}`}
-          data-testid="ai-demo-error"
-          role={outcome.kind === 'error' ? 'alert' : 'status'}
-        >
-          {outcome.text}
+      {error && (
+        <p className="scenarios-note is-error" data-testid="ai-demo-error" role="alert">
+          {error}
         </p>
+      )}
+      {playing && playingScenario && (
+        <div className="scenarios-playing" data-testid="scenario-playing" role="status">
+          <div>
+            <strong>{playingScenario.title}</strong>
+            <span>
+              {playing.crewName ? `${playing.crewName} için` : 'Tüm kabinde'} oynatılıyor · {Math.ceil(remainingMs / 1000)} sn kaldı
+            </span>
+          </div>
+          <div className="scenarios-progress" aria-hidden="true">
+            <i style={{ width: `${(remainingMs / playing.durationMs) * 100}%` }} />
+          </div>
+        </div>
       )}
 
       <div className="scenarios-grid">
         {scenarios.map((scenario) => {
-          const isRunning = running === scenario.id
+          const isPlaying = playing?.id === scenario.id
           return (
             <article
-              className={`scenario-card severity-${scenario.severity} ${outcome?.id === scenario.id && outcome.kind === 'sent' ? 'is-sent' : ''}`}
+              className={`scenario-card severity-${scenario.severity} ${isPlaying ? 'is-playing' : ''}`}
               data-testid={`scenario-${scenario.id}`}
               key={scenario.id}
             >
@@ -95,38 +135,31 @@ export function ScenariosView({ onOpenBase }: { onOpenBase: () => void }) {
               </div>
               <h2>{scenario.title}</h2>
               <p>{scenario.description}</p>
+              {scenario.scope === 'crew' && (
+                <label className="scenario-crew">
+                  <span>Kimde olsun</span>
+                  <select value={crewId} onChange={(event) => setCrewId(event.target.value)}>
+                    {astronautProfiles.map((astronaut) => (
+                      <option key={astronaut.id} value={astronaut.id}>{astronaut.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <footer>
                 <small>{HAZARD_TR[scenario.hazard]}</small>
                 <button
                   className="scenario-run"
                   data-testid={`ai-demo-${scenario.id}`}
-                  disabled={running !== null || offline}
-                  onClick={() => void run(scenario.id, () => runScenario(scenario.id), `“${scenario.title}” başlatıldı. Uyarı Ana üs sekmesinde.`)}
+                  disabled={busy || offline || playing !== null}
+                  onClick={() => void start(scenario.id, scenario.scope)}
                   type="button"
                 >
-                  {isRunning ? L.demoRunning : 'Senaryoyu başlat'}
+                  {isPlaying ? 'Oynatılıyor…' : 'Senaryoyu başlat'}
                 </button>
               </footer>
             </article>
           )
         })}
-        {unlisted.map((id) => (
-          <article className="scenario-card" key={id}>
-            <h2>{L.scenarios[id] ?? id}</h2>
-            <p>Bu senaryo backend’de var; açıklaması henüz eklenmedi.</p>
-            <footer>
-              <small>{id}</small>
-              <button
-                className="scenario-run"
-                disabled={running !== null || offline}
-                onClick={() => void run(id, () => runScenario(id), `“${id}” başlatıldı.`)}
-                type="button"
-              >
-                {running === id ? L.demoRunning : 'Senaryoyu başlat'}
-              </button>
-            </footer>
-          </article>
-        ))}
       </div>
     </section>
   )

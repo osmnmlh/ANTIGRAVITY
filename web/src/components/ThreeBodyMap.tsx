@@ -423,13 +423,13 @@ export function ThreeBodyMap({
       depthTest: false,
       depthWrite: false,
     })
-    const nameplateGeometry = new PlaneGeometry(1.4, 0.32)
+    const nameplateGeometry = new PlaneGeometry(1.75, 0.4)
     const frontNameplate = new Mesh(nameplateGeometry, nameplateMaterial)
-    frontNameplate.position.set(0, 2.18, 0.3)
+    frontNameplate.position.set(0, 2.3, 0.3)
     frontNameplate.renderOrder = 6
     figure.add(frontNameplate)
     const rearNameplate = new Mesh(nameplateGeometry, nameplateMaterial)
-    rearNameplate.position.set(0, 2.18, -0.3)
+    rearNameplate.position.set(0, 2.3, -0.3)
     rearNameplate.rotation.y = Math.PI
     rearNameplate.renderOrder = 6
     figure.add(rearNameplate)

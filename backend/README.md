@@ -20,6 +20,9 @@ npm test                  # AI module tests
 | GET | `/api/packets/:crewId` | One packet (the iPhone reads `aiGuidance` from here) |
 | GET | `/api/samples?crewId=crew-1` | `HealthSample[]` history |
 | POST | `/api/samples` | `HealthSample` or `HealthSample[]` → stored, packet `measurements` & `watchTelemetry.vitals` updated, pushed over SSE |
+| GET | `/api/tasks?crewId=crew-1` | Mission tasks assigned from the web (Ana üs); same list rides in the SSE `hello` as `tasks` |
+| POST | `/api/tasks` | `{ title, assigneeId, details?, dueAt?, priority? ("normal"|"high") }` → stored, pushed as SSE `task` `{ action: "upsert", task }` |
+| POST | `/api/tasks/:id/complete`, `/api/tasks/:id/delete` | `{ completed }` / no body → SSE `task` (`upsert` / `delete`). Phones and web both use these |
 | GET | `/api/incidents` | 3 calibrated historical spaceflight incident simulations (`shared/mock/historical-incidents.json`) |
 | GET | `/api/simulation` | Current simulation status + summary + available incidents |
 | POST | `/api/simulation/live/start` | `{ crewId?, intervalMs? }` → starts periodic physiological telemetry simulation pushed over SSE |

@@ -31,6 +31,11 @@ final class AlertCoordinator: ObservableObject {
     @Published private(set) var lastSyncDate: Date?
     @Published private(set) var lastCheckInMessage: String?
 
+    /// Alert mirrored from the iPhone (a backend scenario played from the web).
+    @Published private(set) var remoteAlertTitle: String?
+    @Published private(set) var remoteAlertDetail: String?
+    @Published private(set) var remoteAlertSeverity: HealthStatus = .green
+
     let hapticManager: HapticManager
     let notificationController: NotificationController
 
@@ -59,6 +64,11 @@ final class AlertCoordinator: ObservableObject {
         guard !isRunning else { return }
         isRunning = true
         if sideEffectsEnabled {
+            ConnectivityManager.shared.onAlertReceived = { [weak self] alert in
+                Task { @MainActor [weak self] in
+                    self?.applyRemoteAlert(alert)
+                }
+            }
             ConnectivityManager.shared.activate()
             notificationController.requestAuthorization()
         }
@@ -73,6 +83,26 @@ final class AlertCoordinator: ObservableObject {
         isRunning = false
         telemetryService.stopMonitoring()
         hapticManager.stopContinuousAlert()
+    }
+
+    /// Shows (and vibrates for) the alert the paired iPhone is playing; clears it when the iPhone says it is over.
+    func applyRemoteAlert(_ alert: WatchAlertPayload) {
+        if alert.active {
+            remoteAlertTitle = alert.title.uppercased(with: Self.turkishLocale)
+            remoteAlertDetail = alert.detail
+            remoteAlertSeverity = alert.severity == "red" ? .red : .amber
+            if sideEffectsEnabled && !isMuted {
+                hapticManager.startContinuousAlert(urgent: alert.severity == "red")
+            }
+        } else {
+            remoteAlertTitle = nil
+            remoteAlertDetail = nil
+            remoteAlertSeverity = .green
+            // The watch's own vitals alert keeps vibrating if it is still active.
+            if sideEffectsEnabled && overallStatus != .amber && overallStatus != .red {
+                hapticManager.stopContinuousAlert()
+            }
+        }
     }
 
     func toggleMute() {

@@ -121,14 +121,14 @@ body {
 }
 
 .brand-text strong {
-  font: 600 13.5px/1.1 var(--font-display);
+  font: 600 15px/1.1 var(--font-display);
   letter-spacing: 0.06em;
   color: var(--text-primary);
 }
 
 .brand-text small,
 .crew-profile small {
-  font: 500 10.5px/1.2 var(--font-mono);
+  font: 500 13.5px/1.2 var(--font-mono);
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }
@@ -161,11 +161,11 @@ body {
 }
 
 .workspace-tab > span:nth-child(2) {
-  font: 600 13px/1.2 var(--font-display);
+  font: 600 14.5px/1.2 var(--font-display);
 }
 
 .workspace-tab small {
-  font: 500 10px/1.2 var(--font-body);
+  font: 500 13px/1.2 var(--font-body);
   letter-spacing: 0.03em;
   text-transform: none;
   color: var(--text-muted);
@@ -226,7 +226,7 @@ body {
 
 .heading-meta {
   gap: 14px;
-  font: 500 11.5px/1.2 var(--font-mono);
+  font: 500 14px/1.2 var(--font-mono);
   letter-spacing: 0.01em;
 }
 
@@ -274,7 +274,7 @@ body {
 .astronaut-selector-note,
 .eyebrow {
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: 13.5px;
   font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--text-muted);
@@ -489,7 +489,7 @@ body {
   border: 0;
   border-radius: 999px;
   font-family: var(--font-body);
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.01em;
 }
@@ -536,7 +536,7 @@ body {
 
 .overview-counts {
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   gap: 16px;
   color: var(--text-secondary);
@@ -549,7 +549,7 @@ body {
 
 .base-health-state {
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.01em;
 }
@@ -567,7 +567,7 @@ body {
   border-radius: 9px;
   background: var(--shell-accent-bg);
   color: var(--shell-accent-text);
-  font: 500 12.5px/1 var(--font-body);
+  font: 500 14.5px/1 var(--font-body);
   letter-spacing: 0.01em;
   box-shadow: none;
 }
@@ -669,7 +669,7 @@ body {
   padding-top: 18px;
   border-top: 1px solid var(--shell-hairline);
   font-family: var(--font-body);
-  font-size: 11.5px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
@@ -733,7 +733,7 @@ body {
   border-radius: 999px;
   background: rgba(var(--marble-rgb), 0.04);
   color: var(--text-secondary);
-  font: 500 11.5px/1 var(--font-mono);
+  font: 500 14px/1 var(--font-mono);
   letter-spacing: 0.01em;
 }
 
@@ -777,7 +777,7 @@ body {
   border-radius: 8px;
   background: var(--shell-accent-bg);
   color: var(--shell-accent-text);
-  font: 500 12px/1 var(--font-body);
+  font: 500 14px/1 var(--font-body);
   cursor: pointer;
   transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
@@ -937,4 +937,22 @@ body {
     height: 100%;
     min-height: 700px;
   }
+}
+
+/* ---- Clock with its own label ---- */
+.utc-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.utc-clock small {
+  color: var(--text-secondary);
+  font: 500 13px var(--font-body);
+}
+
+.utc-clock b {
+  color: var(--text-primary);
+  font: 600 20px var(--font-mono);
 }

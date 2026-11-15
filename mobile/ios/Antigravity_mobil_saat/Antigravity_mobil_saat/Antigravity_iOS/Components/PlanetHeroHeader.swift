@@ -50,13 +50,13 @@ struct PlanetHeroHeader: View {
         ColorTheme.spaceBackdropGradient.ignoresSafeArea()
         VStack(spacing: 16) {
             PlanetHeroHeader(
-                greeting: "Hoşgeldiniz, Dr. Elena Vance",
+                greeting: "Hoşgeldiniz, Emirhan Gokce",
                 subtitle: "ISS Expedition 74 • Gün 42",
                 statusTitle: "Sistemler Normal",
                 status: .green
             )
             PlanetHeroHeader(
-                greeting: "Hoşgeldiniz, Dr. Elena Vance",
+                greeting: "Hoşgeldiniz, Emirhan Gokce",
                 subtitle: "ISS Expedition 74 • Gün 42",
                 statusTitle: "Kontrol Gerekli",
                 status: .amber

@@ -13,8 +13,8 @@ the network) and prints the links, for example:
 
 ```text
 Kokpit         http://localhost:5174/ai-preview.html
-Dr. Elena Vance    http://<wifi-ip>:5174/phone.html?crewId=crew-1
-Cmdr. Marcus Chen  http://<wifi-ip>:5174/phone.html?crewId=crew-2
+Emirhan Gokce    http://<wifi-ip>:5174/phone.html?crewId=crew-1
+Omer Ozcan  http://<wifi-ip>:5174/phone.html?crewId=crew-2
 ```
 
 Gemini is on when `backend/.env` contains `GEMINI_API_KEY` (git-ignored; copy `backend/.env.example`). The relay health

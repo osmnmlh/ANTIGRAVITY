@@ -6,6 +6,7 @@ import { ScenariosView } from './ai/ScenariosView'
 import { CrewCockpit } from './components/CrewCockpit'
 import './cosmos-shell.css'
 import { astronautProfiles, latestSampleFor, useHealthData } from './data/useHealthData'
+import { taskApi, useTaskSync } from './data/taskSync'
 import { guidanceByType } from './domain/guidance'
 import {
   getStatus,
@@ -206,6 +207,12 @@ function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('astronauts')
   const [missionTasks, setMissionTasks] = useState<MissionTask[]>(readMissionTasks)
   const [crewMessages, setCrewMessages] = useState<CrewMessage[]>(readCrewMessages)
+  useTaskSync(setMissionTasks)
+  const [clockNow, setClockNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(new Date()), 15_000)
+    return () => window.clearInterval(timer)
+  }, [])
   const [taskTitle, setTaskTitle] = useState('')
   const [taskDetails, setTaskDetails] = useState('')
   const [taskAssignee, setTaskAssignee] = useState<(typeof astronautProfiles)[number]['id']>('crew-1')
@@ -381,7 +388,7 @@ function App() {
     event.preventDefault()
     const title = taskTitle.trim()
     if (!title) return
-    setMissionTasks((current) => [{
+    const task: MissionTask = {
       id: crypto.randomUUID(),
       title,
       details: taskDetails.trim(),
@@ -390,7 +397,9 @@ function App() {
       priority: taskPriority,
       completed: false,
       createdAt: new Date().toISOString(),
-    }, ...current])
+    }
+    setMissionTasks((current) => [task, ...current])
+    void taskApi.create(task)
     setTaskTitle('')
     setTaskDetails('')
     setTaskDueAt('')
@@ -401,6 +410,14 @@ function App() {
     const shouldDelete = window.confirm(`"${task.title}" görevini silmek istediğine emin misin?`)
     if (!shouldDelete) return
     setMissionTasks((current) => current.filter((item) => item.id !== task.id))
+    void taskApi.remove(task.id)
+  }
+
+  function toggleTask(task: MissionTask) {
+    setMissionTasks((current) =>
+      current.map((item) => item.id === task.id ? { ...item, completed: !item.completed } : item),
+    )
+    void taskApi.setCompleted(task.id, !task.completed)
   }
 
   function handleSendCrewMessage(event: FormEvent<HTMLFormElement>) {
@@ -422,7 +439,7 @@ function App() {
     setShowMessageForm(false)
   }
 
-  const currentTime = new Date().toLocaleTimeString('tr-TR', {
+  const currentTime = clockNow.toLocaleTimeString('tr-TR', {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'UTC',
@@ -466,12 +483,10 @@ function App() {
               ? simulation.running ? 'CANLI AKIŞ' : 'BACKEND BAĞLI'
               : connection === 'connecting' ? 'BAĞLANIYOR' : 'JSON YEDEK VERİ'}
           </span>
-          <span className="topbar-divider" />
-          <span className="mission-day">GÖREV GÜNÜ <b>120</b></span>
         </div>
         <div className="crew-profile">
-          <span className="crew-avatar">AT</span>
-          <span><strong>ANTIGRAVITY TEAM</strong><small>MISSION SPECIALIST</small></span>
+          <span className="crew-avatar" aria-hidden="true">GK</span>
+          <span><strong>Görev Kontrol</strong><small>Yer destek ekibi</small></span>
           <button type="button" className="profile-menu" aria-label="Profil menüsü">···</button>
         </div>
       </header>
@@ -533,7 +548,10 @@ function App() {
               {simulation.running ? 'CANLI AKIŞI DURDUR' : 'CANLI SİMÜLASYONU BAŞLAT'}
             </button>
             {simulationActionError && <p className="simulation-action-error" role="alert">{simulationActionError}</p>}
-            <span className="utc-clock">UTC {currentTime}</span>
+            <span className="utc-clock" title="Dünya referans saati (UTC). Türkiye saati için +3 saat.">
+              <small>Görev saati · UTC</small>
+              <b>{currentTime}</b>
+            </span>
           </div>
         </section>
 
@@ -542,7 +560,6 @@ function App() {
             <div>
               <h2>Astronot profili</h2>
             </div>
-            <span className="astronaut-selector-note">{selectedAstronaut.role} · {selectedAstronaut.missionName}</span>
           </div>
           <div className="astronaut-select-box">
             <label className="astronaut-select-field" htmlFor="astronaut-select">
@@ -599,9 +616,7 @@ function App() {
                           aria-pressed={task.completed}
                           className="task-complete-toggle"
                           data-testid={`astronaut-task-toggle-${task.id}`}
-                          onClick={() => setMissionTasks((current) =>
-                            current.map((item) => item.id === task.id ? { ...item, completed: !item.completed } : item),
-                          )}
+                          onClick={() => toggleTask(task)}
                           type="button"
                         >
                           {task.completed ? '✓' : ''}
@@ -790,7 +805,6 @@ function App() {
         <footer className="app-footer">
           <span className="footer-brand"><span className="brand-mark small"><span /><span /><span /></span> ANTIGRAVITY · MISSION HEALTH DEMO</span>
           <span className="medical-disclaimer">Demo yazılımıdır, tıbbi cihaz değildir. Değerler örnek/simüle edilmiştir; tıbbi karar yerine geçmez.</span>
-          <span className="dose-budget">GÖREV DOZ BÜTÇESİ: {selectedAstronaut.radiationBudgetMsv} mSv</span>
         </footer>
           </>
         ) : activeWorkspace === 'scenarios' ? (
@@ -835,7 +849,6 @@ function App() {
                     <span className="base-crew-avatar">{astronaut.code.slice(-2)}</span>
                     <span className="base-crew-main">
                       <strong>{astronaut.name}</strong>
-                      <small>{astronaut.role}</small>
                     </span>
                     <span className="base-crew-mission">{astronaut.missionName}</span>
                     <span className={`base-health-state ${getStatusTone(astronaut.overallStatus)}`}>
@@ -982,9 +995,7 @@ function App() {
                             aria-label={task.completed ? 'Görevi yeniden aç' : 'Görevi tamamlandı olarak işaretle'}
                             className="task-complete-toggle"
                             data-testid={`task-toggle-${task.id}`}
-                            onClick={() => setMissionTasks((current) =>
-                              current.map((item) => item.id === task.id ? { ...item, completed: !item.completed } : item),
-                            )}
+                            onClick={() => toggleTask(task)}
                             type="button"
                           >
                             {task.completed ? '✓' : ''}
@@ -1141,7 +1152,6 @@ function App() {
             <footer className="app-footer">
               <span className="footer-brand"><span className="brand-mark small"><span /><span /><span /></span> ANTIGRAVITY · MISSION CONTROL DEMO</span>
               <span className="medical-disclaimer">Demo yazılımıdır, tıbbi cihaz değildir. Sağlık uyarıları demo eşiklerine dayanır.</span>
-              <span className="dose-budget">GÖREV: {[...new Set(astronautProfiles.map(({ missionName }) => missionName))].join(' · ')}</span>
             </footer>
           </>
         )}

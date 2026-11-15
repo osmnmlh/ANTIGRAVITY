@@ -19,6 +19,7 @@ import {
 import { guidanceByType } from '../web/src/domain/guidance.ts';
 import { metricDefinitions } from '../web/src/domain/types.ts';
 import { createAi } from './ai/index.mjs';
+import { createTaskStore } from './tasks.mjs';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 try { process.loadEnvFile(here('./.env')); } catch { /* .env is optional */ }
@@ -43,6 +44,9 @@ const incidents = historicalIncidents;
 
 let bundle = structuredClone(INITIAL_BUNDLE);
 let samples = structuredClone(INITIAL_SAMPLES);
+
+const taskStore = createTaskStore();
+const crewExists = (crewId) => Boolean(findPacket(crewId));
 
 const findPacket = (crewId) => bundle.astronauts.find((a) => a.astronautId === crewId);
 const withStatus = (p) => ({ ...p, overallStatus: getOverallStatus(p, samples) });
@@ -125,7 +129,8 @@ const ai = createAi({
 function resetRelay() {
   const payload = resetAllData();
   ai.resetDemo();
-  broadcast('hello', { astronauts: bundle.astronauts.map(withStatus), simulation: payload });
+  taskStore.clear();
+  broadcast('hello', { astronauts: bundle.astronauts.map(withStatus), simulation: payload, tasks: taskStore.list() });
   return payload;
 }
 
@@ -558,6 +563,27 @@ const server = http.createServer(async (req, res) => {
       ai.onSamples();
       return send(res, 201, { packets });
     }
+    // ---- Mission tasks (web assigns, phones receive over SSE `task` events and in `hello`) ----
+    if (route === 'GET /api/tasks') {
+      return send(res, 200, taskStore.list(url.searchParams.get('crewId') ?? undefined));
+    }
+    if (route === 'POST /api/tasks') {
+      const task = taskStore.upsert(await readBody(req), { crewExists });
+      broadcast('task', { action: 'upsert', task });
+      return send(res, 201, task);
+    }
+    const taskAction = url.pathname.match(/^\/api\/tasks\/([^/]+)\/(complete|delete)$/);
+    if (req.method === 'POST' && taskAction) {
+      const id = decodeURIComponent(taskAction[1]);
+      if (taskAction[2] === 'delete') {
+        const task = taskStore.remove(id);
+        broadcast('task', { action: 'delete', task });
+        return send(res, 200, task);
+      }
+      const task = taskStore.setCompleted(id, (await readBody(req)).completed);
+      broadcast('task', { action: 'upsert', task });
+      return send(res, 200, task);
+    }
     if (route === 'GET /api/incidents') {
       return send(res, 200, { disclaimer: DEMO_DISCLAIMER, incidents });
     }
@@ -582,7 +608,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (route === 'GET /api/stream') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-      res.write(`event: hello\ndata: ${JSON.stringify({ astronauts: bundle.astronauts.map(withStatus), simulation: simulationPayload() })}\n\n`);
+      res.write(`event: hello\ndata: ${JSON.stringify({ astronauts: bundle.astronauts.map(withStatus), simulation: simulationPayload(), tasks: taskStore.list() })}\n\n`);
       clients.add(res);
       req.on('close', () => clients.delete(res));
       return;
