@@ -94,6 +94,8 @@ struct AstronautBodyMapView: View {
     let statuses: [HealthIndicatorType: HealthStatus]
     /// The backend's AI recommendation. When it carries a text for the tapped indicator, that text is shown; otherwise the Turkish rule table.
     var aiGuidance: AiGuidance? = nil
+    var trends: [HealthIndicatorType: TrendAssessment] = [:]
+    var moodAssessment: AlgorithmicMoodAssessment? = nil
     @State private var selected: BodyMapCallout = .heartRate
     @State private var inspectedCallout: BodyMapCallout?
 
@@ -188,7 +190,9 @@ struct AstronautBodyMapView: View {
                 valueText: formattedValue(for: callout),
                 status: status(for: callout),
                 guidance: indicatorGuidance(for: callout),
-                sourceNote: guidanceSourceNote(for: callout)
+                sourceNote: guidanceSourceNote(for: callout),
+                trend: trends[primaryIndicator(for: callout)],
+                moodAssessment: (callout == .mood || callout == .sleepHours) ? moodAssessment : nil
             )
         }
     }
@@ -513,6 +517,8 @@ private struct IndicatorGuidanceSheet: View {
     let status: HealthStatus
     let guidance: IndicatorGuidance
     let sourceNote: String
+    var trend: TrendAssessment? = nil
+    var moodAssessment: AlgorithmicMoodAssessment? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -537,6 +543,24 @@ private struct IndicatorGuidanceSheet: View {
 
                             Spacer()
                         }
+                    }
+
+                    if let trend, trend.trendStatus != .green, let reason = trend.reason {
+                        GlassCardView(cornerRadius: 18, padding: 16) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Eğilim Uyarısı", systemImage: "chart.line.uptrend.xyaxis")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(trend.trendStatus.themeColor)
+                                Text(reason)
+                                    .font(.subheadline)
+                                    .foregroundStyle(ColorTheme.textPrimary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
+                    if let moodAssessment {
+                        moodBreakdownCard(moodAssessment)
                     }
 
                     guidanceSection(title: "Nedir?", icon: "info.circle.fill", text: guidance.whatItIs)
@@ -585,6 +609,93 @@ private struct IndicatorGuidanceSheet: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private func moodBreakdownCard(_ assessment: AlgorithmicMoodAssessment) -> some View {
+        GlassCardView(cornerRadius: 18, padding: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Label("Algoritmik Ruh Hâli Hesaplaması", systemImage: "brain.head.profile")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ColorTheme.accent)
+
+                    Spacer()
+
+                    Text("\(assessment.score)/5")
+                        .font(.caption.weight(.bold).monospacedDigit())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(assessment.status.themeColor.opacity(0.20), in: Capsule())
+                        .foregroundStyle(assessment.status.themeColor)
+                }
+
+                Text(assessment.summaryLine)
+                    .font(.caption)
+                    .foregroundStyle(ColorTheme.textMuted)
+
+                Divider()
+                    .overlay(Color.white.opacity(0.12))
+
+                ForEach(assessment.factors) { factor in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(factor.status.themeColor)
+                            .frame(width: 7, height: 7)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(factor.label)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(ColorTheme.textPrimary)
+                            Text(factor.detailText)
+                                .font(.caption2)
+                                .foregroundStyle(ColorTheme.textMuted)
+                                .lineLimit(2)
+                        }
+
+                        Spacer(minLength: 6)
+
+                        Text(factor.formattedDelta)
+                            .font(.caption.weight(.bold).monospacedDigit())
+                            .foregroundStyle(deltaColor(for: factor.delta))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(
+                        assessment.journalAnalysis.analyzedByAi
+                            ? "Günlük AI Yorumu (Gemini)"
+                            : "Günlük Metin Özeti"
+                    )
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(ColorTheme.accent)
+
+                    Text(assessment.journalAnalysis.summary)
+                        .font(.caption)
+                        .foregroundStyle(ColorTheme.textPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+
+                if !assessment.symptoms.isEmpty {
+                    Text("Saat Belirtileri: \(assessment.symptoms.joined(separator: ", "))")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(ColorTheme.statusAmber)
+                }
+
+                Text("Ruh hâli manuel olarak seçilmez; uyku, tansiyon, radyasyon, vitaller ve günlük yazılarıyla otomatik hesaplanır.")
+                    .font(.caption2)
+                    .foregroundStyle(ColorTheme.textMuted)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func deltaColor(for delta: Double) -> Color {
+        if delta >= 0.05 { return ColorTheme.statusGreen }
+        if delta <= -0.8 { return ColorTheme.statusRed }
+        if delta <= -0.05 { return ColorTheme.statusAmber }
+        return ColorTheme.textMuted
     }
 
     private func guidanceSection(

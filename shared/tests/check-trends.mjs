@@ -22,12 +22,10 @@ for (const tc of cases) {
   console.log(`PASS ${tc.name} -> point=${assessment.pointStatus}, trend=${assessment.trendStatus}, effective=${assessment.effectiveStatus}`);
 }
 
-const mockSamples = JSON.parse(
-  fs.readFileSync(new URL('../mock/samples.json', import.meta.url), 'utf8')
-);
-const mockPackets = JSON.parse(
-  fs.readFileSync(new URL('../mock/astronaut-packets.json', import.meta.url), 'utf8')
-);
+// shared/mock/all-data.json is the master dataset the relay, the web and the AI read.
+const allData = JSON.parse(fs.readFileSync(new URL('../mock/all-data.json', import.meta.url), 'utf8'));
+const mockSamples = allData.samples;
+const mockPackets = allData;
 
 // Team decision (14 Nov): the demo opens with every astronaut green; red/amber come from a scenario on stage
 // (backend/ai demo scenarios or the historical incident replay). Trend rules themselves are covered by trend-cases.json above.

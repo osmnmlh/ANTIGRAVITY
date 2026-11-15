@@ -23,6 +23,13 @@ are no longer read by any code, so edit `all-data.json` only. The relay's `/api/
 (`backend/ai/cabin-hint.mjs`). What a phase does not state is nominal again. Two qualitative alarms use a fixed demo value (`O2 Basınç Alarmı` = 17.9 kPa,
 `Ana Güç Düşüyor` = degraded). EVA suit pressure is not the cabin and is ignored.
 
+## Web guidance panel
+The "Ne anlama geliyor / Uzayda neden önemli / Şimdi ne yapabilirsin / Ne zaman haber vermeli" panel of `App.tsx` shows the backend's AI recommendation for the
+selected indicator (`useAiIndicatorGuidance`, contract §9) and a line saying who wrote it; with the relay offline it shows the local rule texts as before.
+
+## Alert voice
+Pre-rendered ElevenLabs clips (Alice, free plan) in `web/public/ai-voice/`, played slightly dulled (see `web/src/ai/README.md`, "Voice"). A phrase without a clip uses the browser's female Turkish voice.
+
 ## Chat request
 `POST /api/ai/chat` takes `{ crewId, messages: [{role, text}] }` or the one-string shorthand of `docs/rehearsal.md`: `{ crewId, message: "…" }`.
 

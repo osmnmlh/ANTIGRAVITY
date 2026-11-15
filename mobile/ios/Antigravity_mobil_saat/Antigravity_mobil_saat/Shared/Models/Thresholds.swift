@@ -339,12 +339,12 @@ enum HealthThresholds {
             )
         case .bodyTemp:
             return IndicatorGuidance(
-                whatItIs: "Vücut ısısı, çekirdek ısıl dengenizi ve bağışıklık yanıtınızı yansıtır.",
+                whatItIs: "Vücut sıcaklığı, çekirdek ısıl dengenizi ve bağışıklık yanıtınızı yansıtır.",
                 whyInSpace: "Kapalı yaşam alanlarında enfeksiyonlar daha kolay yayılır ve doğal hava konveksiyonu olmadığı için ısı düzenlemesi farklılaşır.",
                 doNow: status == .green
                     ? ["Normal kabin termal ve sıvı tüketimi alışkanlıklarını sürdürün."]
                     : ["Dinlenin, sıvı alın ve 30 dakika sonra ağız/cilt sıcaklığını yeniden ölçün.", "Uzay aracı kabin sıcaklığını ve soğutma döngüsü durumunu doğrulayın."],
-                escalateWhen: "Vücut ısısı 38,5 °C ve üzerine çıkarsa, 35,0 °C altına düşerse veya üşüme/titreme ile devam ederse uçuş cerrahıyla iletişime geçin."
+                escalateWhen: "Vücut sıcaklığı 38,5 °C ve üzerine çıkarsa, 35,0 °C altına düşerse veya üşüme/titreme ile devam ederse uçuş cerrahıyla iletişime geçin."
             )
         case .bloodGlucose:
             return IndicatorGuidance(

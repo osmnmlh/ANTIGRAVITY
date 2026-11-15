@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6BAC236030A853E5006AEECE /* Antigravity_watchOS.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 6BAC235130A853E5006AEECE /* Antigravity_watchOS.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6BAC232930A853E5006AEECE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,7 +25,28 @@
 			remoteGlobalIDString = 6BAC231A30A853E3006AEECE;
 			remoteInfo = Antigravity_mobil_saat;
 		};
+		6BAC236130A853E5006AEECE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6BAC231330A853E3006AEECE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6BAC235630A853E5006AEECE;
+			remoteInfo = Antigravity_watchOS;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6BAC236330A853E5006AEECE /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				6BAC236030A853E5006AEECE /* Antigravity_watchOS.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6BAC231B30A853E3006AEECE /* Antigravity_mobil_saat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Antigravity_mobil_saat.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -141,10 +166,12 @@
 				6BAC231730A853E3006AEECE /* Sources */,
 				6BAC231830A853E3006AEECE /* Frameworks */,
 				6BAC231930A853E3006AEECE /* Resources */,
+				6BAC236330A853E5006AEECE /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6BAC236230A853E5006AEECE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6BAC231D30A853E3006AEECE /* Antigravity_mobil_saat */,
@@ -338,6 +365,11 @@
 			isa = PBXTargetDependency;
 			target = 6BAC231A30A853E3006AEECE /* Antigravity_mobil_saat */;
 			targetProxy = 6BAC233330A853E5006AEECE /* PBXContainerItemProxy */;
+		};
+		6BAC236230A853E5006AEECE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6BAC235630A853E5006AEECE /* Antigravity_watchOS */;
+			targetProxy = 6BAC236130A853E5006AEECE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 

@@ -29,6 +29,22 @@ struct BackendHealthResponse: Codable, Sendable {
     let ai: Bool?
 }
 
+struct AiChatResponse: Codable, Sendable {
+    let reply: String
+    let source: String?
+    let model: String?
+    let escalation: String?
+}
+
+struct RelayHelloPayload: Codable, Sendable {
+    let astronauts: [AstronautHealthPacket]
+}
+
+enum RelayStreamEvent: Sendable {
+    case hello([AstronautHealthPacket])
+    case packet(AstronautHealthPacket)
+}
+
 enum AiStreamEvent: Sendable {
     case hello(alerts: [AiAlert])
     case alert(AiAlert)
@@ -179,6 +195,98 @@ final class NetworkManager {
         }
     }
 
+    /// Fetches canonical historical `HealthSample` records for one astronaut from `GET /api/samples`.
+    func fetchSamples(crewId: String) async throws -> [HealthSample] {
+        guard let url = Constants.samplesURL(crewId: crewId) else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response)
+        return try HealthJSONCodec.decoder.decode([HealthSample].self, from: data)
+    }
+
+    /// Asks backend Gemini chat endpoint (`POST /api/ai/chat`) to classify recent journal entries.
+    func analyzeJournalSentiment(crewId: String, excerpt: String) async throws -> AiChatResponse {
+        struct ChatRequestBody: Encodable {
+            let scope: String
+            let crewId: String
+            let message: String
+        }
+
+        guard let url = Constants.aiChatURL else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 25
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(
+            ChatRequestBody(scope: "crew", crewId: crewId, message: excerpt)
+        )
+
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response)
+        return try JSONDecoder().decode(AiChatResponse.self, from: data)
+    }
+
+    /// Subscribes to live astronaut telemetry packets over Server-Sent Events (`GET /api/stream`).
+    func streamRelayEvents() -> AsyncStream<RelayStreamEvent> {
+        AsyncStream { continuation in
+            let task = Task {
+                guard let url = Constants.relayStreamURL else {
+                    continuation.finish()
+                    return
+                }
+
+                while !Task.isCancelled {
+                    do {
+                        var request = URLRequest(url: url)
+                        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                        request.timeoutInterval = 90
+
+                        let (bytes, response) = try await session.bytes(for: request)
+                        try validate(response: response)
+
+                        var currentEvent = ""
+                        var currentData = ""
+
+                        for try await line in bytes.lines {
+                            if Task.isCancelled { break }
+                            if line.isEmpty {
+                                if !currentData.isEmpty,
+                                   let parsed = Self.parseRelaySSEEvent(name: currentEvent, data: currentData) {
+                                    continuation.yield(parsed)
+                                }
+                                currentEvent = ""
+                                currentData = ""
+                            } else if line.hasPrefix("event:") {
+                                currentEvent = line.dropFirst(6).trimmingCharacters(in: .whitespaces)
+                            } else if line.hasPrefix("data:") {
+                                let piece = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+                                currentData = currentData.isEmpty ? piece : "\(currentData)\n\(piece)"
+                            }
+                        }
+                    } catch {
+                        if Task.isCancelled { break }
+                    }
+
+                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                }
+
+                continuation.finish()
+            }
+
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
+        }
+    }
+
     private func postAlertDeviceAction(url: URL, deviceId: String) async throws -> AiAlert {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -189,6 +297,24 @@ final class NetworkManager {
         let (data, response) = try await session.data(for: request)
         try validate(response: response)
         return try HealthJSONCodec.decoder.decode(AiAlert.self, from: data)
+    }
+
+    private static func parseRelaySSEEvent(name: String, data: String) -> RelayStreamEvent? {
+        guard let jsonData = data.data(using: .utf8) else { return nil }
+        switch name {
+        case "hello":
+            guard let payload = try? HealthJSONCodec.decoder.decode(RelayHelloPayload.self, from: jsonData) else {
+                return nil
+            }
+            return .hello(payload.astronauts)
+        case "packet":
+            guard let packet = try? HealthJSONCodec.decoder.decode(AstronautHealthPacket.self, from: jsonData) else {
+                return nil
+            }
+            return .packet(packet)
+        default:
+            return nil
+        }
     }
 
     private static func parseSSEEvent(name: String, data: String) -> AiStreamEvent? {

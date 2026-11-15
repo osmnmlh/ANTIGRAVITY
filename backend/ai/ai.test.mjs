@@ -769,3 +769,26 @@ test('POST /api/ai/guidance (the iPhone calls it) answers with the current recom
   assert.ok(Array.isArray(r.json.actions));
   assert.equal((await call(ai, 'POST', '/api/ai/guidance', { crewId: 'crew-9' })).status, 404);
 });
+
+// ---- Voice clips ----
+import { spokenPhrases } from './rules.mjs';
+
+test('every red alert the demo can raise has its phrase in the voice-clip list', async () => {
+  const single = Object.entries(metricDefinitions).filter(([type]) => !type.startsWith('bloodPressure')).map(([, m]) => m.label);
+  const phrases = new Set(spokenPhrases(PACKETS.map((p) => p.fullName), single));
+  const spoken = new Set();
+  const collect = (ai) => { for (const a of ai.alerts()) if (a.severity === 'red') spoken.add(a.spokenText); };
+  const ids = (await call(setup().ai, 'GET', '/api/ai/demo')).json;
+  for (const id of ids) { const { ai } = setup(); await call(ai, 'POST', `/api/ai/demo/${id}`); collect(ai); }
+  const reds = { heartRate: 150, bloodPressureSys: 170, spo2: 85, bodyTemp: 39.5, bloodGlucose: 250, sleepHours: 2, mood: 1, radiationDose: 99999 };
+  for (const [type, value] of Object.entries(reds)) {
+    const { ai, applySamples } = setup();
+    applySamples([{ crewId: 'crew-3', type, value, timestamp: 't', source: 'mock' }]);
+    ai.onSamples();
+    collect(ai);
+  }
+  const { ai } = setup();
+  for (const incident of INCIDENTS) for (const phase of incident.phases) { ai.onCabinHint(phase.cabinHint); collect(ai); }
+  assert.ok(spoken.size >= 15, `collected ${spoken.size}`);
+  assert.deepEqual([...spoken].filter((t) => !phrases.has(t)), []);
+});

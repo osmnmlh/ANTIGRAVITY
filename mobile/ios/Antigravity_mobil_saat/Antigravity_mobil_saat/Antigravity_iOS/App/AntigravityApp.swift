@@ -67,8 +67,13 @@ struct MainTabContainerView: View {
             }
         }
         .task {
+            dashboardViewModel.updateJournalEntries(journalViewModel.entries, syncToBackend: false)
             dashboardViewModel.startAiAlertStream()
+            dashboardViewModel.startRelayStream()
             await dashboardViewModel.syncFromBackend()
+        }
+        .onChange(of: journalViewModel.entries) { _, updatedEntries in
+            dashboardViewModel.updateJournalEntries(updatedEntries, syncToBackend: true)
         }
     }
 
