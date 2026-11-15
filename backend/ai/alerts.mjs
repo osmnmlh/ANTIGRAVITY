@@ -153,7 +153,9 @@ export function createHub() {
 
   return {
     add(req, res, { crewId, deviceId }, hello) {
-      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+      // x-accel-buffering: a proxy (Render) must not hold the events back; every alert has to arrive the moment it is written.
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+      res.flushHeaders?.();
       const c = { res, crewId, deviceId };
       clients.add(c);
       req.on('close', () => { clients.delete(c); onChange(); });

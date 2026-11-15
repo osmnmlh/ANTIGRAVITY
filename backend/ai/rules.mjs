@@ -102,6 +102,14 @@ const CABIN_RULES = [
     escalate: 'Titreme, bilinç bulanıklığı veya sıcak çarpması belirtisi olan varsa uçuş cerrahına başvurun.',
   }),
   cabinRule({
+    scenarioId: 'cabin-humidity', metric: 'humidity', hazardId: 'hostileClosedEnvironments',
+    title: (r) => `Kabin nemi ${r.value < 25 ? 'düşük' : 'yüksek'}: %${num(r.value)}`,
+    spoken: (r) => `Kabin nemi ${r.value < 25 ? 'düşük' : 'yüksek'}.`,
+    why: 'Kapalı kabinde fazla nem yoğuşma, küf ve elektronik arızası demektir; çok kuru hava ise boğazı ve gözleri tahriş eder.',
+    doNow: ['Nem alma ünitesini ve havalandırmayı kontrol edin.', 'Yoğuşan yüzeyleri silin, elektronik cihazlardan uzak tutun.', 'Öksürük veya göz tahrişi olan var mı kontrol edin.'],
+    escalate: 'Solunum sıkıntısı olan varsa uçuş cerrahına başvurun; nem düşmezse görev kontrolüne haber verin.',
+  }),
+  cabinRule({
     scenarioId: 'solar-event', metric: 'radiationRate', hazardId: 'spaceRadiation',
     title: (r) => `Güneş parçacık fırtınası: radyasyon ${num(r.value)} mSv/gün`,
     spoken: () => 'Radyasyon seviyesi yüksek.',
@@ -156,6 +164,50 @@ function crewRules(ctx, c, cabinHypoxiaFired) {
       why: 'Uzay uçuşu bağışıklık sistemini zayıflatır ve mikroplar kapalı kabinde kolayca yayılır.',
       doNow: ['Dinlenin ve mürettebatla teması sınırlayın.', 'Bol sıvı için.', 'Vücut ısısını 1 saat sonra tekrar ölçün.'],
       escalate: "Ateş 38,5 °C'ye ulaşırsa veya nefes sorunu olursa uçuş cerrahına başvurun.",
+    }));
+  }
+  if (v('bloodPressureSys') >= 150 && v('bloodPressureDia') >= 95 && v('heartRate') > 100) {
+    out.push(crewFiring(ctx, c, {
+      scenarioId: 'hypertensive-crisis', hazardId: 'isolationConfinement', severity: 'red',
+      types: ['bloodPressureSys', 'bloodPressureDia', 'heartRate'],
+      title: 'yüksek tansiyon ve hızlı nabız',
+      spokenText: `${name} için kan basıncı yüksek.`,
+      why: 'Uzun süren stres, tuz ve sıvı kayması tansiyonu yükseltir; çok yüksek tansiyon baş ağrısı, görme bulanıklığı ve kalp yükü demektir.',
+      doNow: ['Eforu bırakın, dik oturup sakin ve yavaş nefes alın.', 'Tuzlu yiyecek ve kafeini şimdilik bırakın.', 'Tansiyonu 10 dakika sonra tekrar ölçün.'],
+      escalate: 'Değerler düşmezse, göğüs ağrısı, şiddetli baş ağrısı veya görme bulanıklığı olursa uçuş cerrahına hemen başvurun.',
+    }));
+  }
+  if (v('bloodGlucose') < 60) {
+    out.push(crewFiring(ctx, c, {
+      scenarioId: 'hypoglycemia', hazardId: ctx.hazardFor('bloodGlucose'), severity: 'red',
+      types: ['bloodGlucose', ...(v('heartRate') > 100 ? ['heartRate'] : [])],
+      title: 'düşük kan şekeri',
+      spokenText: `${name} için kan şekeri düşük.`,
+      why: 'Kan şekeri düşünce titreme, terleme, çarpıntı ve dikkat kaybı başlar; uzay yürüyüşü veya cihaz başında bu tehlikelidir.',
+      doNow: ['Hemen oturun ve eforu bırakın.', 'Hızlı şekerli bir yiyecek veya içecek tüketin.', 'Kan şekerini 15 dakika sonra tekrar ölçün.'],
+      escalate: 'Bilinç bulanıklığı olursa veya değer 15 dakikada düzelmezse uçuş cerrahına hemen başvurun.',
+    }));
+  }
+  if (v('heartRate') > 130 && v('spo2') < 95) {
+    out.push(crewFiring(ctx, c, {
+      scenarioId: 'eva-exertion', hazardId: 'gravityFields', severity: 'red',
+      types: ['heartRate', 'spo2'],
+      title: 'aşırı efor: nabız çok yüksek, oksijen düşük',
+      spokenText: `${name} için efor çok yüksek.`,
+      why: 'Basınçlı giysiyle uzun çalışmak kalbi ve solunumu zorlar; nabız yükselirken oksijen düşerse beden sınırına yaklaşıyor demektir.',
+      doNow: ['İşi bırakın ve hemen dinlenin.', 'Giysi soğutmasını ve oksijen akışını kontrol edin.', 'Nabız ve oksijeni 5 dakika sonra tekrar ölçün.'],
+      escalate: 'Nabız 5 dakikada düşmezse, göğüs ağrısı veya baş dönmesi olursa uçuş cerrahına hemen başvurun. Uzay yürüyüşündeyseniz içeri dönün.',
+    }));
+  }
+  if (c.vitals.radiationDose?.status === 'red') {
+    out.push(crewFiring(ctx, c, {
+      scenarioId: 'radiation-budget', hazardId: 'spaceRadiation', severity: 'red',
+      types: ['radiationDose'],
+      title: 'birikmiş radyasyon dozu bütçeyi dolduruyor',
+      spokenText: `${name} için radyasyon dozu yüksek.`,
+      why: 'Radyasyon doz bütçesi görev boyunca birikir; dolmaya yaklaşınca kanser ve sinir sistemi riski artar, planlar değişmelidir.',
+      doNow: ['Dozimetrenizi takılı tutun ve bugünkü dozu kaydedin.', 'Korunaklı bölgede geçirdiğiniz süreyi artırın.', 'Dışarı çıkışları ve uzun süreli maruziyeti ertelemeyi görev kontrolüyle konuşun.'],
+      escalate: 'Doz bütçesi aşılmadan önce uçuş cerrahına ve görev kontrolüne bildirin; mide bulantısı varsa hemen başvurun.',
     }));
   }
   if (c.vitals.spo2?.status === 'red' && !(c.inCabin && cabinHypoxiaFired)) {
@@ -222,11 +274,12 @@ export function spokenPhrases(crewNames, vitalLabels) {
   const cabin = [
     'Kabin oksijeni düşük, mürettebatta oksijen düşüşü.', 'Kabin oksijeni düşük.', 'Kabin oksijeni yüksek.', 'Kabinde gaz salınımı.',
     'Kabinde karbondioksit yüksek.', 'Kabin basıncı düşük.', 'Kabin basıncı yüksek.', 'Kabin sıcaklığı düşük.', 'Kabin sıcaklığı yüksek.',
-    'Radyasyon seviyesi yüksek.', `Yaşam destek gücü ${POWER.fault}.`,
+    'Radyasyon seviyesi yüksek.', `Yaşam destek gücü ${POWER.fault}.`, 'Kabin nemi yüksek.', 'Kabin nemi düşük.',
   ];
   const crew = crewNames.map(spokenName).flatMap((name) => [
     `${name} için kan basıncı düşük.`, `${name} için ateş yüksek.`, `${name} için kan oksijeni düşük.`,
     `${name} için ruh hali iki gündür düşük.`, `${name} için uyku ve ruh hali düşük.`,
+    `${name} için kan basıncı yüksek.`, `${name} için kan şekeri düşük.`, `${name} için efor çok yüksek.`, `${name} için radyasyon dozu yüksek.`,
     ...['Kan basıncı', ...vitalLabels].map((label) => `${name} için ${lower(label)} kritik.`),
   ]);
   return [...cabin, ...crew].map((text) => `Uyarı. ${text}`);

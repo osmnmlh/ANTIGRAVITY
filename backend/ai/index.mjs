@@ -30,6 +30,9 @@ const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz 
  * @param {{ topic?: string, server?: string }} [deps.ntfy]  Optional push for locked phones (ntfy.sh). Default: env NTFY_TOPIC / NTFY_SERVER, off when unset.
  * @param {(packet: object) => 'green'|'amber'|'red'|'missing'} [deps.getOverallStatus]  The engine's overall status of a packet (with the multi-day trend). Default: worst vital.
  * @param {(crewId: string) => void} [deps.onGuidance]  Called after `packet.aiGuidance` of that astronaut was replaced: broadcast the packet to the clients.
+ * @param {(alert: object) => void} [deps.onAlert]  Called the moment a new alert is announced (before Gemini): the host turns its steps into tasks.
+ * @param {(alert: object) => void} [deps.onAlertResolved]  Called when an alert is over (values back to normal, or replaced by a worse one).
+ * @param {() => void} [deps.onAlertsCleared]  Called when a reset throws every alert away.
  * @param {(state: object) => void} [deps.onScenario]  Called whenever the playing demo scenario starts, moves or ends: broadcast it to the host's clients.
  * @param {number} [deps.scenarioTickMs]  How often a playing scenario moves its values (default env DEMO_TICK_MS or 1000; 0 = no ticks).
  * @param {string[]} [deps.cabinCrewIds]  Who is inside the monitored cabin. Default: crew sharing the first packet's mission.
@@ -45,6 +48,9 @@ export function createAi(deps) {
     hazards = [],
     applySamples = null,
     onScenario = null,
+    onAlert = null,
+    onAlertResolved = null,
+    onAlertsCleared = null,
     gemini = {},
     fetchImpl = fetch,
     now = () => new Date(),
@@ -107,11 +113,15 @@ export function createAi(deps) {
   /** Re-runs every rule. `silent` alerts are stored and sent as `alert-update`, so clients list them without beeping. */
   function run({ silent = false } = {}) {
     const { created, updated } = store.reconcile(evaluate(context()), devices.forCrew);
-    for (const a of updated) hub.alert('alert-update', a);
+    for (const a of updated) {
+      hub.alert('alert-update', a);
+      if (a.state === 'resolved') onAlertResolved?.(a);
+    }
     for (const a of created) {
       const reached = hub.alert(silent ? 'alert-update' : 'alert', a);
       log.info?.(`[ai] ${silent ? 'baseline' : 'ALERT'} ${a.severity} ${a.scenarioId} → ${a.crewIds.join(',')}: ${a.title}`);
       if (silent) continue;
+      onAlert?.(a);           // tasks for the affected astronauts, at the same moment as the alert
       // Every phone whose stream just received the alert counts as delivered (all of them at the same moment).
       const phones = reached.filter((deviceId) => a.deliveries.some((d) => d.deviceId === deviceId));
       for (const deviceId of phones) store.delivered(a.id, { deviceId });
@@ -207,6 +217,12 @@ export function createAi(deps) {
     'infection-suspected': { vitals: () => [['bodyTemp', 38.6], ['heartRate', 108]] },
     'individual-hypoxia': { vitals: () => [['spo2', 86]] },
     'fatigue-isolation': { vitals: () => [['sleepHours', 4.5], ['mood', 2]] },
+    'cabin-overheat': { cabin: [{ metric: 'temperature', value: 31.5 }] },
+    'cabin-humidity-high': { cabin: [{ metric: 'humidity', value: 86 }] },
+    'hypertensive-crisis': { vitals: () => [['bloodPressureSys', 172], ['bloodPressureDia', 108], ['heartRate', 104]] },
+    hypoglycemia: { vitals: () => [['bloodGlucose', 52], ['heartRate', 104]] },
+    'eva-exertion': { vitals: () => [['heartRate', 152], ['spo2', 91]] },
+    'radiation-budget': { vitals: () => [['radiationDose', 93]] },
   };
   // Turkish names of the scenarios: the phone and the watch show "Simülasyon başladı: <title>" with them.
   const DEMO_TITLES = {
@@ -222,6 +238,12 @@ export function createAi(deps) {
     'infection-suspected': 'Enfeksiyon şüphesi',
     'individual-hypoxia': 'Kişisel oksijen düşüşü',
     'fatigue-isolation': 'Yorgunluk ve izolasyon',
+    'cabin-overheat': 'Kabin aşırı ısındı',
+    'cabin-humidity-high': 'Kabinde nem çok yüksek',
+    'hypertensive-crisis': 'Yüksek tansiyon',
+    hypoglycemia: 'Düşük kan şekeri',
+    'eva-exertion': 'Aşırı efor (uzay yürüyüşü)',
+    'radiation-budget': 'Radyasyon doz bütçesi doluyor',
   };
   // A cabin scenario also moves the vitals of everyone in the cabin, so each astronaut's own parameters visibly react.
   // These stay amber on purpose: the cabin alert already explains them, so they never add a second red alert.
@@ -231,6 +253,7 @@ export function createAi(deps) {
     'cabin-pressure-drop': [['heartRate', 102], ['spo2', 94]],
     'solar-event': [['heartRate', 92]],
     'cabin-hypoxia': [['heartRate', 104]],
+    'cabin-overheat': [['bodyTemp', 37.3], ['heartRate', 98]],
   };
   const restore = new Map(); // "crewId:type" → sample that puts the value back on reset
 
@@ -384,6 +407,7 @@ export function createAi(deps) {
     restore.clear();
     cabin.reset();
     store.clear();
+    onAlertsCleared?.();
     run({ silent: true });
     resync();
     if (wasPlaying) broadcastScenario(); // { active: false }: "Simülasyon bitti", values are back to normal

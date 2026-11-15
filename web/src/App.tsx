@@ -35,6 +35,8 @@ interface MissionTask {
   priority: TaskPriority
   completed: boolean
   createdAt: string
+  /** `alert`: a step of an alert, assigned by the relay and removed when the alert is over. */
+  source?: 'manual' | 'alert'
 }
 
 interface CrewMessage {
@@ -658,7 +660,8 @@ function App() {
                           <div className="base-task-content">
                             <div className="base-task-title-line">
                               <strong>{task.title}</strong>
-                              {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
+                              {task.source === 'alert' && <span className="task-priority-tag">SENARYO</span>}
+                            {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
                             </div>
                             {task.details && <p>{task.details}</p>}
                             <span className="base-task-meta">
@@ -1046,7 +1049,8 @@ function App() {
                           <div className="base-task-content">
                             <div className="base-task-title-line">
                               <strong>{task.title}</strong>
-                              {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
+                              {task.source === 'alert' && <span className="task-priority-tag">SENARYO</span>}
+                            {task.priority === 'high' && <span className="task-priority-tag">YÜKSEK</span>}
                             </div>
                             {task.details && <p>{task.details}</p>}
                             <span className="base-task-meta">

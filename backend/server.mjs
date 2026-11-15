@@ -105,6 +105,35 @@ function addSamples(input) {
   return packets;
 }
 
+// ---- Tasks from alerts: the steps of every alert become tasks of the affected astronauts, at the same moment ----
+const publishTask = (action, task) => broadcast('task', { action, task });
+
+function assignAlertTasks(alert) {
+  const items = (alert.advice?.doNow ?? []).slice(0, 3).map((title) => ({ title, details: alert.title }));
+  if (alert.severity === 'red' && alert.advice?.escalate) {
+    items.push({ title: 'Uçuş cerrahına haber ver', details: alert.advice.escalate });
+  }
+  const base = Date.now();
+  for (const crewId of alert.crewIds) {
+    items.forEach((item, index) => {
+      const task = taskStore.upsert({
+        ...item,
+        assigneeId: crewId,
+        priority: alert.severity === 'red' ? 'high' : 'normal',
+        source: 'alert',
+        alertId: alert.id,
+        // The first step is the newest, so every list that shows newest first keeps the steps in order.
+        createdAt: new Date(base + (items.length - index)).toISOString(),
+      }, { crewExists });
+      publishTask('upsert', task);
+    });
+  }
+}
+
+function clearAlertTasks(match) {
+  for (const task of taskStore.removeWhere((t) => t.source === 'alert' && match(t))) publishTask('delete', task);
+}
+
 // ---- AI module (backend/ai/, ADR-0007): proactive alerts, cabin, phone fan-out, chat ----
 const ai = createAi({
   getPackets: () => bundle.astronauts,
@@ -120,6 +149,9 @@ const ai = createAi({
   getOverallStatus: (packet) => getOverallStatus(packet, samples),
   // The playing demo scenario (Senaryolar tab) also goes to /api/stream, so the web and the phones see it on the stream they already read.
   onScenario: (state) => broadcast('scenario', state),
+  onAlert: assignAlertTasks,
+  onAlertResolved: (alert) => clearAlertTasks((t) => t.alertId === alert.id),
+  onAlertsCleared: () => clearAlertTasks(() => true),
   onGuidance: (crewId) => {
     const packet = findPacket(crewId);
     if (packet) broadcast('packet', withStatus(packet));
@@ -611,7 +643,8 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, await createAiGuidance(crewId));
     }
     if (route === 'GET /api/stream') {
-      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+      res.flushHeaders?.();
       res.write(`event: hello\ndata: ${JSON.stringify({ astronauts: bundle.astronauts.map(withStatus), simulation: simulationPayload(), tasks: taskStore.list(), scenario: ai.scenario() })}\n\n`);
       clients.add(res);
       req.on('close', () => clients.delete(res));

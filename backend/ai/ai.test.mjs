@@ -548,6 +548,7 @@ test('high systolic AND diastolic is one "kan basıncı" alert, not two popups',
   applySamples([
     { crewId: 'crew-1', type: 'bloodPressureSys', value: 170, timestamp: 't', source: 'mock' },
     { crewId: 'crew-1', type: 'bloodPressureDia', value: 105, timestamp: 't', source: 'mock' },
+    { crewId: 'crew-1', type: 'heartRate', value: 80, timestamp: 't', source: 'mock' }, // a fast pulse would make it "hypertensive-crisis"
   ]);
   ai.onSamples();
   const bp = ai.alerts({ state: 'active' }).filter((a) => a.scenarioId === 'vital-red' && a.crewIds[0] === 'crew-1');
@@ -854,4 +855,40 @@ test('a cabin scenario also moves every cabin astronaut, but only to amber (the 
   assert.ok(!json.scenario.vitals.some((v) => v.crewId === 'crew-3'), 'crew-3 is not in this cabin');
   assert.ok(json.scenario.cabin.some((c) => c.metric === 'contaminant'));
   await call(ai, 'POST', '/api/ai/demo/reset');
+});
+
+
+// ---- More scenarios from the data we already have (vitals and cabin) ----
+
+for (const [id, scenarioId, scope] of [
+  ['hypertensive-crisis', 'hypertensive-crisis', 'crew'],
+  ['hypoglycemia', 'hypoglycemia', 'crew'],
+  ['eva-exertion', 'eva-exertion', 'crew'],
+  ['radiation-budget', 'radiation-budget', 'crew'],
+  ['cabin-humidity-high', 'cabin-humidity', 'cabin'],
+  ['cabin-overheat', 'cabin-temperature', 'cabin'],
+]) {
+  test(`new scenario ${id}: one red alert with steps, aimed at the right people`, async () => {
+    const { ai } = setup();
+    await call(ai, 'POST', `/api/ai/demo/${id}`, scope === 'crew' ? { crewId: 'crew-1' } : undefined);
+    const hits = active(ai).filter((a) => a.scenarioId === scenarioId);
+    assert.equal(hits.length, 1, `${id} raises exactly one ${scenarioId} alert`);
+    assert.equal(hits[0].scope, scope);
+    assert.equal(hits[0].severity, 'red');
+    assert.ok(hits[0].advice.doNow.length >= 2 && hits[0].advice.escalate.includes('uçuş cerrah') || hits[0].advice.escalate.includes('görev kontrol'));
+    if (scope === 'crew') assert.deepEqual(hits[0].crewIds, ['crew-1']);
+  });
+}
+
+test('every alert hands its steps to the host (onAlert) and tells when it is over (onAlertResolved, onAlertsCleared)', async () => {
+  const seen = { created: [], resolved: [], cleared: 0 };
+  const { ai } = setup({
+    onAlert: (a) => seen.created.push(a.id),
+    onAlertResolved: (a) => seen.resolved.push(a.id),
+    onAlertsCleared: () => { seen.cleared += 1; },
+  });
+  const { json } = await call(ai, 'POST', '/api/ai/demo/cabin-gas-leak');
+  assert.deepEqual(seen.created, json.created);
+  await call(ai, 'POST', '/api/ai/demo/reset');
+  assert.equal(seen.cleared, 1);
 });
