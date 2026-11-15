@@ -45,6 +45,8 @@ class DashboardViewModel: ObservableObject {
     @Published private(set) var latestWatchSymptoms: [String] = []
     @Published private(set) var hasSyncedFromBackend: Bool = false
     @Published var radiationBudgetMsv: Double = 100.0
+    /// Demo scenario from the web "Senaryolar" tab that concerns this astronaut (nil when none plays).
+    @Published private(set) var activeScenario: RelayScenarioState?
 
     // MARK: - Servisler ve Hafıza Yönetimi
     private let telemetryService: TelemetryServiceProtocol
@@ -199,7 +201,10 @@ class DashboardViewModel: ObservableObject {
             for await event in NetworkManager.shared.streamRelayEvents() {
                 guard let self, !Task.isCancelled else { break }
                 switch event {
-                case .hello(let packets, let tasks):
+                case .hello(let packets, let tasks, let scenario):
+                    if let scenario {
+                        self.applyScenario(scenario, crewId: targetCrewId)
+                    }
                     if let tasks {
                         self.applyWebTaskSnapshot(tasks, crewId: targetCrewId)
                     }
@@ -214,9 +219,28 @@ class DashboardViewModel: ObservableObject {
                     }
                 case .tasks(let tasks):
                     self.applyWebTaskSnapshot(tasks, crewId: targetCrewId)
+                case .scenario(let state):
+                    self.applyScenario(state, crewId: targetCrewId)
                 }
             }
         }
+    }
+
+    /// Shows "Simülasyon başladı" once when a web demo scenario starts for this astronaut. The live values themselves
+    /// arrive through the normal `packet` events, and the scenario's alert reaches the Watch through `activeAlerts`.
+    @MainActor
+    private func applyScenario(_ state: RelayScenarioState, crewId targetCrewId: String) {
+        let wasActive = activeScenario != nil
+        activeScenario = state.concerns(crewId: targetCrewId) ? state : nil
+        guard let current = activeScenario, !wasActive else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = current.bannerText
+        content.body = "Değerler \(current.remainingSeconds ?? 15) saniye boyunca canlı değişecek (simüle edilmiş veri)."
+        content.sound = .default
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: "antigravity.scenario.\(current.id ?? "demo")", content: content, trigger: nil)
+        )
     }
 
     /// Lightweight periodic task poll as a safety net alongside live SSE (`event: task`).

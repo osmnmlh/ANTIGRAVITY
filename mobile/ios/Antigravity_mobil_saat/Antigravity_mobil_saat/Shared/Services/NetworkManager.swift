@@ -46,14 +46,18 @@ struct RelayHelloPayload: Codable, Sendable {
     let astronauts: [AstronautHealthPacket]
     /// Absent on relays that predate mission tasks.
     let tasks: [RemoteWebTask]?
+    /// Demo scenario playing when the phone connected (absent on older relays). See docs/scenario-live-sync.md.
+    let scenario: RelayScenarioState?
 }
 
 enum RelayStreamEvent: Sendable {
     /// `tasks` is nil when the relay predates mission tasks.
-    case hello([AstronautHealthPacket], [RemoteWebTask]?)
+    case hello([AstronautHealthPacket], [RemoteWebTask]?, RelayScenarioState?)
     case packet(AstronautHealthPacket)
     case taskChanged(action: String, task: RemoteWebTask)
     case tasks([RemoteWebTask])
+    /// Web "Senaryolar" demo scenario started, ticked or ended (`event: scenario`).
+    case scenario(RelayScenarioState)
 }
 
 private struct TaskToggleBody: Encodable {
@@ -411,7 +415,7 @@ final class NetworkManager {
             guard let payload = try? HealthJSONCodec.decoder.decode(RelayHelloPayload.self, from: jsonData) else {
                 return nil
             }
-            return .hello(payload.astronauts, payload.tasks)
+            return .hello(payload.astronauts, payload.tasks, payload.scenario)
         case "packet":
             guard let packet = try? HealthJSONCodec.decoder.decode(AstronautHealthPacket.self, from: jsonData) else {
                 return nil
@@ -427,6 +431,9 @@ final class NetworkManager {
                 return nil
             }
             return .tasks(tasks)
+        case "scenario":
+            guard let state = RelayScenarioState.decode(from: data) else { return nil }
+            return .scenario(state)
         default:
             return nil
         }
