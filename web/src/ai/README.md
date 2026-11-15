@@ -5,7 +5,7 @@ Everything is Turkish (ADR-0005); strings live in `labels.ts`. API shapes: `shar
 
 | Component | Where | What |
 | --- | --- | --- |
-| `<AlertCenter onOpenAstronaut? onAskAi? placement? />` | **once**, top level of `App.tsx` | Status bar (AI live/offline, 🔊 voice toggle, 🔔 active alerts) + popup. `placement`: `bottom-right` (default, never covers the topbar), `top-right`, or `inline` to put it in your own header. New alert → red: tone + one short phrase, amber: tone only. The popup is compact (title + "Anladım", "AI önerisi", "Astronota git", "AI'a sor"); **"AI önerisi"** opens the written steps / why / when to call the flight surgeon and a "Sesli oku" button |
+| `<AlertCenter onOpenAstronaut? placement? />` | **once**, top level of `App.tsx` | Status bar (AI live/offline, 🔊 voice toggle, 🔔 active alerts) + popup. `placement`: `bottom-right` (default, never covers the topbar), `top-right`, or `inline` to put it in your own header. New alert → red: tone + one short phrase, amber: tone only. The popup is compact (title + "Anladım", "AI önerisi", "Astronota git"); **"AI önerisi"** opens the written steps / why / when to call the flight surgeon and a "Sesli oku" button |
 | `<AiChat />` | cockpit view | Chat about the cabin + whole crew |
 | `<AiChat crewId="crew-1" crewName="Emirhan Gokce" />` | astronaut detail view | Chat about one astronaut; each context keeps its own history |
 | `<DevicesPanel crewNames? />` | cockpit | Connected phones (live), how many the newest alert reached, who acknowledged |
@@ -18,11 +18,10 @@ Everything is Turkish (ADR-0005); strings live in `labels.ts`. API shapes: `shar
 Already mounted in `web/src/App.tsx` (see `docs/ai/INTEGRATION.md`). Generic version:
 
 ```tsx
-import { AiChat, AiDemoControls, AlertCenter, askAi } from './ai'
+import { AiChat, AiDemoControls, AlertCenter } from './ai'
 
 <AlertCenter
   onOpenAstronaut={(crewId) => setSelectedCrew(crewId)}          // your detail-view navigation
-  onAskAi={(a) => askAi(`${a.title}. Şimdi ne yapmalıyız?`)}
 />
 {selectedCrew ? <AiChat crewId={selectedCrew} crewName={name} /> : <AiChat />}
 ```

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import './App.css'
 import { ThreeBodyMap } from './components/ThreeBodyMap'
-import { AiChat, AlertCenter, DevicesPanel, askAi, useAiIndicatorGuidance } from './ai'
+import { AiChat, AlertCenter, DevicesPanel, useAiIndicatorGuidance } from './ai'
 import { ScenariosView } from './ai/ScenariosView'
 import { CrewCockpit } from './components/CrewCockpit'
 import './cosmos-shell.css'
@@ -203,7 +203,7 @@ function TrendChart({ type, samples }: { type: HealthType; samples: HealthSample
 }
 
 function App() {
-  const { samples, connection, simulation, startLiveSimulation, stopLiveSimulation } = useHealthData()
+  const { samples, connection, simulation, scenario, startLiveSimulation, stopLiveSimulation } = useHealthData()
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace>('astronauts')
   const [missionTasks, setMissionTasks] = useState<MissionTask[]>(readMissionTasks)
   const [crewMessages, setCrewMessages] = useState<CrewMessage[]>(readCrewMessages)
@@ -462,7 +462,6 @@ function App() {
           setSelectedCrewId(crewId as typeof selectedCrewId)
           setActiveWorkspace('astronauts')
         }}
-        onAskAi={(alert) => askAi(`${alert.title}. Şimdi ne yapmalıyız?`)}
       />
       <header className="topbar">
         <a className="brand-lockup" href="#dashboard" aria-label="ANTIGRAVITY ana panel">
@@ -590,6 +589,18 @@ function App() {
             </span>
           </div>
         </section>
+
+        {scenario.active && scenario.crewIds?.includes(selectedCrewId) && (
+          <div className="scenario-banner" data-testid="astronaut-scenario-banner" role="status">
+            <span>
+              ▶ Senaryo simülasyonu sürüyor: <strong>{scenario.title}</strong> · {selectedAstronaut.name} için değerler canlı
+              değişiyor (simüle edilmiş veri)
+            </span>
+            <button className="scenarios-link small" onClick={() => setActiveWorkspace('scenarios')} type="button">
+              Canlı verileri aç
+            </button>
+          </div>
+        )}
 
         <section className="dashboard-grid">
           <details className="dashboard-disclosure control-column" data-testid="astronaut-tasks-panel" open>
@@ -808,7 +819,20 @@ function App() {
         </footer>
           </>
         ) : activeWorkspace === 'scenarios' ? (
-          <ScenariosView onOpenBase={() => setActiveWorkspace('base')} />
+          <ScenariosView
+            crewId={selectedCrewId}
+            onCrewChange={(crewId) => {
+              const astronaut = astronautProfiles.find(({ id }) => id === crewId)
+              if (astronaut) setSelectedCrewId(astronaut.id)
+            }}
+            scenario={scenario}
+            onOpenBase={() => setActiveWorkspace('base')}
+            onOpenAstronaut={(crewId) => {
+              const astronaut = astronautProfiles.find(({ id }) => id === crewId)
+              if (astronaut) setSelectedCrewId(astronaut.id)
+              setActiveWorkspace('astronauts')
+            }}
+          />
         ) : (
           <>
             <section className="base-welcome">

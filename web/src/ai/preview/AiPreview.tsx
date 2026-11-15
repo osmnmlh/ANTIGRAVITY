@@ -4,7 +4,7 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import allData from '../../../../shared/mock/all-data.json'
-import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, askAi, useAiState } from '..'
+import { AiChat, AiDemoControls, AlertCenter, DevicesPanel, useAiState } from '..'
 import '../../index.css'
 import '../../App.css'
 
@@ -20,7 +20,6 @@ function Preview() {
     <main style={{ maxWidth: 1100, margin: '0 auto', padding: '72px 16px 32px', display: 'grid', gap: 16 }}>
       <AlertCenter
         onOpenAstronaut={setSelected}
-        onAskAi={(a) => askAi(`${a.title}. Şimdi ne yapmalıyız?`)}
       />
       <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className="ai-btn" aria-pressed={!selected} onClick={() => setSelected(null)}>Kokpit</button>

@@ -46,7 +46,6 @@ export const AI_LABELS = {
   ack: 'Anladım',
   acked: 'Kokpit onayladı',
   openAstronaut: 'Astronota git',
-  askAi: "AI'a sor",
   close: 'Kapat',
   moreAlerts: (n: number) => `+${n} uyarı daha`,
   delivery: (delivered: number, total: number, acked: number) => `📱 ${delivered}/${total} cihaza ulaştı · ✅ ${acked} onay`,

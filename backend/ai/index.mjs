@@ -5,7 +5,7 @@
 //   if (await ai.handle(req, res, url)) return;   // in the host's request handler, before its 404
 //   ai.onSamples(crewIds);                         // after the host stored new health samples
 
-import { createCabin } from './cabin.mjs';
+import { cabinStatus, createCabin } from './cabin.mjs';
 import { evaluate } from './rules.mjs';
 import { createAlertStore, createDevices, createHub } from './alerts.mjs';
 import { createChat } from './chat.mjs';
@@ -30,6 +30,8 @@ const DISCLAIMER = 'Yapay zekâ önerisidir. Demo yazılımıdır, tıbbi cihaz 
  * @param {{ topic?: string, server?: string }} [deps.ntfy]  Optional push for locked phones (ntfy.sh). Default: env NTFY_TOPIC / NTFY_SERVER, off when unset.
  * @param {(packet: object) => 'green'|'amber'|'red'|'missing'} [deps.getOverallStatus]  The engine's overall status of a packet (with the multi-day trend). Default: worst vital.
  * @param {(crewId: string) => void} [deps.onGuidance]  Called after `packet.aiGuidance` of that astronaut was replaced: broadcast the packet to the clients.
+ * @param {(state: object) => void} [deps.onScenario]  Called whenever the playing demo scenario starts, moves or ends: broadcast it to the host's clients.
+ * @param {number} [deps.scenarioTickMs]  How often a playing scenario moves its values (default env DEMO_TICK_MS or 1000; 0 = no ticks).
  * @param {string[]} [deps.cabinCrewIds]  Who is inside the monitored cabin. Default: crew sharing the first packet's mission.
  */
 export function createAi(deps) {
@@ -42,6 +44,7 @@ export function createAi(deps) {
     vitalLabel = (t) => t,
     hazards = [],
     applySamples = null,
+    onScenario = null,
     gemini = {},
     fetchImpl = fetch,
     now = () => new Date(),
@@ -183,7 +186,7 @@ export function createAi(deps) {
 
   const chat = createChat({ context, activeAlerts: () => store.active(), gemini, disclaimer: DISCLAIMER, log, fetchImpl });
 
-  const hello = (c) => ({ cabin: cabin.snapshot(), alerts: hub.filterAlerts(c, store.active()), devices: devices.list() });
+  const hello = (c) => ({ cabin: cabin.snapshot(), alerts: hub.filterAlerts(c, store.active()), devices: devices.list(), scenario: scenarioState() });
   const resync = () => hub.all('hello', hello);
 
   // ---- Demo triggers: readings that fire each scenario (rehearsal + stage) ----
@@ -205,20 +208,124 @@ export function createAi(deps) {
     'individual-hypoxia': { vitals: () => [['spo2', 86]] },
     'fatigue-isolation': { vitals: () => [['sleepHours', 4.5], ['mood', 2]] },
   };
+  // Turkish names of the scenarios: the phone and the watch show "Simülasyon başladı: <title>" with them.
+  const DEMO_TITLES = {
+    'cabin-o2-low': 'Kabin oksijeni düşük',
+    'cabin-gas-leak': 'Kabinde gaz sızıntısı',
+    'cabin-co2-high': 'Kabinde CO2 yüksek',
+    'cabin-pressure-drop': 'Kabin basıncı düşüyor',
+    'cabin-temperature': 'Kabin sıcaklığı aralık dışında',
+    'solar-event': 'Güneş parçacık fırtınası',
+    'power-life-support': 'Yaşam destek gücü arızası',
+    'cabin-hypoxia': 'Kabin kaynaklı oksijen düşüşü',
+    orthostatic: 'Düşük tansiyon ve hızlı nabız',
+    'infection-suspected': 'Enfeksiyon şüphesi',
+    'individual-hypoxia': 'Kişisel oksijen düşüşü',
+    'fatigue-isolation': 'Yorgunluk ve izolasyon',
+  };
+  // A cabin scenario also moves the vitals of everyone in the cabin, so each astronaut's own parameters visibly react.
+  // These stay amber on purpose: the cabin alert already explains them, so they never add a second red alert.
+  const CABIN_VITALS = {
+    'cabin-gas-leak': [['heartRate', 104], ['spo2', 94]],
+    'cabin-co2-high': [['heartRate', 102]],
+    'cabin-pressure-drop': [['heartRate', 102], ['spo2', 94]],
+    'solar-event': [['heartRate', 92]],
+    'cabin-hypoxia': [['heartRate', 104]],
+  };
   const restore = new Map(); // "crewId:type" → sample that puts the value back on reset
 
   // A demo scenario plays for a fixed time (default 15 s) on the web, every phone and every watch, then everything returns
   // to normal through the same reset: the resolved alerts reach the devices in the `hello` that resetDemo() pushes.
+  // While it plays, the values keep moving once a second (ticks) so the change can be followed live everywhere.
   const scenarioMs = Number(process.env.DEMO_SCENARIO_MS ?? 15_000);
+  const tickMs = Number(deps.scenarioTickMs ?? process.env.DEMO_TICK_MS ?? 1000);
   let scenarioTimer = null;
+  let tickTimer = null;
+  let scenario = null; // the scenario that is playing: { id, scope, crewIds, startedAt, endsAt, tracks, cabinTracks }
   const stopScenarioTimer = () => {
     if (scenarioTimer) clearTimeout(scenarioTimer);
+    if (tickTimer) clearInterval(tickTimer);
     scenarioTimer = null;
+    tickTimer = null;
   };
 
   function toSamples(list, crewId) {
     return list.map((s) => (Array.isArray(s) ? { crewId: crewId ?? patient(), type: s[0], value: s[1] } : s))
       .map((s) => ({ ...s, source: 'mock', timestamp: now().toISOString() }));
+  }
+
+  // ---- Live scenario curve: onset at the target value, a slow worsening to a peak, then a slight easing back ----
+  const ROUND = { bodyTemp: 10, sleepHours: 10, radiationDose: 100 };
+  const JITTER = { heartRate: 2, bloodPressureSys: 2, bloodPressureDia: 1, spo2: 0.6, bodyTemp: 0.05, bloodGlucose: 2 };
+  const LIMITS = { spo2: [50, 100], mood: [1, 5], sleepHours: [0, 24] };
+  /** Share of the deviation (baseline → target) at progress p: 1 at onset, 1.2 at the peak, back to 1 at the end. */
+  const curve = (p) => (p < 0.5 ? 1 + 0.4 * p : p < 0.8 ? 1.2 : 1.2 - (p - 0.8));
+  const round = (type, v) => Math.round(v * (ROUND[type] ?? 1)) / (ROUND[type] ?? 1);
+  const progressOf = (t = Date.now()) => (scenario ? Math.min(1, Math.max(0, (t - scenario.startedMs) / scenario.durationMs)) : 0);
+
+  function vitalAt(track, p, jitter) {
+    if (p === 0 || track.from === track.to) return track.to;
+    const raw = track.from + (track.to - track.from) * curve(p) + (jitter ? (Math.random() * 2 - 1) * (JITTER[track.type] ?? 0) : 0);
+    const [lo, hi] = LIMITS[track.type] ?? [0, Infinity];
+    const value = round(track.type, Math.min(hi, Math.max(lo, raw)));
+    // Never change the colour the scenario was designed for: a drift that would turn amber into red (or back) stays on target.
+    const packet = packetOf(track.crewId);
+    return getVitalStatus(track.type, value, packet) === getVitalStatus(track.type, track.to, packet) ? value : track.to;
+  }
+
+  function cabinAt(track, p) {
+    if (p === 0 || typeof track.to !== 'number' || typeof track.from !== 'number') return track.to;
+    const value = Math.round((track.from + (track.to - track.from) * curve(p)) * 10) / 10;
+    return cabinStatus(track.metric, value) === cabinStatus(track.metric, track.to) ? value : track.to;
+  }
+
+  /** What every client shows while a scenario plays (SSE `scenario` on /api/ai/stream and /api/stream, GET /api/ai/scenario). */
+  function scenarioState() {
+    if (!scenario) return { active: false };
+    const p = progressOf();
+    return {
+      active: true,
+      simulated: true,
+      id: scenario.id,
+      title: DEMO_TITLES[scenario.id] ?? scenario.id,
+      scope: scenario.scope,
+      crewIds: scenario.crewIds,
+      startedAt: new Date(scenario.startedMs).toISOString(),
+      endsAt: scenario.durationMs > 0 ? new Date(scenario.startedMs + scenario.durationMs).toISOString() : null,
+      durationMs: scenario.durationMs,
+      remainingMs: scenario.durationMs > 0 ? Math.max(0, Math.round(scenario.durationMs * (1 - p))) : null,
+      progress: Math.round(p * 100) / 100,
+      vitals: scenario.tracks.map((t) => {
+        const m = packetOf(t.crewId)?.measurements?.[t.type];
+        return { crewId: t.crewId, type: t.type, from: t.from, value: m?.value ?? t.to, unit: m?.unit ?? '' };
+      }),
+      cabin: scenario.cabinTracks.map((t) => {
+        const r = cabin.get(t.metric);
+        return { metric: t.metric, from: t.from, value: r?.value ?? t.to, unit: r?.unit ?? '', status: r?.status ?? 'green' };
+      }),
+      disclaimer: DISCLAIMER,
+    };
+  }
+  const broadcastScenario = () => {
+    const state = scenarioState();
+    hub.all('scenario', () => state);
+    onScenario?.(state);
+  };
+
+  /** One live step of the playing scenario: new vitals (as real samples) and cabin values, then the rules run again. */
+  function tick() {
+    if (!scenario) return;
+    const p = progressOf();
+    if (scenario.tracks.length) {
+      applySamples(toSamples(scenario.tracks.map((t) => ({ crewId: t.crewId, type: t.type, value: vitalAt(t, p, true) }))));
+    }
+    const moving = scenario.cabinTracks.filter((t) => typeof t.to === 'number');
+    if (moving.length) {
+      cabin.update(moving.map((t) => ({ metric: t.metric, value: cabinAt(t, p), label: t.label })));
+      hub.all('cabin', () => cabin.snapshot());
+    }
+    run();
+    broadcastScenario();
   }
 
   /** `crewId` picks who a one-astronaut scenario happens to (default: the second crew member, as in the rehearsal guide). */
@@ -231,20 +338,35 @@ export function createAi(deps) {
     if (demo.vitals && !applySamples) {
       throw Object.assign(new Error('vital scenarios need deps.applySamples from the host'), { status: 501 });
     }
+    stopScenarioTimer();
+    const scope = demo.cabin ? 'cabin' : 'crew';
+    const crewIds = scope === 'cabin' ? [...cabinCrewIds] : [crewId ?? patient()];
+    const cabinTracks = (demo.cabin ?? []).map((r) => ({ ...r, from: cabin.get(r.metric)?.value, to: r.value }));
     if (demo.cabin) cabin.update(demo.cabin);
-    if (demo.vitals) {
-      const samples = toSamples(demo.vitals(), crewId);
-      for (const s of samples) {
-        const key = `${s.crewId}:${s.type}`;
-        const prev = getPackets().find((p) => p.astronautId === s.crewId)?.measurements?.[s.type];
-        if (!restore.has(key) && prev) restore.set(key, { crewId: s.crewId, type: s.type, value: prev.value });
-      }
-      applySamples(samples);
+    const targets = [
+      ...(demo.vitals ? toSamples(demo.vitals(), crewId) : []),
+      ...(applySamples && CABIN_VITALS[id]
+        ? toSamples(cabinCrewIds.flatMap((c) => CABIN_VITALS[id].map(([type, value]) => ({ crewId: c, type, value }))))
+        : []),
+    ];
+    const tracks = [];
+    for (const s of targets) {
+      const key = `${s.crewId}:${s.type}`;
+      if (tracks.some((t) => `${t.crewId}:${t.type}` === key)) continue; // the scenario's own value wins over the cabin default
+      const prev = getPackets().find((p) => p.astronautId === s.crewId)?.measurements?.[s.type];
+      if (!restore.has(key) && prev) restore.set(key, { crewId: s.crewId, type: s.type, value: prev.value });
+      tracks.push({ crewId: s.crewId, type: s.type, from: restore.get(key)?.value ?? s.value, to: s.value });
     }
+    if (tracks.length) applySamples(toSamples(tracks.map((t) => ({ crewId: t.crewId, type: t.type, value: t.to }))));
+    scenario = { id, scope, crewIds, startedMs: Date.now(), durationMs: Math.max(0, scenarioMs), tracks, cabinTracks };
     hub.all('cabin', () => cabin.snapshot());
     const result = run();
-    stopScenarioTimer();
+    broadcastScenario(); // "Simülasyon başladı" on every phone and watch, at the same moment as the values
     if (scenarioMs > 0) {
+      if (tickMs > 0) {
+        tickTimer = setInterval(tick, tickMs);
+        tickTimer.unref?.();
+      }
       scenarioTimer = setTimeout(() => {
         scenarioTimer = null;
         resetDemo();
@@ -256,12 +378,15 @@ export function createAi(deps) {
 
   function resetDemo() {
     stopScenarioTimer();
+    const wasPlaying = scenario !== null;
+    scenario = null;
     if (applySamples && restore.size) applySamples(toSamples([...restore.values()]));
     restore.clear();
     cabin.reset();
     store.clear();
     run({ silent: true });
     resync();
+    if (wasPlaying) broadcastScenario(); // { active: false }: "Simülasyon bitti", values are back to normal
   }
 
   // ---- HTTP ----
@@ -317,6 +442,7 @@ export function createAi(deps) {
       return { ok: true };
     }],
     ['GET', /^\/api\/ai\/demo$/, () => Object.keys(DEMOS)],
+    ['GET', /^\/api\/ai\/scenario$/, () => scenarioState()],
     ['POST', /^\/api\/ai\/demo\/reset$/, () => { resetDemo(); return { ok: true }; }],
     ['POST', /^\/api\/ai\/demo\/([\w-]+)$/, async (req, _url, [, id]) => {
       const { crewId } = await readBody(req);
@@ -326,6 +452,7 @@ export function createAi(deps) {
         created: created.map((a) => a.id),
         durationMs: scenarioMs,
         endsAt: scenarioMs > 0 ? new Date(now().getTime() + scenarioMs).toISOString() : null,
+        scenario: scenarioState(),
       };
     }],
   ];
@@ -379,6 +506,9 @@ export function createAi(deps) {
       hub.all('cabin', () => cabin.snapshot());
       run();
     },
+    /** "crewId:type" pairs a playing scenario drives: the host's live jitter must leave them alone. */
+    scenarioLocks: () => new Set(scenario ? scenario.tracks.map((t) => `${t.crewId}:${t.type}`) : []),
+    scenario: () => scenarioState(),
     resetDemo, // same as POST /api/ai/demo/reset; the relay calls it from POST /api/demo/reset
     chat,
     /** Resolves when background work (Gemini advice, ntfy) has finished. */

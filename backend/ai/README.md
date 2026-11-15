@@ -29,6 +29,7 @@ node --experimental-strip-types --test backend/ai/ai.test.mjs      # tests
 
 ```bash
 curl -X POST localhost:8788/api/ai/demo/cabin-gas-leak       # fire a scenario (list: GET /api/ai/demo)
+curl localhost:8788/api/ai/scenario                          # the playing scenario with its live values (SSE `scenario`), see docs/scenario-live-sync.md
 curl -N "localhost:8788/api/ai/stream?deviceId=phone-a&crewId=crew-1"   # what a phone receives
 curl localhost:8788/api/ai/alerts?state=active
 curl -X POST localhost:8788/api/ai/demo/reset

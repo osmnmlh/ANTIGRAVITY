@@ -118,6 +118,8 @@ const ai = createAi({
   // packet.aiGuidance (the "AI önerisi" of the iPhone) is written by the AI module and kept current; this tells it how to
   // read the engine's overall status and how to push the changed packet to the clients.
   getOverallStatus: (packet) => getOverallStatus(packet, samples),
+  // The playing demo scenario (Senaryolar tab) also goes to /api/stream, so the web and the phones see it on the stream they already read.
+  onScenario: (state) => broadcast('scenario', state),
   onGuidance: (crewId) => {
     const packet = findPacket(crewId);
     if (packet) broadcast('packet', withStatus(packet));
@@ -130,7 +132,7 @@ function resetRelay() {
   const payload = resetAllData();
   ai.resetDemo();
   taskStore.clear();
-  broadcast('hello', { astronauts: bundle.astronauts.map(withStatus), simulation: payload, tasks: taskStore.list() });
+  broadcast('hello', { astronauts: bundle.astronauts.map(withStatus), simulation: payload, tasks: taskStore.list(), scenario: ai.scenario() });
   return payload;
 }
 
@@ -353,6 +355,7 @@ function generateLiveTick(targetCrewIds) {
     if (!pkt) continue;
     const b = LIVE_BOUNDS[id] ?? LIVE_BOUNDS['crew-2'];
     const cur = (k) => pkt.measurements[k]?.value;
+    const locked = ai.scenarioLocks(); // values a playing demo scenario drives are left to the scenario
     batch.push(
       { crewId: id, type: 'heartRate', value: stepInt(cur('heartRate') ?? 72, 2, ...b.heartRate), timestamp: ts, source: 'watch' },
       { crewId: id, type: 'bloodPressureSys', value: stepInt(cur('bloodPressureSys') ?? 118, 2, ...b.bloodPressureSys), timestamp: ts, source: 'manual' },
@@ -362,8 +365,9 @@ function generateLiveTick(targetCrewIds) {
       { crewId: id, type: 'bloodGlucose', value: stepInt(cur('bloodGlucose') ?? 95, 2, ...b.bloodGlucose), timestamp: ts, source: 'manual' },
       { crewId: id, type: 'radiationDose', value: Number(((cur('radiationDose') ?? 20) + 0.001).toFixed(3)) /* slow: a fast climb would trip the daily dose-rate trend rule */, timestamp: ts, source: 'mock' },
     );
+    for (let i = batch.length - 1; i >= 0; i--) if (batch[i].crewId === id && locked.has(`${id}:${batch[i].type}`)) batch.splice(i, 1);
   }
-  const updated = addSamples(batch);
+  const updated = batch.length ? addSamples(batch) : [];
   ai.onSamples(); // proactive alerts reach the web and the phones during the simulation too
   for (const p of updated) recordSimulationAlerts(p, 'Canlı Simülasyon');
   broadcast('simulation', simulationPayload());
@@ -608,7 +612,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (route === 'GET /api/stream') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-      res.write(`event: hello\ndata: ${JSON.stringify({ astronauts: bundle.astronauts.map(withStatus), simulation: simulationPayload(), tasks: taskStore.list() })}\n\n`);
+      res.write(`event: hello\ndata: ${JSON.stringify({ astronauts: bundle.astronauts.map(withStatus), simulation: simulationPayload(), tasks: taskStore.list(), scenario: ai.scenario() })}\n\n`);
       clients.add(res);
       req.on('close', () => clients.delete(res));
       return;
