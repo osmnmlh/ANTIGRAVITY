@@ -185,3 +185,11 @@ Projedeki beş temel uzay uçuşu tehlikesi açıklamaları, risk bağlantılar�
 - 🛰️ **CSA — Uzayda Neden Bilimsel Deneyler Yapıyoruz?:** [asc-csa.gc.ca](https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp)
 - 🎥 **Yarışma Tanıtım Videosu:** [YouTube — 2026 NASA Space Apps Challenge](https://www.youtube.com/watch?v=RERG3gEmdC8)
 - 🌐 **Yarışma Portalı:** [NASA Space Apps Challenge 2026](https://www.spaceappschallenge.org/2026/challenges/)
+
+---
+
+## 📜 Lisans
+
+Bu projenin kaynak kodu **ANTIGRAVITY Team** tarafından geliştirilmiştir ve [MIT Lisansı](./LICENSE) ile yayınlanmıştır. © 2026 ANTIGRAVITY Team.
+
+Üçüncü taraf bileşenler (açık kaynak kütüphaneler, NASA / CSA verileri ve görselleri, Apple / Google API'leri) kendi lisans ve kullanım koşullarına tabidir. Bu yazılım bir hackathon demosudur, tıbbi cihaz değildir.
